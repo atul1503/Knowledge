@@ -2,6 +2,9 @@
 
 ### In this we are using django as data provider for the react-app and react router does the routing instead of django.
 
+##### This allows us to protect ourselves from cors and csrf errors.
+
+
 #### First step: 
 Build your react app with ```npm run build```. But for development stage, you can run your react app with its devlopment server. But once you are sure that all react development is done and you are going to deploy then only do the build. Surely, you must be refering to the backend server with its host and port, make sure that the host and port are imported from a sperate file when doing `fetch()` calls. This allows you to change url anytime you want.
 
