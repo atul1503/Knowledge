@@ -29,7 +29,8 @@ This configuration tells django where your index.html file will be. Django calls
 
 Now, in the settings.py , maybe just after the TEMPLATES variable, mention this also:
 
-```STATIC_URL = 'static/'
+```
+STATIC_URL = 'static/'
 
 STATICFILES_DIRS=[
     os.path.join(BASE_DIR, 'build/static'),
