@@ -51,7 +51,7 @@ urlpatterns = [
     re_path(r"^(?:.*)/?$",react_app)
 ]
 ```
-urlpatterns will already be defined from the start. But we have to make sure that all django api calls that our react app has to do, gets to django rest, but to serve the frontend, we define an regex path at the very end in url patterns, which matches anything else. So the order of search here will be , django will first try to match admin/ , if not matched then it will match hello/ , if not matched it will send all requests to react_app view (here react_app is a view which is imported). But this also means that any path not defined by react router, will still reach react router.
+urlpatterns will already be defined from the start. But we have to make sure that all django api calls that our react app has to do, gets to django rest, but to serve the frontend, we define an regex path at the very end in url patterns, which matches anything else. So the order of search here will be , django will first try to match admin/ , if not matched then it will match hello/ , if not matched it will send all requests to react_app view (here react_app is a view which is imported). But this also means that any path not defined by react router, will still reach react router. This regex pattern is very important, `r"^(?:.*)/?$"`, it matches everything.
 
 ## But you might ask how is react_app serving the react app contents?
 
