@@ -2,7 +2,7 @@
 
 This is a repository to document the knowledge I have gained over the course of my life. It doesnot have everything though. Life is big. You don't get to document everything sometimes.
 
-How to tell django  where to serve templates from?
+## How to tell django  where to serve templates from?
 You see this : 
 `TEMPLATES = [
     {
@@ -22,7 +22,7 @@ You see this :
 `
 This configuration tells django where your index.html file will be. Django calls html file as templates.  All of this will already be there in django settings.py file. Just make sure that in the dirs field , specify the folder in which your index.html file will be. BASE_DIR is a directory which is by default set to the directory which contains manage.py file. `build` is the folder which is created by react on `npm run build`. So you just have to copy paste that build folder to the place where you see manage.py.
 
-How to tell django where and when to serve static content?
+## How to tell django where and when to serve static content?
 
 Now, in the settings.py , maybe just after the TEMPLATES variable, mention this also:
 
@@ -39,7 +39,7 @@ The static url variable tells django the url which will be used to directly acce
 static file dirs variable tells django where to look for static files. Inside our build folder that react generates, it provides css and js, so that is the reason why we are including it here. You can include more paths also.
 
 
-How to access paths defined by react router in django?
+## How to access paths defined by react router in django?
 
 By default what happens is that the django sends a not found response when the user requests a path that is not defined by our django project. But we can use this to our advantage to give chance to react router to serve those paths. So in the urls.py have this:
 
@@ -52,7 +52,7 @@ urlpatterns = [
 ` 
 urlpatterns will already be defined from the start. But we have to make sure that all django api calls that our react app has to do, gets to django rest, but to serve the frontend, we define an regex path at the very end in url patterns, which matches anything else. So the order of search here will be , django will first try to match admin/ , if not matched then it will match hello/ , if not matched it will send all requests to react_app view (here react_app is a view which is imported). But this also means that any path not defined by react router, will still reach react router.
 
-`But you might ask how is react_app serving the react app contents? `
+## But you might ask how is react_app serving the react app contents?
 
 in the views.py file , we define a view like this:
 
