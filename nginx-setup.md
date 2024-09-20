@@ -36,4 +36,4 @@ this nginx config allows to serve static files using /static/ path. so when a br
 
 
 
-**Note: host name is the string that comes after `http://` and ends on either port or the path. For example, hostname in `http://videocaption:8000` is videocaption.**
+**Note: host name is the string that comes after `http://` and ends before either port or the path. For example, hostname in `http://videocaption:8000` is videocaption.**
