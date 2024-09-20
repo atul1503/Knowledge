@@ -18,7 +18,7 @@ redis:
 
 here `redis_data` volume is mounted at /data directory of the redis service container.
 
-** dont push files in shared volume in dockerfile . To push files in shared volume, use the facilities provided after docker image build like in entrypoint of docker compose or command in docker compose**. Like this:
+**dont push files in shared volume in dockerfile . To push files in shared volume, use the facilities provided after docker image build like in entrypoint of docker compose or command in docker compose**. Like this:
 
 `
 services:
