@@ -29,3 +29,15 @@ A box is made up of 4 things:
 When you use border-box, the `width` and `height` you set include the content, padding, and borders. So, if you set a box to be 200 pixels wide with border-box, it will remain 200 pixels wide even if you add padding or borders. The browser automatically adjusts the content area to fit within this total size.
 
  You can ofcourse, revert to the default `box-sizing` property but only if you want your `height` and `width` to affect the size of the content area of the box and not the complete box.
+
+
+## 4. So, use below default in your css file.
+
+```
+* {
+  box-sizing: border-box;
+  position: absolute;
+}
+```
+
+If you think there is a design which will cause problems when you use these then don't use it. But this makes making layouts easier.
