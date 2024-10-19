@@ -1,7 +1,7 @@
 
 ## 1. Always use `position: absolute`
 
-`position: absolute` means that the box is placed based on its parent element. It uses the top, left, right, and bottom values to decide where it goes within that parent. 
+`position: absolute` means that the box is placed based on its parent box. It uses the top, left, right, and bottom values to decide where it goes within that parent. 
 
 We often think that a box inside another box will be positioned according to where it is inside the parent box. This setting makes it look like that. However, we can also move the child box outside of the parent box if we want.
 
@@ -11,6 +11,8 @@ When we set `position: absolute` for the child box, it calculates its position f
 - `left: -10px;` means the left side of the child box will be 10 pixels to the left of the parent box.
 
 In this context, "parent" refers to any element that has a position set to `absolute` or `relative`, not `static`.
+
+In this context, "box" and "element" mean the same thing. You can assume them to be a div.
 
 ## 2. For CSS layouts, there are only two factors, how much space will the box take and where will that box be placed.
 
