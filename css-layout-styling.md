@@ -1,17 +1,16 @@
 
 ## 1. Always use `position: absolute`
 
-`position: absolute` means that the box will be placed according to the position of its parent element. The box uses the values for top, left, right, and bottom to determine where it should be positioned within that parent.
-So because we are in the habit of thinking that the box inside another box will be positioned in the parent box according to the position inside parent box, this solution makes it appear like that. But still we have freedom to make the child box go outside the parent box. This is because when `position: absolute` is set for the child, the child uses top,left, right and bottom values calculated from the top left corner of its parent. So if we want to put child outside of the parent we can do something like this: 
-```
-top: -10px;
-left: -10px;
-```
+`position: absolute` means that the box is placed based on its parent element. It uses the top, left, right, and bottom values to decide where it goes within that parent. 
 
-`top: -10px` will ensure that the top side of the child box is -10 pixels from the top side of the parent box towards the downward direction, which means it is 10 pixels above of the top side of the parent box. Similarly, `left: -10px` will ensure that the left side of the child box will be -10 pixels left of the left side of the parent box towards the right direction, which means the left side of the child box will be 10 pixels left of parent's left side.
+We often think that a box inside another box will be positioned according to where it is inside the parent box. This setting makes it look like that. However, we can also move the child box outside of the parent box if we want.
 
-**Here parent means the parent which is either having `position` as `absoute` or `relative` and not `static`.**
+When we set `position: absolute` for the child box, it calculates its position from the top-left corner of its parent. If we want to place the child outside the parent, we can use negative values like this:
 
+- `top: -10px;` means the top of the child box will be 10 pixels above the top of the parent box.
+- `left: -10px;` means the left side of the child box will be 10 pixels to the left of the parent box.
+
+In this context, "parent" refers to any element that has a position set to `absolute` or `relative`, not `static`.
 
 ## 2. For CSS layouts, there are only two factors, how much space will the box take and where will that box be placed.
 
