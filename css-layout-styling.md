@@ -16,6 +16,16 @@ In this context, "box" and "element" mean the same thing. You can assume them to
 
 ## 2. For CSS layouts, there are only two factors, how much space will the box take and where will that box be placed.
 
-We can control position using `position`. Size of the box can be controlled by `height` and `width`. 
+We can control position using `position`. Size of the box can be controlled by `height` and `width`.
 
+## 3. Always use `box-sizing: border-box`
 
+A box is made up of 4 things: 
+1. content area: area where your text is shown.
+2. padding area: distance between the border and your content area.
+3. border area: width of the border of the box.
+4. margin: distance between other boxes surrounding the current box. 
+
+When you use border-box, the `width` and `height` you set include the content, padding, and borders. So, if you set a box to be 200 pixels wide with border-box, it will remain 200 pixels wide even if you add padding or borders. The browser automatically adjusts the content area to fit within this total size.
+
+ You can ofcourse, revert to the default `box-sizing` property but only if you want your `height` and `width` to affect the size of the content area of the box and not the complete box.
