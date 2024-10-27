@@ -23,6 +23,6 @@ to redeploy deployment object of your app. This will force kubernetes to fetch y
 
 ## How to refer to my k8s cluster when I run kubernetes cli tools like `kubectl`?
 
-**Ans** To do this:
+`Ans` To do this:
 1. First install `kubectl` using either `brew` or from `curl`.
 2. Move kubeconfig yaml file to your `$HOME/.kube/config` folder. Or you can export `KUBECONFIG` env variable with the path of your kubeconfig yaml file.
