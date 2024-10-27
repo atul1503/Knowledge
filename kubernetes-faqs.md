@@ -74,9 +74,12 @@ metadata:
     key: value
 spec:
   type: ClusterIP #clusterIP for pod to pod and LoadBalancer for external communications via cloud provided external load balancer .
+  selector:
+    app: myapp # This should match the labels of the Pods you want to expose.
   ports:
     - protocol: TCP #or udp or whatver, TCP alwasy works.
       port: 80 #port of the service.
-      targetPort: #port of the container to which requests will go.
+      targetPort: #port of the pod to which requests will go.
 
 ```
+in service, `spec.selector` is required since you want the service to select pods which it will expose. And this selector doesnot need `matchLabels` and you directly specify labels. `matchSelector` and other matchers are only needed in deployment config.
