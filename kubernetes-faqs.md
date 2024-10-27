@@ -9,3 +9,14 @@
 kubectl apply -f deployment.yaml
 ```
 to redeploy deployment object of your app. This will force kubernetes to fetch your specified image from repository.
+
+## How to monitor status of updates of deployment?
+
+**Ans** We use `kubectl rollout status deployment/my-app` to check the status of changes done to a deployment like whether all replicas have been updated with the new changes or not etc.
+
+## How to rollback?
+**Ans** use `kubectl rollout undo deployment/my-app` to rollback the changes to the latest previous deployment.
+
+## How does kubernetes know of any change?
+
+**Ans** It detects change only when the configuration files that we `apply` with kubectl have some change from the configuration when the last `apply` ran successfully.  
