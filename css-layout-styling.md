@@ -41,3 +41,19 @@ When you use border-box, the `width` and `height` you set include the content, p
 ```
 
 If you think there is a design which will cause problems when you use these then don't use it. But this makes making layouts easier.
+
+## 5. When you don't know the exact coords of children or even their dimensions
+
+```
+.parent{
+  display: flex;
+  flex-direction: row; #or column,column-reverse,row-reverse
+}
+
+.child {
+  flex-grow: 1 #takes up all leftover space, set this to 2 or more to give it more space when other siblings are set to 1.
+}
+```
+
+using `display: flex` on parent leads to children getting laid out either in row ,column or their reverse directions. 
+`flex-grow` will make sure that the child on which it is applied takes up leftover space. If this value is negative, then that will not happen.
