@@ -57,3 +57,7 @@ If you think there is a design which will cause problems when you use these then
 
 using `display: flex` on parent leads to children getting laid out either in row ,column or their reverse directions. 
 `flex-grow` will make sure that the child on which it is applied takes up leftover space. If this value is negative, then that will not happen.
+
+## 6. How to move the text area/content area in the box?
+
+Use `padding`,`padding-left`,`padding-right` etc to adjust the inner padding to make the content area move. But ensure you have `box-sizing:border-box`
