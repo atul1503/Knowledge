@@ -1,4 +1,4 @@
-## Tips, best practices and important info to work with spring security.
+# Tips, best practices and important info to work with spring security.
 
 1. You can disable csrf if using jwt.
 2. Cors need to be enabled. Mobile app wil ignore cors but browser will use the cors security. Just make sure that cors allows all hosts and methods.
