@@ -1,7 +1,7 @@
 ## Tips, best practices and important info to work with spring security.
 
 1. You can disable csrf if using jwt.
-2. Cors need to be enabled. Mobile app wil ignore cors but browser will use the cors security.
+2. Cors need to be enabled. Mobile app wil ignore cors but browser will use the cors security. Just make sure that cors allows all hosts and methods.
 3. Session based auth is where the server keeps track of the session and the  browser automatically sends the session id in a cookie in all requests to the same server.
 4. In Token based auth, the token itself is sufficient for the server to identify or authenticate the user. Tokens are sent to client for storage and the server doesnot store them so that is why token based auth is stateless. Tokens are also not automatically sent by the browser in each request  so the hacker has to find out the token and send it with any harmful request to the same server which is impossible unless they got the token in the transit. To prevent this stealing of token in transit we can use https.
 5. Token have to be sent as a authorization header to the server explicitly with each request.
