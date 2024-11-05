@@ -15,3 +15,35 @@ Even this authentication object is used in authorization process to check if the
 11. In spring security, the filter that is authorizing your paths or request uri path is executed after authentication is done. So the permitAll() or authenticated() are evaluated after authentication is done. Spring always authenticates all requests. If not authenticated using the upstream filters like username and password filter or its replacement then spring automatically authenticates those request with anonymous authentication using anonymous authentication filter.
 12. If the configuration that you have defined says permitAll() for any path then all requests whether properly authenticated or with anonymous authentication is allowed to  access the path. But if is configured with authenticated() then only requests authenticated properly instead of anonymous authentication are allowed to access. There is also a anonymous() method which allows only anonymous authenticated requests to be allowed to access corresponding path.
 13. For jwt, always subclass the once per request filter and in the doFilterInternal method, provide your authentication logic where at the end you set an auhtnetication object in security context and put this context into the security context holder. And put this custom filter at the place of username and password authentication filter. This filter will authenticate requests. This will also allow this custom filter to exist before the anonymous authentication filter.
+
+
+# JWT setup
+
+JWT is the best way to implement security.
+
+## pom.xml dependencies
+
+Make sure to have these dependencies.
+
+```
+<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-api</artifactId>
+			<version>0.11.5</version>
+		</dependency>
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-impl</artifactId>
+			<version>0.11.5</version>
+		</dependency>
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-jackson</artifactId>
+			<version>0.11.5</version>
+		</dependency>
+```
+
