@@ -1,3 +1,5 @@
+## Tips, best practices and important info to work with spring security.
+
 1. You can disable csrf if using jwt.
 2. Cors need to be enabled. Mobile app wil ignore cors but browser will use the cors security.
 3. Session based auth is where the server keeps track of the session and the  browser automatically sends the session id in a cookie in all requests to the same server.
