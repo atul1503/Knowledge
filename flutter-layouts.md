@@ -12,7 +12,7 @@ Flex container is created by `Flex` widget. Flex child is created by `Flexible` 
 
 In layouts, this is only required if you want to set the exact position of children in a parent.
 Use `Stack` as parent and `Positioned` as child. 
-`Positioned` has `top,left,bottom,right` properties to set its position inside the `Stack` parent. Any of its children cannot get out of the stack widget.
+`Positioned` has `top,left,bottom,right` properties to set its position inside the `Stack` parent. Any of its children cannot display itself out of the stack widget. If the child's position is set in such a way that it is supposed to show outside the stack parent, then the child doesnot even render on the screen.
 
 
 ## Thumb rules
@@ -26,3 +26,4 @@ Use `Stack` as parent and `Positioned` as child.
            Container //Your Container that you are trying to have a certain size.
    ```
    With `Positioned` here, you can set both the size(heigth and width) and position(left,right,top,bottom) of the container.
+
