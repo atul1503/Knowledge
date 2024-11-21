@@ -19,3 +19,5 @@ aws_secret_access_key =
 aws_access_key_id =
 aws_secret_access_key = 
 ```
+
+The profile name can be chosen by you. AWS only identifies the key and key id not the profile name.
