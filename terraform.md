@@ -21,4 +21,4 @@ provider "aws" {
 
 version can be any stable version. Obviously, to apply the changes use `terraform init`.
 
-Terraform does not need to start with an entry tf file, it uses all files in the current directory and does it thing. So you can keep any resources,variable in any file you want. But the file extension should be .tf
+Terraform does not need to start with an entry tf file, it uses all files in the current directory and does it thing. So you can keep any resources,variable in any file you want. But the file extension should be .tf .It also uses the tf files in subdirectories also.
