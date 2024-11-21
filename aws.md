@@ -8,3 +8,14 @@ aws_secret_access_key = Orwr8yWoQK7MDENG/bPxRfiCYEXAMPLEANOTHERKEY
 ```
 
 There is also a default profile so that if you don't specify a profile, it will be used.
+
+You can specify multiple profile in the same credentials file, like this:
+```
+[Profile1]
+aws_access_key_id =
+aws_secret_access_key = 
+
+[Profile2]
+aws_access_key_id =
+aws_secret_access_key = 
+```
