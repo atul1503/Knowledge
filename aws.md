@@ -21,3 +21,15 @@ aws_secret_access_key =
 ```
 
 The profile name can be chosen by you. AWS only identifies the key and key id not the profile name.
+
+
+## Where is multiple zones or subnets required
+Zones are like different parts of regions. You specify different zones or availability zone for high availability. 
+Each zone has only subnet.
+Autoscaling group is required because you distribute ec2 instances across multiple zones.
+Load balancer also requires multiple subnets because if one zone is down then LB can route traffic through another zone or subnet.
+
+## How to restrict application instances to only get traffic from load balancer
+
+To make sure that the application ec2 intances only get traffic from the load balancer, then make sure that you add the load balancer's security group to the ingress(inbound) rule in the instance's security group on the specific application port. 
+This will tell the instance's security group to allow all traffic from all instances or services who are using the load balancer's security group(including the load balancer). But with this, make sure that any malicious instances are not configured with the load balancers's security group.
