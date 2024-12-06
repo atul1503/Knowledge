@@ -25,7 +25,7 @@ The datasource should be a state of the widget and you have to add items to it w
 
 You can also do the same for the first widget and check if its visible then put items on the front instead of back.
 
-An example:
+**An example:**
 
 install it with this: `flutter pub add focus_detector`
 now do something like this:
