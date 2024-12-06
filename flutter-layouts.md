@@ -28,6 +28,7 @@ You can also do the same for the first widget and check if its visible then put 
 **An example:**
 
 install it with this: `flutter pub add focus_detector`
+
 now do something like this:
 ```
 ListView.builder(
