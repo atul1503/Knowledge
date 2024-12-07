@@ -19,7 +19,7 @@ If the child's position is set in such a way that it is supposed to show outside
 
 Use `focus_detector` package to do that. With this package installed, you can wrap your widget as a child inside a `FocusDetector` widget. This widget also has a `onVisibilityGained:` argument, which accepts a callback with no arguments and this callback is called when your widget gains visibility. 
 
-So in case of infinite scrolling, create a list view and in the item builder, return this focus detector widget. In the onVisibilityGained arg, pass a callback function which checks if the last widget is being refered by the index of list view then add more items to your data source.  
+So in case of infinite scrolling, create a list view and in the item builder, return this focus detector widget. In the onVisibilityGained arg, pass a callback function which checks if the last widget is being refered by the index of list view then add more items to your data source. In the child of the focus detector widget gives the widget which displays a single item from the datasource.
 
 Also, since there will be multiple elements inside a listview of the same type, you must provide a `key:` to each of the widgets inside the listview.
 
