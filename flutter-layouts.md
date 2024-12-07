@@ -36,6 +36,7 @@ now do something like this:
 ListView.builder(
           itemBuilder: (BuildContext ctx, int index) {
             return FocusDetector(
+                key: Key(arr[index].toString()),
                 onVisibilityGained: () {
                   if (index == arr.length - 1) {
                     addValue(arr[index]); // add more items to the end of the datasource using api calls. 
