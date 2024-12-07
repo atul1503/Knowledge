@@ -19,7 +19,9 @@ If the child's position is set in such a way that it is supposed to show outside
 
 Use `focus_detector` package to do that. With this package installed, you can wrap your widget as a child inside a `FocusDetector` widget. This widget also has a `onVisibilityGained:` argument, which accepts a callback with no arguments and this callback is called when your widget gains visibility. 
 
-So in case of infinite scrolling, create a list view and in the item builder, return this focus detector widget. In the onVisibilityGained arg, pass a callback function which checks if the last widget is being refered by the index of list view then add more items to your data source. 
+So in case of infinite scrolling, create a list view and in the item builder, return this focus detector widget. In the onVisibilityGained arg, pass a callback function which checks if the last widget is being refered by the index of list view then add more items to your data source.  
+
+Also, since there will be multiple elements inside a listview of the same type, you must provide a `key:` to each of the widgets inside the listview.
 
 The datasource should be a state of the widget and you have to add items to it with api calls to the backend.
 
@@ -52,8 +54,9 @@ ListView.builder(
 ## Thumb rules
 
 1. Using stack and postioned, you can create any layout you want, but for standard layouts, always use flex and flexible.
-2. Use `Padding` as parent of the child to which you are trying to give padding.
-3. If you want to set the position and size of a `Container` to certain size and if the sizing of the container is taking up the full space of the container then replace container with a stack and use positioned as one of the children of the stack and then put that container as the child of that positioned. Something like this.
+2. If there are multiple widgets of the same type inside a parent, make sure that for each child gets a unique `key:` value. This ensures that flutter can uniquely identify each widget.
+3. Use `Padding` as parent of the child to which you are trying to give padding.
+4. If you want to set the position and size of a `Container` to certain size and if the sizing of the container is taking up the full space of the container then replace container with a stack and use positioned as one of the children of the stack and then put that container as the child of that positioned. Something like this.
 
    ```
      Stack
