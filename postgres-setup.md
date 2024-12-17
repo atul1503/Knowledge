@@ -31,3 +31,5 @@ spring.datasource.username=chatter
 spring.datasource.password=chatter
 spring.datasource.driver-class-name=org.postgresql.Driver
 ```
+
+Here, `test-db.czcs0wqyuzvl.eu-north-1.rds.amazonaws.com` is your rds instance dns name or url.
