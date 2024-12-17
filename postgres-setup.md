@@ -17,3 +17,17 @@ spring.jpa.properties.hibernate.default_schema=my_schema
 Basically all you schema for your database will be created in this schema.
 
 This is required because sometimes, java complains that it doesnot have access to public schema. Instead of providing access to public schema create your own schema.
+
+
+
+If you are using spring boot, have this in `application.properties` file:
+
+```
+spring.application.name=Chatter
+spring.datasource.url=jdbc:postgresql://test-db.czcs0wqyuzvl.eu-north-1.rds.amazonaws.com:5432/chatter
+spring.jpa.properties.hibernate.default_schema=chatter
+spring.jpa.hibernate.ddl-auto=update
+spring.datasource.username=chatter
+spring.datasource.password=chatter
+spring.datasource.driver-class-name=org.postgresql.Driver
+```
