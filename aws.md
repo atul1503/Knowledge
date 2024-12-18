@@ -35,6 +35,15 @@ To make sure that the application ec2 intances only get traffic from the load ba
 This will tell the instance's security group to allow all traffic from all instances or services who are using the load balancer's security group(including the load balancer). But with this, make sure that any malicious instances are not configured with the load balancers's security group. 
 
 
+## How to create an IAM role and give access to a user,service or instance.
+
+Create a role with trust policy. In that policy action should be `sts:AssumeRole`. In the principal, provide what service type, user or group can assume this role. Then create an access policy where you define the permissions where action is the set of permissions allowed by this policy. Also specify the resource on which you can to do this action. Do this by specifying the arn of those resources. Effect will be allow. Now for mentioned principal to assume this role, there are several methods. For ec2,they have to call `aws sts assume-role` and specify the arn of the role, aws will return the access key id and secret access key and session token. Put all this in the crendentials file or export it as an env variable. Now this principal has assumed the role.
+
+
+In trust policy, you specify using principal who can assume this role. It can user, group or service.
+A policy becomes a trust policy only when in the action you provide `sts:AssumeRole`.
+The access policy should be attached to the role, to allow the principal entity to access whatever actions are allowed by access policy.
+
 
 # Services
 
