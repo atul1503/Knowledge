@@ -25,7 +25,7 @@
    val Name: ProvidableCompositionLocal<String> = compositionLocalOf{"Atul"}
    ```
    Here, String is the type of your state and `Atul` is its default value.
-   This variable can be independant of any activity for convinience. Better declare these states in a seperate `.kt` file. 
+   This variable can be independant of any activity for convinience. Better declare these states in a seperate `.kt` file. Here I declared it in seperate State object.
 
 2. Inside the `setContent` call of your `onCreate()` method, call `CompositionLocalProvider()` function, which will actually provide the value for the `ProvidableCompositionLocal<T>` object that we declared in step 1.
 
