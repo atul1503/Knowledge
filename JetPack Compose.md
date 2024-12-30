@@ -1,4 +1,4 @@
-1. You declare UI using `Composable` annotated functions.
+1. You declare UI using `@Composable` annotated functions. These functions are called composables. These are similar to widgets in flutter.
 2. Inside each composable function, you can call other composable functions to declare your UI in a declarative format.
    ```
      @Composable
@@ -18,7 +18,7 @@
 
 3. You cannot call composable function from a non composable function. Only exception is the `setContent` inside the `onCreate` method of an activity class. That means you cannot call composable function from event handlers like onClick.
 
-4. ## How to declare global or scoped state for your app.
+4. ## How to declare readonly global or scoped state for your app.
    
    1. Declare an object of type `ProvidableCompositionLocal<T>` which you will later use to access the state value using the `current` property of this object.
       ```
@@ -47,3 +47,79 @@
 
 
 5. Objects like `CompositionLocal` exist so that they can be accessed by full heirarchy of all composables who have access to the object. But `Provider`s exist to provide different values for the same `CompositionLocal` which is how you provide scoped and global states.
+
+## How to create mutable state for your activity
+
+1. Declare a `ViewModel` class seperately and put data for your state in it.
+   ```
+      class StateViewModel: ViewModel() {
+       private val _name= mutableStateOf("Tikku")
+       private val _age= mutableStateOf(25)
+   
+       var name=_name
+       var age=_age
+   
+       fun updateName(newName: String){
+           _name.value=newName
+           name=_name
+       }
+   
+       fun updateAge(newAge: Int){
+           _age.value=newAge
+           age=_age
+       }
+   }
+   ```
+   Here, name and age are the data that is stored in this view model.
+   We have two `val` variables declared for both. One variable `_age` and `_name` which are objects of type `MutableState<T>` which actually store data.
+   And there are other two `var` variables, which are `age` and `name` which are just copies of the `MutableState<T>` objects explained previously.
+
+   We will use the `var` variables to read the `MutableState<T>` objects in our composables.
+
+   We also have defined function inside the viewModel which when called updates the respective state variables.
+
+   So, in our viewmodel we define the state variables, and then we define the functions which will change them. That's it.
+
+   `MutableState<T>` objects are special type of objects that observe which composables read them and when they are updated, they re-compose those composables. That is why `MutableState<T>` objects are called observables in reactive programming. They implement `Observable` interface.
+
+
+2. Inside the `setContent` of an activity, just create an object of your `ViewModel` class and pass this object to each composable in the heirarchy.
+
+   ```
+   setContent {
+
+            val viewModel=StateViewModel()
+            MyApp(viewModel)
+                
+   }
+   ```
+   Keep passing this view model object to every child composable to have them access to the viewModel.
+   ```
+   @Composable
+        fun MyApp(viewModel: StateViewModel) {
+            Column {
+                Greeting(viewModel)
+
+                SecondGreeting(viewModel)
+            }
+
+   }
+   ```
+   With this `ViewModel` object, they can access the value of `MutableState<T>` objects that are part of it, like this:
+   ```
+   @Composable
+   fun SecondGreeting(viewModel: StateViewModel) {
+       println("rendered second greeting")
+       Text("bye ${viewModel.age.value}")
+       Button(onClick = {
+           viewModel.age.value+=1
+       }) {
+   
+           Text("Add age")
+       }
+   }
+
+   ```
+   Here, you can see that the composables are able to view the value of the `_age` mutable state object with `viewModel.age.value` as `age` is just a variable that is pointing to `_age` object itself.
+   The `_age` mutable state object views this that `SecondGreeting` composable reads its value, so whenever `_age.value` is changed, it re-composes the `SecondGreeting` composable.
+   
