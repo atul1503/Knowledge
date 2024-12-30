@@ -18,7 +18,7 @@
 
 3. You cannot call composable function from a non composable function. Only exception is the `setContent` inside the `onCreate` method of an activity class. That means you cannot call composable function from event handlers like onClick.
 
-   ## How to declare global or scoped state for your app.
+4. ## How to declare global or scoped state for your app.
    
    1. Declare an object of type `ProvidableCompositionLocal<T>` which you will later use to access the state value using the `current` property of this object.
       ```
@@ -46,4 +46,4 @@
    3. You can declare more composables along with the `Greeting` composable. If you want to do that, just call those composables after or before `Greeting` in the same lambda function required by `CompositionLocalProvider`.
 
 
-4. Objects like `CompositionLocal` exist so that they can be accessed by full heirarchy of all composables who have access to the object. But `Provider`s exist to provide different values for the same `CompositionLocal` which is how you provide scoped and global states.
+5. Objects like `CompositionLocal` exist so that they can be accessed by full heirarchy of all composables who have access to the object. But `Provider`s exist to provide different values for the same `CompositionLocal` which is how you provide scoped and global states.
