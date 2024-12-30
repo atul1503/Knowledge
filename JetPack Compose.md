@@ -14,7 +14,7 @@
          }
      }
    ```
-  Here, Text() and Button is also a composable function.
+  Here, `Text` and `Button` is also a composable function.
 
 3. You cannot call composable function from a non composable function. Only exception is the `setContent` inside the `onCreate` method of an activity class. That means you cannot call composable function from event handlers like onClick.
 
