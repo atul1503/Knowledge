@@ -25,7 +25,7 @@
    val Name: ProvidableCompositionLocal<String> = compositionLocalOf{"Atul"}
    ```
    Here, String is the type of your state and `Atul` is its default value.
-   This variable can be independant of any activity for convinience. Better declare these states in a seperate `.kt` file. Here I declared it in a seperate `State` object as
+   This variable can be independant of any activity for convinience. Better declare these states in a seperate `.kt` file. Here, I declared it in a seperate `State` object as
    ```
    object State {
     val Name: ProvidableCompositionLocal<String> = compositionLocalOf{"Atul"}
