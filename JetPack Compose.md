@@ -71,7 +71,7 @@
    }
    ```
    Here, name and age are the data that is stored in this view model.
-   We have two `val` variables declared for both. One variable `_age` and `_name` which are objects of type `MutableState<T>` which actually store data.
+   We have two `val` variables declared for both. One type of variables `_age` and `_name` which are objects of type `MutableState<T>` which actually store data.
    And there are other two `var` variables, which are `age` and `name` which are just copies of the `MutableState<T>` objects explained previously.
 
    We will use the `var` variables to read the `MutableState<T>` objects in our composables.
