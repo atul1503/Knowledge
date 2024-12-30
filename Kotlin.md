@@ -36,14 +36,14 @@
     ```
 12. Also, functions can take in lambda functions as arg, usually they are last args to a function:
 
-```
-func myFunc(myval: Int,callthis: () -> Unit): Unit //myfunc takes an integer and a lambda function
-```
+   ```
+   func myFunc(myval: Int,callthis: () -> Unit): Unit //myfunc takes an integer and a lambda function
+   ```
 
-So to call this, you do this:
-
-```
-myFunc(5) { //some shit }
-```
-So this `{ //someshit }` is a lambda function that you are passing to `myFunc`
+   So to call this, you do this:
+   
+   ```
+   myFunc(5) { //some shit }
+   ```
+   So this `{ //someshit }` is a lambda function that you are passing to `myFunc`
   
