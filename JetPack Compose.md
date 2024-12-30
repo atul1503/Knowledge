@@ -76,7 +76,7 @@
 
    We will use the `var` variables to read the `MutableState<T>` objects in our composables.
 
-   We also have defined function inside the viewModel which when called updates the respective state variables.
+   We also have defined functions inside the viewModel which when called update the respective state variables.
 
    So, in our viewmodel we define the state variables, and then we define the functions which will change them. That's it.
 
