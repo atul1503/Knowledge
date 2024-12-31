@@ -134,7 +134,7 @@ Box(modifier = Modifier.size(width = 400.dp, height = 400.dp).background(color =
         Text(text = "2", modifier = Modifier.offset(x=300.dp,y=100.dp))
 }
 ```
-Here, for the `Box` and the `Text` composables inside it have their `modifier` set and since each modification returns the same modifier you can expect that the modification are applied in the same order that you declare. For the `Box` here, size is set first, then background color is set. 
+Here, for the `Box` and the `Text` composables inside it have their `modifier` set and since each modification returns the same modifier you can chain modifications and expect that the modifications are applied in the same order that you declare. For the `Box` here, size is set first, then background color is set. 
 
 You can use `offset` to postion children wherever you like. Here offset will allow you to offset that much from its original localtion. For eg, here, first `Text` is moved 100 dp to the right and 100 dp down from its original position. 
 
