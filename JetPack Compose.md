@@ -149,9 +149,9 @@ This is done using `align()` method on modifier. Align accepts all these positio
 Text(text = "2", modifier = Modifier.align(Alignment.TopEnd))
 ```
 This is for top-right.
-For top left, you have `Alignment.TopStart`
-For bottom left, you have `Alignment.BottomLeft` 
-...etc
+* For top left, you have `Alignment.TopStart`
+* For bottom left, you have `Alignment.BottomLeft` 
+* ...etc
 
 
 6. Since composables can be modified with modifiers and modifiers can be different for different order of modifications, you can do really complex things.
