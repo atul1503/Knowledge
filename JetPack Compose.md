@@ -18,7 +18,7 @@
 
 3. You cannot call composable function from a non composable function. Only exception is the `setContent` inside the `onCreate` method of an activity class. That means you cannot call composable function from event handlers like onClick.
 
-4. ## How to declare readonly global or scoped state for your app.
+## How to declare readonly global or scoped state for your app.
    
    1. Declare an object of type `ProvidableCompositionLocal<T>` which you will later use to access the state value using the `current` property of this object.
       ```
@@ -122,4 +122,41 @@
    ```
    Here, you can see that the composables are able to view the value of the `_age` mutable state object with `viewModel.age.value` as `age` is just a variable that is pointing to `_age` object itself.
    The `_age` mutable state object views this that `SecondGreeting` composable reads its value, so whenever `_age.value` is changed, it re-composes the `SecondGreeting` composable.
-   
+
+## How to perform basic layouts
+
+### For custom positioning of children inside a parent, use `Box` and put its children inside it.
+Each UI composable has a `modifier` constructor arg which you can use to modify its ui. But this modifer applies modification based on the order of modifications applied. This order matters a lot. For eg, set position and size first then modify background and borders otherwise it might lead to very unexpected behaviours.
+For eg:
+```
+Box(modifier = Modifier.size(width = 400.dp, height = 400.dp).background(color = Color.Blue)){
+        Text(text = "1", modifier = Modifier.offset(x=100.dp,y=100.dp).background(color = Color.Red).size(80.dp))
+        Text(text = "2", modifier = Modifier.offset(x=300.dp,y=100.dp))
+}
+```
+Here, for the `Box` and the `Text` composables inside it have their `modifier` set and since each modification returns the same modifier you can expect that the modification are applied in the same order that you declare. For the `Box` here, size is set first, then background color is set. 
+
+You can use `offset` to postion children wherever you like. Here offset will allow you to offset that much from its original localtion. For eg, here, first `Text` is moved 100 dp to the right and 100 dp down from its original position. 
+
+The original position of all composables is exactly at the top left corner of its parent.
+
+
+### For simple positioning
+
+By simple positioning, I mean, put children at predefined places like bottom-left,bottom-right,top-left,top-right,center,top-center,bottom-center.
+This is done using `align()` method on modifier. Align accepts all these positions as:
+```
+Text(text = "2", modifier = Modifier.align(Alignment.TopEnd))
+```
+This is for top-right.
+For top left, you have `Alignment.TopStart`
+For bottom left, you have `Alignment.BottomLeft` 
+...etc
+
+
+6. Since composables can be modified with modifiers and modifiers can be different for different order of modifications, you can do really complex things.
+
+For eg, since, there is no simple way to position child from the top right corner of the parent, using the power of order of modifications, you can align the child to the top right corner of the parent and then apply offset using negative x axis value:
+```
+Text(text = "1", modifier = Modifier.align(Alignment.TopEnd).offset(x=-100.dp,y=200.dp).background(color = Color.Red))
+```
