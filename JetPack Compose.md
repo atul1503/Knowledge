@@ -200,5 +200,7 @@ In animation,
 * A is always trying to become equal to B. If you change B, A will also start to become equal to this new B.
 * We cannot control what should be A's value at any time, but we can change B anytime if we declare B as a state variable.
 
+Here, in the above example, we are changing B in the onClick event handler.
+
  
 How long does it take A to become B, that we can define by providing `animationSpec` arg of `animate*AsState`. This takes an object called `tween` which describes how A becomes B.
