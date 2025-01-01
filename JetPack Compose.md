@@ -166,7 +166,9 @@ Text(text = "1", modifier = Modifier.align(Alignment.TopEnd).offset(x=-100.dp,y=
 
 To animate most types of values, you can use `animate*AsState` function. Here, `*` can be replaced by `Color`,`Int`,`Double` etc. More of these types are there. Search when you need them.
 
-This function returns a state object of type that is specified by that `*`. You can put this value to any place where you use. For eg, if you animate color then put this value in `Modifier.background(color)`.
+This function returns a state object of type that is specified by that `*`. You can put this value to any place where you use. For eg, if you animate color then put this value in `Modifier.background(color=color.value)`.
+
+Here, `color` is the object created by `animateColorAsState` function.
 
 For example, see this code: 
 ```
