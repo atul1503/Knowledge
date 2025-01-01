@@ -160,3 +160,43 @@ For eg, since, there is no simple way to position child from the top right corne
 ```
 Text(text = "1", modifier = Modifier.align(Alignment.TopEnd).offset(x=-100.dp,y=200.dp).background(color = Color.Red))
 ```
+
+
+## How to have simple value animations
+
+To animate most types of values, you can use `animate*AsState` function. Here, `*` can be replaced by `Color`,`Int`,`Double` etc. More of these types are there. Search when you need them.
+
+This function returns a state object of type that is specified by that `*`. You can put this value to any place where you use. For eg, if you animate color then put this value in `Modifier.background(color)`.
+
+For example, see this code: 
+```
+var targetColor by remember {
+        mutableStateOf(Color.Red)
+    }
+    val color= animateColorAsState(targetValue = targetColor, animationSpec = tween(durationMillis = 2000) )
+
+    Box(modifier = Modifier.background(color = color.value)){
+        Button(onClick = {
+            if(targetColor == Color.Red){
+                targetColor=Color.Blue
+            }
+            else{
+                targetColor=Color.Red
+            }
+        }) {
+            Text(text = "Click me")
+        }
+    }
+```
+Here, `color` variable is the Animated State object of type `Color`. 
+In animation, 
+* There are two values, A and B.
+* A is a value that is trying to become equal to B, but not immediately.
+* A tries to become equal to B but eventually.
+* Here, `B is targetValue` and `A is color.value`
+* `color.value` is trying to become equal to `targetValue`.
+* A is always trying to become equal to B. If you change B, A will also start to become equal to this new B.
+* We cannot control what should be A's value at any time, but we can change B anytime if we declare B as a state variable.
+
+ 
+How long does it take A to become B, that we can define by providing `animationSpec` arg of `animate*AsState`. This takes an object called `tween` which describes how A becomes B.
