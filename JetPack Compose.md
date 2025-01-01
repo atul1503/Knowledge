@@ -192,7 +192,7 @@ Here, `color` variable is the Animated State object of type `Color`.
 In animation, 
 * There are two values, A and B.
 * A is a value that is trying to become equal to B, but not immediately.
-* A tries to become equal to B but eventually.
+* A eventually becomes equal to B.
 * Here, `B is targetValue` and `A is color.value`
 * `color.value` is trying to become equal to `targetValue`.
 * A is always trying to become equal to B. If you change B, A will also start to become equal to this new B.
