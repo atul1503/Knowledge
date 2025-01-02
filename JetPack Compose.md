@@ -123,6 +123,8 @@
    Here, you can see that the composables are able to view the value of the `_age` mutable state object with `viewModel.age.value` as `age` is just a variable that is pointing to `_age` object itself.
    The `_age` mutable state object views this that `SecondGreeting` composable reads its value, so whenever `_age.value` is changed, it re-composes the `SecondGreeting` composable.
 
+For each activity, you can keep seperate view models.
+
 ## How to perform basic layouts
 
 ### For custom positioning of children inside a parent, use `Box` and put its children inside it.
@@ -223,3 +225,4 @@ fun AnimateHolder(animateViewModel: AnimateViewModel){
 }
 ```
 Here as you can see, we are referencing the value of `MutableState<Offset>` in the `targetValue` arg as `animateViewModel.b1TargetOffset.value`.`animateViewModel` is the viewmodel.`b1TargetOffset` is the target state. This `MutableState<Offset>` is declared in a view model. Since this is a mutable state and is stored in a view model we can access and change it anywhere we want.
+I would say its best if you have two seperate view models for animation and data and pass each of these models to every composable in your activity.
