@@ -204,3 +204,22 @@ Here, in the above example, we are changing B in the onClick event handler.
 
  
 How long does it take A to become B, that we can define by providing `animationSpec` arg of `animate*AsState`. This takes an object called `tween` which describes how A becomes B.
+
+
+## How to control animations globally or centrally
+
+Since it is pointless in most cases to control the animation state directly since you can control the target state itself.
+So, to control the animation centrally or globally, you can put animation target states in a viewModel itself. And reference those target states in the `targetValue` arg itself.
+Like this:
+```
+@Composable
+fun AnimateHolder(animateViewModel: AnimateViewModel){
+    val offset=animateOffsetAsState(targetValue = animateViewModel.b1TargetOffset.value, animationSpec = tween(durationMillis = 6000))
+    Box(modifier = Modifier
+        .offset(x = offset.value.x.dp, y = offset.value.y.dp)
+        .background(color = Color.Green)
+        .size(80.dp))
+
+}
+```
+Here as you can see, we are referencing the value of `MutableState<Offset>` in the `targetValue` arg as `animateViewModel.b1TargetOffset.value`.`animateViewModel` is the viewmodel.`b1TargetOffset` is the target state. This `MutableState<Offset>` is declared in a view model. Since this is a mutable state and is stored in a view model we can access and change it anywhere we want.
