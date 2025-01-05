@@ -79,6 +79,12 @@ In jetpack compose, you would write like this:
 val scope=CoroutineScope(Dispatchers.IO)
 val state= remember { mutableStateOf(55) }
 
-Button(onClick= {}) { Text("Click me") }
+Button(onClick= {
+   scope.launch {
+      state.value++
+      println("${state.value}")
+}
+ }) { Text("Click me") }
 ```
-  
+
+As you can see that the variables declared in the scope where the `scope` `CoroutineScope` object was created, are also accessible in the lambda function passed to the launch method as part of closure.
