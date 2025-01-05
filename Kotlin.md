@@ -46,4 +46,39 @@
    myFunc(5) { //some shit }
    ```
    So this `{ //someshit }` is a lambda function that you are passing to `myFunc`
+
+
+## Working with coroutines
+
+`Coroutine`s help you to execute lambda functions in different threads. But instead of specifying or creating threads of diffrent types, you specify `Dispatchers` type while creating a `CoroutineScope` or `launch`ing an already created coroutine.
+
+This is how you create a `Coroutine`:
+```
+val scope = CoroutineScope(Dispatchers.IO) 
+```
+This creates a `CoroutineScope` which means the coroutine that will be launched later, will use this scope. Scope here means that all the variables and objects accessible in the current code(where this scope is created) will also be accessible in the coroutine code(the lambda function that will be called in the coroutine or thread). 
+
+The `Dispatchers.IO` here means that the coroutine code will only be called in threads which are I/O related threads and different from the main thread. There are 3 or 4 types of `Dispatcher`s.
+
+Now, to specify the lambda function for you coroutine, do this:
+```
+scope.launch {
+\\ this is your lambda function for the coroutine which will run in a seperate thread
+}
+```
+
+So, the `launch` function requires a lambda function which will be called on seperate thread. The `launch` function also accepts a `Dispatcher` argument which specifies the type of dispatcher to use. This is only if you want to use different dispatcher for your code than the default. The default is the dispatcher you specified while creating the `CoroutineScope`. 
+
+* The IO dispatcher and other types of dispatcher run on different thread than the main thread so they dont block the main thread. But if by mistake or on purpose you are using the main dispatcher, the functions you can call in your lambda can only be `suspend` functions.
+
+* `suspend` functions are functions that can pause their execution and resume it later.
+
+
+In jetpack compose, you would write like this:
+```
+val scope=CoroutineScope(Dispatchers.IO)
+val state= remember { mutableStateOf(55) }
+
+Button(onClick= {}) { Text("Click me") }
+```
   
