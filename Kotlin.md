@@ -88,3 +88,6 @@ Button(onClick= {
 ```
 
 As you can see that the variables declared in the scope where the `scope` `CoroutineScope` object was created, are also accessible in the lambda function passed to the launch method as part of closure.
+
+
+* In kotlin or whatever programming language which has concept of closures, the closure stores the memory address of the variable itself so that we can reference them directly and correctly in callbacks and lambda functions. This also means that we are reading their actual values and not their stale values. If the variable value is changed, that is also reflected in the callback or lambda function. 
