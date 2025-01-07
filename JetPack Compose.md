@@ -248,4 +248,85 @@ implementation "androidx.room:room-ktx:$room_version"
 // other dependencies
 ```
 
+* For defining entities, declare them as data class with `@Entity` annotation:
+```
+@Entity(tableName = "Person")
+data class Person(
+    @PrimaryKey(autoGenerate = true)
+    val id: Int = 0,
+    val name: String,
+    val age: Int
+)
+```
 
+* Create a interface with `Dao` annotation and annotate each method with different operation annotations:
+```
+@Dao
+interface PersonDao {
+    @Insert
+    fun insertPerson(person: Person): Long
+
+    @Delete
+    fun deletePerson(person: Person)
+
+    @Update
+    fun updatePerson(person: Person)
+
+    @Query("SELECT * FROM Person WHERE id = :uid")
+    fun getPerson(uid: Int): Person
+}
+
+```
+`@Insert`: for inserting. Method needs entity object.
+`@Delete`: for deleting. Method needs entity object.
+`@Update`: for updating. Methods need entity object.
+`Query`: for performing custom query which includes, select, delete ,update etc. You can pass any arg which can be accessed in the query with `:nameOfArg`. 
+All of these methods don't need return types.
+
+Dao means data access object. You should get this object to perform operations on database. Room uses the method signature to automatically implement class during runtime for this interface.
+
+* Create the database abstract class: 
+```
+@Database(entities = [Person::class], version = 1)
+abstract class AppDatabase: RoomDatabase(){
+    abstract fun personDao(): PersonDao
+}
+```
+
+An instance of this class when created represents the database. This abstract class will be implemented by Room during runtime.
+
+@Database annotation defines what entities you have for this database. This is required to specify which entity should be part of this database.
+This class needs a method signature to get the dao assicated with this database. This also means that you can get the dao object from object of this class using this method to perform operations on this database.
+
+* Create a static object of this database in your code where you want to access the database:
+```
+object DatabaseProvider {
+    @Volatile
+    private var instance: AppDatabase? = null
+    public fun getDatabase(context: Context): AppDatabase {
+        return instance ?: synchronized(this) {
+            val db = Room.databaseBuilder(
+                context.applicationContext,
+                AppDatabase::class.java,
+                "person_database"
+            ).build()
+            instance = db
+            db
+        }
+    }
+}
+```
+
+This is an `object` since you only need one object of it in your entire application and can use it anywhere in your application.
+
+`@Volatile` annotation is used in multi threaded programs in kotlin to make sure that whatever variable or object has this annotation, its latest value will always be updated to all the threads that use it. This is made sure by language itself. We just need to annoate the variable with this.
+
+`getDatabase` method will get the database object.
+`Room.databaseBuilder()` creates the database object. It uses the context of the application so that the database can be stored in the application internal storage.
+It also needs the class object of the database class we defined earlier to get the information about the database like what interface or abstract classes to implement and create assocated objects from them.
+Lastly, it also needs the name of the dabase file that will generate for this. Here, `person_database`.
+Calling `build()` starts all this process of creation.
+`synchronized` keyword on a method is used to make sure that only thread can call this function at a time.
+`B = A ?: C()` this ensure that  set value of `B` to `A` if `A` is not null. If `A` is null, then execute `C()` function and set the value of `B` to what `C()` returns.
+
+All this is to ensure that in a multi threaded application, only one instance of the database is created and used.
