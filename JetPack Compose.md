@@ -226,3 +226,25 @@ fun AnimateHolder(animateViewModel: AnimateViewModel){
 ```
 Here as you can see, we are referencing the value of `MutableState<Offset>` in the `targetValue` arg as `animateViewModel.b1TargetOffset.value`.`animateViewModel` is the viewmodel.`b1TargetOffset` is the target state. This `MutableState<Offset>` is declared in a view model. Since this is a mutable state and is stored in a view model we can access and change it anywhere we want.
 I would say its best if you have two seperate view models for animation and data and pass each of these models to every composable in your activity.
+
+## How to setup database in jetpack compose
+In android ,for database, you need `Room` which is the ORM for sqlite. Room can directly create database and perform crud and queries.
+
+To setup room, you need to have these changes in the `build.gradle` in your project module.
+* Add this plugin to handle annotations in kotlin, as kotlin doesnot handle annotations.
+  ```
+  plugins {
+   // other plugins
+   id 'kotlin-kapt'
+  }
+  ```
+* You need these dependencies for room:
+```
+def room_version = "2.5.0"
+
+implementation "androidx.room:room-runtime:$room_version"
+kapt "androidx.room:room-compiler:$room_version"
+implementation "androidx.room:room-ktx:$room_version"
+```
+
+
