@@ -1,6 +1,9 @@
 ## How to do pointer scanning to find pointers to your addresses
 Pointer maps are files that cheat engine generates that helps in pointer scanning. You have to generate more than one pointer maps to help with pointer scans. Pointer maps are actually representation of all the pointers who are pointing to an address. Pointer maps can be stored in files for later use. During pointer scans, you can select cheat engine to refer to these pointer maps and also the address which was used to generate the pointer map, to find pointers to your target address.
 
+Pointer scan is a process in cheat engine that uses the pointer maps and the address from which you created those pointer map to find pointers that always point to your address even if you restart the game.
+
+
 For eg, If you want to know the pointers to the health of the player. These are the steps: 
 * First find it by using memory scan or using instructions. Name this address as `Health 1`
 * Generate a pointer map using this address and save it with  suitable name. Save the pointer map as `Health 1` in local disk.
@@ -28,3 +31,4 @@ Many pointers can do the job. Pointers are different from addresses. There may b
 
 
 **Also during the whole process, if you have to close the game to allow game to generate new address for your health then don't close cheat engine because even though the pointer maps are stored in the disk, your associated address like `Health 1` etc are still stored in the table. You will need those addresses for pointer scanning**  
+
