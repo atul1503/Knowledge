@@ -26,10 +26,10 @@
     ```
     `Unit` means void. Here, this function returns void or nothing. It takes in an int variable but it also takes in a String.
 
-10. Lambda functions are just anonymous functions or functions without a name. They are represented as:
+10. Lambda functions are just anonymous functions. They are represented as:
     ```
     val myFunc : () -> Unit = { println("Hi) } 
-    ```
+    ``` 
 11. The last expression in a function is returned by the function so there is no need of `return` keyword.
     ```
     val myFunc: () -> Int = { 5 } // 5 is returned.
@@ -46,6 +46,22 @@
    myFunc(5) { //some shit }
    ```
    So this `{ //someshit }` is a lambda function that you are passing to `myFunc`
+
+13. lambda functions sometimes may not have a return type declared. It is inferred then.
+    ```
+    val lambda= { x: Int, y: Int -> x + y }
+    ```
+14. Label are put on functions before the `fun` keyword.
+    ```
+    myl@ fun myfunc(x: Int): Int {
+        return@myl x * 2
+    }
+    ```
+    This is true even for anonymous functions since even anonymous functions have `fun` keyword.
+15. But for lambda functions, labels are declared before the `{}`.
+    ```
+    val lambda=  lamba@{ x: Int, y: Int -> return@lamba x + y }
+    ```
 
 
 ## Working with coroutines
