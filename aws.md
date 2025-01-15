@@ -49,3 +49,4 @@ The access policy should be attached to the role, to allow the principal entity 
 
 1. Cloudfront is used as a CDN which caches your content in multiple edge locations and delivers it when its requested. But it must have some origin. The origin can be an s3 bucket or even a ELB. For s3, provide s3 bucket name to be used as origin, for elb, you can take help of cloud front so that elb doesnot have to server static content everytime. You can hit the cloud front domain name to access the content served by its origin, but you can also make its dn entry in route 53.
 
+2. Route53 is used for mapping ip address or other domains to other dns names. Use CNAME to map a url to another url. Use A record for mapping ip address to a url. TTL is the amount of time in seconds your website responses will be catched in browsers or other http clients.
