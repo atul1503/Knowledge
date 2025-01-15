@@ -32,3 +32,9 @@ Many pointers can do the job. Pointers are different from addresses. There may b
 
 **Also during the whole process, if you have to close the game to allow game to generate new address for your health then don't close cheat engine because even though the pointer maps are stored in the disk, your associated address like `Health 1` etc are still stored in the table. You will need those addresses for pointer scanning**  
 
+
+## General tips
+
+* In lua, never put long running for loops in hotkey or timers. If you want to run something that long, use timers. But just for efficiency make sure that you disable timers when not required.
+* Also in case of get memory record by description, the value of the record can be a non numeric also sometimes so make sure that if `tonumber(x.Value)` gives `nil` then don't move ahead with operations. Here, `x` is the memory record object.
+* Also make sure that before referencing a memory record, make sure that it exists in the table.
