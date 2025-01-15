@@ -20,13 +20,13 @@
    ```
 9. Also functions are define with `fun` keyword.
     ```
-    fun myFunc(var myScore: Int, val myName: String): Unit{
+    fun myFunc(myScore: Int,myName: String): Unit{
       println("Hi")
     }
     ```
-    `Unit` means void. Here, this fucntion returns void or nothing. It takes in an int variable which can be changed by the function but it also takes in a String which cannot be changed by a function. So , `var` argument means that this arg can be changed by function but `val` argument means it is a compile time error if the funtion tries to modify this arg in its body.
+    `Unit` means void. Here, this function returns void or nothing. It takes in an int variable but it also takes in a String.
 
-10. Lambda functions are just anonymous functions without a name. They are represented as:
+10. Lambda functions are just anonymous functions or functions without a name. They are represented as:
     ```
     val myFunc : () -> Unit = { println("Hi) } 
     ```
