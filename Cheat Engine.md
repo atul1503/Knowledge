@@ -37,4 +37,4 @@ Many pointers can do the job. Pointers are different from addresses. There may b
 
 * In lua, never put long running for loops in hotkey or timers. If you want to run something that long, use timers. But just for efficiency make sure that you disable timers when not required.
 * Also in case of get memory record by description, the value of the record can be a non numeric also sometimes so make sure that if `tonumber(x.Value)` gives `nil` then don't move ahead with operations. Here, `x` is the memory record object.
-* Also make sure that before referencing a memory record, make sure that it exists in the table.
+* Also make sure that the memory record exists before referencing it.
