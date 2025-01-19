@@ -17,7 +17,7 @@ gcc my_program.c -o my_executable
 ```
 This will generate an executable.
 
-* You can also generate shared library(.so) object files also, which are like external libraries that you don't have in your executable. It is only loaded or referenced during runtime if those .so files are already present in the system. This is used for mainly standard libraries like `stdlib`. This is like having `DLL`s in windows. This is also like having standard library of python already present in the system where you want to run your python program. So you dont have to manually download those python files from internet and keep it in the same directory where your program is just so that your program can reference those python files to execute your program.
+* You can also generate shared library(.so) object files also, which are like external libraries that you don't have in your executable. It is only loaded or referenced during runtime if those .so files are already present in the system. This is used for mainly standard libraries like `stdlib`. This is like having `DLL`s in windows. This is also like having standard library of python already present in the system where you want to run your python program. So you dont have to manually download those python files from internet and keep it in the same directory where your program is just so that your program can reference those python files to execute your program. They should be present in system seperately.
 * You can also use static library(.a) for dependency management. They are exactly like external jars from java. Basically, .a files are archive files of other object files. This you  
 
 ## Tips
