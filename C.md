@@ -6,10 +6,10 @@
 4. Linker
 ```
 
-`Preprocessor` processes macros and `#include`s `#define`s and puts all the content of header files in your C file where you `#include`ed the header file. This generates `.i` file.
-`Compiler` compiles `.i` file to assembly language. This creates `.s` files.
-`Assembler` generates machine code from `.s` files. This creates `.o` files.
-`Linker` links all the `.o` files with each other and creates a single executable file which you can directly run. In Linux, you may also have to give execute permission to the executable.
+* `Preprocessor` processes macros and `#include`s `#define`s and puts all the content of header files in your C file where you `#include`ed the header file. This generates `.i` file.
+* `Compiler` compiles `.i` file to assembly language. This creates `.s` files.
+* `Assembler` generates machine code from `.s` files. This creates `.o` files.
+* `Linker` links all the `.o` files with each other and creates a single executable file which you can directly run. In Linux, you may also have to give execute permission to the executable.
 
 ## Tips
 * You only provide declaration in header file of those functions or variables that you want to expose from this header file.  Meaning that anybody can use those functions that you have declared in header files by simply including them in their program.
