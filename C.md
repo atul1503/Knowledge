@@ -32,13 +32,14 @@ This generates an executable.
 * You can also use static library(.a) for dependency management. They are exactly like external jars from java. Basically, .a file is an archive file containing other object files. This you can use to include external libraries.  
 
 ## Tips
-* You only provide declaration in header file of those functions or variables that you want to expose from this header file.  Meaning that anybody can use those functions that you have declared in header files by simply including them in their program.
-* Declaration means just the signature of function or variable. Definition means defining what that function does and what value a variable has.
-* You need to put `extern` keyword for variable declarations in header files to tell the preprocessor that it is defined in some .c file.
-* Function declarations don't need `extern` keyword.
 
 
 ## Noteworthy
+* You only provide declaration in header file of those functions or variables that you want to expose from this header file.  Meaning that anybody can use those functions that you have declared in header files by simply including them in their program.
+* Declaration means just the signature of function or variable and sometimes initialization also. Definition means defining what that function does and what value a variable has.
+* You need to put `extern` keyword for variable declarations in header files to tell the preprocessor that it is defined in some .c file.
+* Function declarations don't need `extern` keyword.
+* Dereferencing means accessing the object pointed by pointer.
 * Use `.` with structs or unions only when you have the actual instance of a struct or union. If you have pointer to the struct then use `->` because `pointer_name.val` will try to access `val` member of `pointer_name` but we want to access `val` of the instance of the structure not the pointer.
 * `*ptrName` deferences the pointer. This means that we get the actual object which the `ptrName` is pointing to.
 * `(*ptrName).val` is same as `ptrName->val` as we first dereferencing the pointer to get the actual object and then accessing the `val` member of the object.
@@ -49,3 +50,16 @@ This generates an executable.
 * Any line starting with `#` is a code for preprocessor to be interpreted.
 * Binary operator require 2 operands, Unary operators require 1 operand and ternary requires 3 operands.
 * You declare a variable as `volatile` only if that variable's value may be changed by other programs or threads also. This keyword allows the compiler to generate machine code where they always do operations on later values. Meaning that reads are more frequent to get its exact values.
+* `[]` and `*` change meaning when used in declaration statements than their usual meaning in expressions. For eg, `arr[]` in declarations , will mean that arr is an array and its size is put inside the `[]`. But in expressions `[]` helps to refer in pointer arithmetic and array element access. `*` in declarations is used to mark variables as pointer types but in expressions `*` is used to deference a pointer.
+* `typedef myTypeName newTypeName` will allow you to use `newTypeName` like a predefined type in declarations. `myTypeName` can be struct,union,int,double etc.
+* Use `sizeof` operator to get the size of an object or type.
+* `goto` is used to jump to different labels in the same function. You can define labels like this:
+```
+goto myLabel;
+printf("\nThis will be skipped");
+myLabel:
+{
+  printf("inside myLabel");
+}
+```
+`goto` is good for error handling and stuff. 
