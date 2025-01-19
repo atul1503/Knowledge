@@ -33,6 +33,11 @@ This generates an executable.
 
 ## Tips
 * Avoid using `goto`.
+* Instead of doing `struct myStruct myVar;` everytime you can do
+```
+typedef struct myStruct { int x,int y } Point;
+Point myVar;
+```
 
 
 ## Noteworthy
