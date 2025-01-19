@@ -36,3 +36,9 @@ This generates an executable.
 * Declaration means just the signature of function or variable. Definition means defining what that function does and what value a variable has.
 * You need to put `extern` keyword for variable declarations in header files to tell the preprocessor that it is defined in some .c file.
 * Function declarations don't need `extern` keyword.
+
+
+## Noteworthy
+* Use `.` with structure only when you have the actual instance of a struct. If you have pointer to the struct then use `->` because `pointer_name.val` will try to access `val` member of `pointer_name` but we want to access `val` of the instance of the structure not the pointer.
+* `*ptrName` deferences the pointer. This means that we get the actual object which the `ptrName` is pointing to.
+* `(*ptrName).val` is same as `ptrName->val` as we first dereferencing the pointer to get the actual object and then accessing the `val` member of the object.
