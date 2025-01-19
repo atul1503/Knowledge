@@ -32,6 +32,7 @@ This generates an executable.
 * You can also use static library(.a) for dependency management. They are exactly like external jars from java. Basically, .a file is an archive file containing other object files. This you can use to include external libraries.  
 
 ## Tips
+* Avoid using `goto`.
 
 
 ## Noteworthy
@@ -62,4 +63,8 @@ myLabel:
   printf("inside myLabel");
 }
 ```
-`goto` is good for error handling and stuff. 
+`goto` is good for error handling and stuff. You can also use it as a better `break` since you can end multiple nested lopps with a `goto`.
+
+* `struct`s and `union`s are used to define user defined types.
+* `struct` or `union` declarations are same as other declaration statements:
+`struct myStruct { int x, int y } myVar;` is similar to `int myVar`.
