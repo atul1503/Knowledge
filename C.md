@@ -8,7 +8,7 @@
 
 * `Preprocessor` processes macros and `#include`s `#define`s and puts all the content of header files in your C file where you `#include`ed the header file. This generates `.i` file.
 * `Compiler` compiles `.i` file to assembly language. This creates `.s` files.
-* `Assembler` generates machine code from `.s` files. This creates `.o` files.
+* `Assembler` generates machine code from `.s` files. This creates `.o` files also known as object files.
 * `Linker` links all the `.o` files with each other and creates a single executable file which you can directly run. In Linux, you may also have to give execute permission to the executable.
 
 * Command to execute:
