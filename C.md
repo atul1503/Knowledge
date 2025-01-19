@@ -33,6 +33,10 @@ This generates an executable.
 * For using an external library, you need to have both its header files and its object files when you are compiling your code.
    * Header files are required only for the preprocessor to put the type definition of the external code into its output `.i` file. This `.i` file is used by the compiler to compile the code.
    * Object files contain the actual implementation of types and functions declared in header files.
+* If you want to create your own C library, you just:
+   * Generate object files.
+   * Create a header file that includes the declarations of all functions and types that you want to expose from your code.
+  
 
 ## Tips
 * Avoid using `goto`.
