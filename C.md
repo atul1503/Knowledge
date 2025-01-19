@@ -42,3 +42,10 @@ This generates an executable.
 * Use `.` with structs or unions only when you have the actual instance of a struct or union. If you have pointer to the struct then use `->` because `pointer_name.val` will try to access `val` member of `pointer_name` but we want to access `val` of the instance of the structure not the pointer.
 * `*ptrName` deferences the pointer. This means that we get the actual object which the `ptrName` is pointing to.
 * `(*ptrName).val` is same as `ptrName->val` as we first dereferencing the pointer to get the actual object and then accessing the `val` member of the object.
+* variable name can be only 31 characters long. Can start with letter or underscore but not number.
+* We can do pointer arithmatic to refer to memory with relation to the address of pointer. `*(ptr+5)` will refer to 6 integer element stored in 5 places ahead of the memory location pointed by `ptr`. So `ptr+5` is basically calcualting the address of 5th integer from ptr's location. And the `*()` is dereferencing it to access the value stored in the address.
+* To get the address of an obect use `&` which called `address of` operator.
+* Instances of any type is called as objects of that type even though `C` is not an OOPs language.
+* Any line starting with `#` is a code for preprocessor to be interpreted.
+* Binary operator require 2 operands, Unary operators require 1 operand and ternary requires 3 operands.
+* You declare a variable as `volatile` only if that variable's value may be changed by other programs or threads also. This keyword allows the compiler to generate machine code where they always do operations on later values. Meaning that reads are more frequent to get its exact values.
