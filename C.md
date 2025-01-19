@@ -36,6 +36,19 @@ This generates an executable.
 * If you want to create your own C library, you just:
    * Generate object files.
    * Create a header file that includes the declarations of all functions and types that you want to expose from your code.
+   * Distribute your header files and object files.
+   * Ask the users to put the header files either in the current directory or the default directory where preprocessor looks for header files.
+   * Ask the users to put the object files either in the current directory or the defualt directory where linker looks for object files. 
+   Your library users will download the header files and object files and use them during compilation.
+   *  If you have shared your object files as `.o` files, your users need to put those file path like this:
+      ```
+      gcc user_program.c my_lib_object_file1.o my_lib_object_file1.o
+      ```
+      This is obviously more impractical but it works.
+   * In practical purpose, you will put all your object files in `.a` archive or as `.so` files. And then tell your linker to link it with current program:
+     ```
+      gcc user_program.c -L /path/to/.a/or/.so/library/parent/folder -lmyLib
+     ```
   
 
 ## Tips
