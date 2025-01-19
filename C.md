@@ -6,7 +6,7 @@
 4. Linker
 ```
 
-* `Preprocessor` processes macros and `#include`s `#define`s and puts all the content of header files in your C file where you `#include`ed the header file. This generates `.i` file.
+* `Preprocessor` processes macros and `#include`s `#define`s and puts all the content of header files in your C file where you `#include`ed the header file. This generates `.i` file. Thie `.i` file is just a big version of your `.c` file. It includes all the external library type and function definitions.
 * `Compiler` compiles `.i` file to assembly language. This creates `.s` files.
 * `Assembler` generates machine code from `.s` files. This creates `.o` files also known as object files.
 * `Linker` links all the `.o` files with each other and creates a single executable file which you can directly run. In Linux, you may also have to give execute permission to the executable.
@@ -29,7 +29,10 @@ gcc my_program.o my_other_file.o -o my_executable_name
 This generates an executable.
 
 * You can also generate shared library(.so) object files also, which are like external libraries that you don't have in your executable. It is only loaded or referenced during runtime if those .so files are already present in the system. This is used for mainly standard libraries like `stdlib`. This is like having `DLL`s in windows. This is also like having standard library of python already present in the system where you want to run your python program. So you dont have to manually download those python files from internet and keep it in the same directory where your program is just so that your program can reference those python files to execute your program. They should be present in system seperately.
-* You can also use static library(.a) for dependency management. They are exactly like external jars from java. Basically, .a file is an archive file containing other object files. This you can use to include external libraries.  
+* You can also use static library(.a) for dependency management. They are exactly like external jars from java. Basically, .a file is an archive file containing other object files. This you can use to include external libraries.
+* For using an external library, you need to have both its header files and its object files when you are compiling your code.
+   * Header files are required only for the preprocessor to put the type definition of the external code into its output `.i` file. This `.i` file is used by the compiler to compile the code.
+   * Object files contain the actual implementation of types and functions declared in header files.
 
 ## Tips
 * Avoid using `goto`.
