@@ -129,4 +129,5 @@ myLabel:
 * `struct`s and `union`s are used to define user defined types.
 * `struct` or `union` declarations are same as other declaration statements:
 `struct myStruct { int x, int y } myVar;` is similar to `int myVar`.
-* All types of variables 
+* `#define pi 3.14` allows to define constants. You can use `const` also.
+* `int,char,float,double` are primitive data types and `pointer,function,array` are derived data types. `struct,union,enum` are user defined data types.
