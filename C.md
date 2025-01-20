@@ -51,7 +51,24 @@ This generates an executable.
      ```
 * Running `gcc` with `-c` option will generate only object files. Use this to further create shared(.so) or static(.a) libraries.
 * If you don't provide any option `gcc` will generate the executable.
-  
+
+
+## How to create a basic static library(.a) in the same directory and run your application with it.
+```
+gcc -c mylib.c mylib2.c
+ar rcs libmylib.a mylib.o mylib2.o
+gcc libmylib.a atul.c -o myapp
+./myapp
+```
+
+Steps: 
+1. Write your code for the library in `.c` files.
+2. Create header files (`.h`) which should have definition of all types and functions and variables that you want to expose as part of the library.
+3. Generate object files from the `.c` files with `-c` option of `gcc`.
+4. Create an archive using `ar`. Provide all the object files as an arg. `rcs` options are required. Prepend `lib` in the name of your library for compliance purpose.
+5. Your static library is now created with `.a` extension.
+6. You can provide this as arg to `gcc` along with your own code. 
+
 
 ## Tips
 * Avoid using `goto`.
