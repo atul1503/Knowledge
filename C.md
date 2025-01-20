@@ -67,7 +67,12 @@ Steps:
 3. Generate object files from the `.c` files with `-c` option of `gcc`.
 4. Create an archive using `ar`. Provide all the object files as an arg. `rcs` options are required. Prepend `lib` in the name of your library for compliance purpose.
 5. Your static library is now created with `.a` extension.
-6. You can provide this as arg to `gcc` along with your own code. 
+6. You can provide this as arg to `gcc` along with your own code.
+
+Since your library is in current directory, you should refer to its header file with "":
+```
+#include "mylib.h"
+```
 
 
 ## Tips
