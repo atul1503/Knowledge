@@ -75,8 +75,8 @@ Since your library is in current directory, you should refer to its header file 
 ```
 
 ## Variable types
-**Scope:** The scope of a variable is the region in code where it can be accessed.
-**Lifetime:** The lifetime of a variable means the duration in which the variable will be accessible. This duration is not in terms of seconds or time units. It is either program lifetime or block lifetime. Program lifetime means it will be alive for the whole program. Block lifetime means it will be deleted when the block or function exits.
+* **Scope:** The scope of a variable is the region in code where it can be accessed.
+* **Lifetime:** The lifetime of a variable means the duration in which the variable will be accessible. This duration is not in terms of seconds or time units. It is either program lifetime or block lifetime. Program lifetime means it will be alive for the whole program. Block lifetime means it will be deleted when the block or function exits.
 
 1. local: Scope is block and lifetime is also block.
 2. global: global variable. scope is program and lifetime also program.
