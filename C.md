@@ -131,3 +131,4 @@ myLabel:
 `struct myStruct { int x, int y } myVar;` is similar to `int myVar`.
 * `#define pi 3.14` allows to define constants. You can use `const` also.
 * `int,char,float,double` are primitive data types and `pointer,function,array` are derived data types. `struct,union,enum` are user defined data types.
+* Format specifier for int=%d,char=%c,float=%f,double=%lf
