@@ -90,7 +90,7 @@ Point myVar;
 * You need to put `extern` keyword for variable declarations in header files to tell the preprocessor that it is defined in some .c file.
 * `extern` keywords are used so that the c file(which has the `extern` keyword on the variable ) has access to the variable during writing code. The actual definition of the variable is in some other file.
 * `extern` is only required because we don't have importing concepts in C. Since we can't import we have to declare as `extern` in our current C file so that is available to use.
-* Function declarations don't need `extern` keyword. That means you can define the function anywhere in any C file and use it some other C file without using extern. But you still need to declare the function at the start if it is not defined already in that file.
+* Function declarations don't need `extern` keyword. That means you can define the function anywhere in any C file and use it in some other C file without using `extern`. But you still need to declare the function at the start if it is not defined already in that file.
 * Dereferencing means accessing the object pointed by pointer.
 * Use `.` with structs or unions only when you have the actual instance of a struct or union. If you have pointer to the struct then use `->` because `pointer_name.val` will try to access `val` member of `pointer_name` but we want to access `val` of the instance of the structure not the pointer.
 * `*ptrName` deferences the pointer. This means that we get the actual object which the `ptrName` is pointing to.
