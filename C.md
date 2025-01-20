@@ -86,7 +86,7 @@ Point myVar;
 
 ## Noteworthy
 * You only provide declaration in header file of those functions or variables that you want to expose from this header file.  Meaning that anybody can use those functions that you have declared in header files by simply including them in their program.
-* Declaration means just the signature of function or variable and sometimes initialization also. Definition means defining what that function does and what value a variable has.
+* Declaration means just the signature of function or variable and sometimes initialization also. Definition means declaration + defining what that function does and what value a variable has.
 * You need to put `extern` keyword for variable declarations in header files to tell the preprocessor that it is defined in some .c file.
 * `extern` keywords are used so that the c file(which has the `extern` keyword on the variable ) has access to the variable during writing code. The actual definition of the variable is in some other file.
 * `extern` is only required because we don't have importing concepts in C. Since we can't import we have to declare as `extern` in our current C file so that is available to use.
