@@ -49,6 +49,8 @@ This generates an executable.
      ```
       gcc user_program.c -L /path/to/.a/or/.so/library/parent/folder -lmyLib
      ```
+* Running `gcc` with `-c` option will generate only object files. Use this to further create shared(.so) or static(.a) libraries.
+* If you don't provide any option `gcc` will generate the executable.
   
 
 ## Tips
@@ -93,3 +95,4 @@ myLabel:
 * `struct`s and `union`s are used to define user defined types.
 * `struct` or `union` declarations are same as other declaration statements:
 `struct myStruct { int x, int y } myVar;` is similar to `int myVar`.
+* All types of variables 
