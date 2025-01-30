@@ -2,4 +2,5 @@ Notes:
 1. Settings.py path is determined first from environment variable then if you have defined in manage.py file the path of settings.py file. Even in manage.py also you use os.envrion only to set settings.py module path.
 2. You can use different settings.py for different environements.
 3. If any settings is missing from your settings.py file it will be fetched from the default settings.py that comes with django or if you are using an external library then the library might have provided the default value, it will take that in worst case.
-4.  
+4. Middlewares are packages which are executed in the order they are defined in settings.py. Requests are processesed from top to bottom and then it reaches its view. For response it is processes bottom to top of middlesware after sent by view.
+5. Each middleware class has __init__ method and __call__ method. Init gets called on propject startup and call gets called on each request. In init method you are provided with the callback function that you will call to call either the next middleware or the view directly if there is no middleware next. this callback returns the response. this reponse is from the view itself although it may also get modified by other middlewares along the way.
