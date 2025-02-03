@@ -7,3 +7,4 @@ Notes:
 6. dir(obj) is used to see attrirbutes and methods of class or object.
 7. isinstance(obj,classname) to check if the obj is instance of classname.
 8. issubclass(childclass,parentclass) to chec if childclass is instance of parent class.
+9. To create a package in python just create a folder with the package name and put __init__.py file in the folder. it will become a package.
