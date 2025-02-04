@@ -14,3 +14,16 @@ Notes:
       if __name__=="__main__":
           main()
     ```
+12. In python decorators are implemented as a function which has a nested function declaration that returns another function.
+    ```
+        def decorator_Annotation():
+            def new_func(func):
+                #Do somehting
+                func()
+                #Do something
+            return new_func
+        @decorator_Annotation
+        def front()
+    ```
+    Now, this front will be replaced by new_func but will be called front only. This is the case for only decorators that don't accept args.
+    For decorators that accept args, we declare the decorator with two functions nested inside it. The argument of the decorator function gets the argument to the decorator and the second level function gets the function reference and the innermost fucntion gets the arguments of the decorat-ed fucntion. Yeah i know its complex. Thank Guido for that. 
