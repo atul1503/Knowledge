@@ -26,4 +26,4 @@ Notes:
         def front()
     ```
     Now, this front will be replaced by new_func but will be called front only. This is the case for only decorators that don't accept args.
-    For decorators that accept args, we declare the decorator with two functions nested inside it. The argument of the decorator function gets the argument to the decorator and the second level function gets the function reference and the innermost fucntion gets the arguments of the decorat-ed fucntion. Yeah i know its complex. Thank Guido for that. 
+    For decorators that accept args, we declare the decorator with two functions nested inside it. The argument of the decorator function gets the argument to the decorator and the second level function gets the function reference and the innermost fucntion gets the arguments of the decorat-ed fucntion. Yeah i know its crap. Thank Guido for that. 
