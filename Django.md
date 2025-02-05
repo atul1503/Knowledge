@@ -36,3 +36,18 @@ Notes:
     set secure proxy ssl header to (HTTP_X_FORWWARDED_PROTO,https) which means proxy forwarded https to http to django so django can relax it is https request only.
     secure hsts second to 3600 meaning for 1 hr all requests should be sent as https only
     secure hsts include subdomain to true meaning all subdomains will be https only.
+
+34. Famous http codes:
+        200: ok succes
+        201: created
+        100: continue
+        101: protocol changed
+        301: moved permanently
+        302: moved temporarily
+        400: bad request
+        401: unauthneticated
+        403: unauthorized
+        404: not found
+        500: internal server error
+        503: service unavailbale
+        504: server timeout
