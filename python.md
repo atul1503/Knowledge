@@ -26,4 +26,8 @@ Notes:
         def front()
     ```
     Now, this front will be replaced by new_func but will be called front only. This is the case for only decorators that don't accept args.
-    For decorators that accept args, we declare the decorator with two functions nested inside it. The argument of the decorator function gets the argument to the decorator and the second level function gets the function reference and the innermost fucntion gets the arguments of the decorat-ed fucntion. Yeah i know its crap. Thank Guido for that. 
+    For decorators that accept args, we declare the decorator with two functions nested inside it. The argument of the decorator function gets the argument to the decorator and the second level function gets the function reference and the innermost fucntion gets the arguments of the decorat-ed fucntion. Yeah i know its crap. Thank Guido for that.
+
+13. `from concorrunt.futures import ThreadPoolExecutor` object is imported. Use this with `with` and this has a map() method which takes a fucntion to execute on seprate threads and an array of args to execute like `[(arg11,arg12),(arg21,arg22)]`. The object accepts a max_workers arg as integer to put that many threads but use only for io tasks. the `map()` returns a an array of results that each thread has executed. This is better than `Threads` from threading since they don't need to be managed as we are using with. 
+14. Iterables implement __iter__ method but iterators implement __next__ and __iter__ method. next is to get the next element of the collection, iter is to get the iterator itself.
+15. generator are same as iterators but except that they yield a value and does not return it. It uses a function instead of class to work its way. Uses less memory as yield values only when asked and doesnot maintain any collection in memory.
