@@ -21,4 +21,5 @@ Notes:
 20.  Permission classes can be implemetned by subclassing `BasePermission` class where you implement `has_pemission(self,request,view)` to check return true or false. request.user get the associated user object. request.user.is_authenticated check if user is authenticated or not and not anonymous.
 21.  To create roles kind of things. Create sperate permission class for each role where you decalre the role as as string attribute and in the has_pemissions() method you just check if the user has your role string in his role or not.
 22. `permission_classes=[]` is defined in the APIView class as class attribute.
-23. Mostly user has all the features but for others and roles by extending `AbstractUser` and include the roles. 
+23. Mostly user has all the features but for others and roles by extending `AbstractUser` and include the roles.
+24. `IsAuthenticated()` permission class has blocks anonymous user.
