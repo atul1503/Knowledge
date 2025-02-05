@@ -51,3 +51,5 @@ Notes:
         500: internal server error
         503: service unavailbale
         504: server timeout
+
+35. Solid: S: single reposnitbikity classes. O: open for expansion closed for modification, L: subclasses can take place of super classes. I: interfaces incldes methods that are needed. D: depdnecy inversion means that you create abstract classes that others implement to provide functionality rather than dependeing directly on an entity.
