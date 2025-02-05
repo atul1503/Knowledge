@@ -23,3 +23,5 @@ Notes:
 22. `permission_classes=[]` is defined in the APIView class as class attribute.
 23. Mostly user has all the features but for others and roles by extending `AbstractUser` and include the roles.
 24. `IsAuthenticated()` permission class has blocks anonymous user.
+25. Json web token based there is another middleware that you have which provides its own token generation and token refresh views which you can associate with any path.
+26. in the urlpatterns if you have a path defined then in the path() you can provide name= arg to refer to it whenever and wherver you want with `reverse(name)` instead of using the full path.
