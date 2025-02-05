@@ -27,4 +27,4 @@ Notes:
 26. in the urlpatterns if you have a path defined then in the path() you can provide name= arg to refer to it whenever and wherver you want with `reverse(name)` instead of using the full path.
 27. Session middleware sets and retrives sessions from the session backedn and attaaches it to every request. The authnetication middleware associated the user id with session id that too in the session backend(session model table). There is _auth_user_id field to associate user id. The authenticatin middle ware then sets a user attribute in request object. request.user.is_authenticated is used to check if user is anonymous.
 28. SECURTIY_KEY in django is used to sign the cookie that is stored in the browser. session id cookie store the session id in the clietn browser.
-29. 
+29. csrf works on unsafe methods(post,put,delete).
