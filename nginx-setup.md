@@ -32,7 +32,25 @@ this nginx config allows to serve static files using /static/ path. so when a br
 4. `proxy_pass` is used to tell nginx where to forward the request to. Here, it will formward the request to `http://videocaption:8000`.  `proxy_pass` is very important for nginx as proxy server.
 5. root is used to set the root directory in location block (or for all locations if used in server block itself). In /static location, if user requests for `http://localhost:8083/static/my.js`, nginx will send the following file `/volume/build/my.js`
 6. using the `location` block and `root` attribute you can easily, we can use nginx to server static files easily.
-7. `upstream` block allows you to provide multiple server statements. and then you can use the upstream name in hostname to proxy pass and nginx will load balance workload between different servers on that upstream block.
+7. `upstream` block allows you to provide multiple server statements. and then you can use the upstream name in hostname to proxy pass and nginx will load balance workload between different servers on that upstream block. Like this:
+   ```
+       http {
+        upstream backend {
+            server backend1.example.com;
+            server backend2.example.com;
+            server backend3.example.com;
+        }
+    
+        server {
+            listen 80;
+    
+            location / {
+                proxy_pass http://backend;
+            }
+        }
+    }
+    
+   ```
 
 
 
