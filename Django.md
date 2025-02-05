@@ -31,3 +31,8 @@ Notes:
 30. if frontend and backend are in different origin then enable cors and include those frontend domains that can access your backend api and use token based auth like jwt and disable csrf because you are NOT using sessions and will not be a problem.
 31. To include cors, use cors headers library and include cors middleware and coresheaders app.
 32. to disable csrf remove csrf middleware.
+33. For https:
+    set secure ssl direct to true so that even if browser sends http it will converted to https.
+    set secure proxy ssl header to (HTTP_X_FORWWARDED_PROTO,https) which means proxy forwarded https to http to django so django can relax it is https request only.
+    secure hsts second to 3600 meaning for 1 hr all requests should be sent as https only
+    secure hsts include subdomain to true meaning all subdomains will be https only.
