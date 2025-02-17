@@ -1,5 +1,6 @@
 1. You declare UI using `@Composable` annotated functions. These functions are called composables. These are similar to widgets in flutter.
-2. Inside each composable function, you can call other composable functions to declare your UI in a declarative format.
+2. `LaunchedEffect` allows to run side effects. In its lambda, you need to call `launch()` with a dispatcher to un your code in different threads.  
+3. Inside each composable function, you can call other composable functions to declare your UI in a declarative format.
    ```
      @Composable
      fun MyApp(){
