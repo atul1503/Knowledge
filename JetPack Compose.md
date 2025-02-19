@@ -207,7 +207,7 @@ Here, in the above example, we are changing B in the onClick event handler.
 
  
 How long does it take A to become B, that we can define by providing `animationSpec` arg of `animate*AsState`. This takes an object called `tween` which describes how A becomes B.
-**Remember** the initial value of the animated state value is same as the target value state so it doesnot need to be equal to the target value since it already is equal. But in the application whenever you change the target state, the animated state will start to become equal ot it.
+**Remember** The first `targetValue=` you provide becomes the initial value of the animation. That is why you need the `targetValue=` as a state instead of a hardcoded value.
 
 ## How to control animations globally or centrally
 
