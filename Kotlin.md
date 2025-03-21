@@ -51,6 +51,10 @@
     ```
     val lambda= { x: Int, y: Int -> x + y }
     ```
+14. Or sometimes they may have the types for lambda declared:
+    ```
+    val lambda: (String, Int) -> Double = { str, num -> 2.0 }
+    ```
 14. Label are put on functions before the `fun` keyword.
     ```
     myl@ fun myfunc(x: Int): Int {
