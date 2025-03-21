@@ -66,7 +66,11 @@
     ```
     val lambda=  lamba@{ x: Int, y: Int -> return@lamba x + y }
     ```
-
+16. You can pass lambdas to functions like :
+    ```
+      myFunc(someInt: Int, {  print(message)  })
+    ```
+      Here, closure of `message` is taken and used. The caller, `myFunc` may call this lambda anytime in its body and that time the value of `message` will be the value at the time of lambda definition.
 
 ## Working with coroutines
 
