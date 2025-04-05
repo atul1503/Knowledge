@@ -331,3 +331,24 @@ Calling `build()` starts all this process of creation.
 `B = A ?: C()` this ensure that  set value of `B` to `A` if `A` is not null. If `A` is null, then execute `C()` function and set the value of `B` to what `C()` returns.
 
 All this is to ensure that in a multi threaded application, only one instance of the database is created and used.
+
+## How to use keys in jetpack
+
+Keys are used to identify composables uniquely.
+For that, just wrap each UI portion with `key(keyValue) { }`.
+Like:
+```
+for(ex in Exercises) {
+   key(ex.name) {
+      Text(ex.name)
+      Text(ex.steps)
+   }
+}
+```
+Now compose will treat each key block content will be treated as one and this will help in avoiding multiple exercises of same name.
+
+*What happens if you don't use keys:*
+1. Multiple UI portions will have same values.
+2. If you edit one portion, other portions may also get modified.
+
+So its better to use keys.
