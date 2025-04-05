@@ -347,7 +347,7 @@ for(ex in Exercises) {
 ```
 Now compose will treat each key block content will be treated as one and this will help in avoiding multiple exercises of same name.
 
-*What happens if you don't use keys:*
+**What happens if you don't use keys:**
 1. Multiple UI portions will have same values.
 2. If you edit one portion, other portions may also get modified.
 
