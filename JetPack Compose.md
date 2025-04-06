@@ -352,3 +352,14 @@ Now compose will treat each key block content will be treated as one and this wi
 2. If you edit one portion, other portions may also get modified.
 
 So its better to use keys.
+
+
+## How to use coroutines or perform long running background tasks
+1. Use `lifecycleScope.launch()` to create coroutines that will live as long as activity or fragment is not destroyed. This is like `CoroutineScope` in kotlin but   you don't have to explicitely cancel the coroutines created from this. Canceling and other types of management will be taken care by the acitivty or fragment itself.
+2. Use `GlobalScope.launch()` to create coroutines that will as long as the application itself. You don't need to manage thier canceling or management.
+3. Use `rememberCoroutineScope` to create scope that will be managed by the composable. Should be used only inside composables. Will live as long as the composable is not destroyed(i.e composable is not removed from ui tree).
+4. You can use `CoroutineScope` but remember you have to call `cancel()` on it when you have no use of it. Once you call `cancel()` on it ,all the jobs created from this scope will be cancelled. So, you have to manage its lifecycle manually.
+
+
+For any scopes, its better to provide the `launch()` with `Dispatchers.IO` or other non-main dispatcher since your task may block the main thread.
+
