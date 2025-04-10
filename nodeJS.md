@@ -10,4 +10,4 @@
 4. Once the event loop has fetched and processed all microtask callbacks, it then does the same for task queue callbacks.
 5. But microtask queue task has priority over task queue task. So if the call stack is empty and event loop has tasks both in microtask queue and task queue, it fetches and executes microtask from the microtask queue. After its done all the microtasks, it does the task queue.
 6. promise callbacks, queueMicrotask(), process.netTick() etc are tasks that are put in microtask queue.
-7. set timeout and timer related callbacks etc are task put in task queue.
+7. set timeout and timer related callbacks, i/o callbacks, setImmediate etc are task put in task queue.
