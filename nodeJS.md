@@ -5,10 +5,9 @@
 ## Event loop and its shenanigans
 
 1. The event loop runs on the main thread, where all JavaScript executes.
-2. It cycles through multiple phases, each with its own queue of callbacks (e.g. timers, I/O, etc.).
-3. Each phase handles a specific type of task, like timers, I/O callbacks, or microtasks.
-4. When a phase is active, the event loop processes callbacks in that phase’s queue, one by one.
-5. Once done (or the queue is paused/yielded), it moves to the next phase and repeats.
-6. I/O-bound tasks (like fs.readFile) are offloaded to the libuv thread pool, which handles them in the background and queues their callbacks back into the event loop when finished.
-7. For CPU-bound custom tasks, use the worker_threads module — these spawn separate native threads, not part of the libuv thread pool, and communicate via message passing (postMessage / 'message').
-8. async or promise callbacks are part of microtask queue whose all tasks are completed at once before moving on.
+2. The event loop executes everything in a single thread called the call stack synchronously.
+3. One the call stack is empty or all synchronous tasks are done, event loop fetches a callback from microstask queue. It processes it and then fetches another microtask queue and executes it.
+4. Once the event loop has fetched and processed all microtask callbacks, it then does the same for task queue callbacks.
+5. But microtask queue task has priority over task queue task. So if the call stack is empty and event loop has tasks both in microtask queue and task queue, it fetches and executes microtask from the microtask queue. After its done all the microtasks, it does the task queue.
+6. promise callbacks, queueMicrotask() etc are tasks that are put in microtask queue.
+7. set timeout callbacks etc are task put in task queue.
