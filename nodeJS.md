@@ -1,5 +1,6 @@
 ## Basics
-1. Node.js is single-threaded in terms of JavaScript execution, but it uses multiple threads under the hood for I/O operations and worker threads."
+1. Node.js is single-threaded in terms of JavaScript execution, but it uses multiple threads under the hood for I/O operations and worker threads.
+2. EventEmitter is from "events" pakcage which gives a class EventEmitter whose object can be used to register event(string) and register listeners and then you can emit that event and all its listeners will run. Listeners here are functions actually.
 
 
 ## Event loop and its shenanigans
