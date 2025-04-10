@@ -2,6 +2,8 @@
 1. Node.js is single-threaded in terms of JavaScript execution, but it uses multiple threads under the hood for I/O operations and worker threads.
 2. EventEmitter is from "events" pakcage which gives a class EventEmitter whose object can be used to register event(string) and register listeners and then you can emit that event and all its listeners will run. Listeners here are functions actually.
 3. you can use `url.parse(your_url)` to parse the url into its domain, query param etc.
+4. use `fork()` to start another nodejs process.In that process, use `process.send(message)` to send message to its parent. Parent will use the  child refrence created from `fork` to send message to its child with `child.send(message)`.
+5. use `spawn()` to spawn any command line process with args.
 
 
 ## Event loop and its shenanigans
