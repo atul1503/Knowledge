@@ -363,3 +363,42 @@ So its better to use keys.
 
 For any scopes, its better to provide the `launch()` with `Dispatchers.IO` or other non-main dispatcher since your task may block the main thread.
 
+
+## How to form relationships in room databases
+
+Room does not allow defining relationships inside entity classes. To define a relation, you have to create a data class:
+
+```
+data class UserAndPost {
+
+   @Embedded
+   val user: User,
+
+   @Relation( parentColumn="username", entityColumn="PostOwnerUsername" )
+   val posts: List<Post>
+
+}
+```
+
+Here, `username` is a field in `User` entity class and `PostOwnerUsername` is a field in `Post` entity class. 
+So this means that with `@Relation` annotation, we are relating the fields of both entities togather, thereby establishing a relation.
+
+
+Regarding why we use `@Embedded` as `User` is because if this data class type is used as return type in DAO query, then that means, you have to just define the query to get only the `User` object and then using the `Relation` defined above, Room is intelligent enough to also fetch the associated `List<Post>` associated to the user object.
+
+For eg, here is a DAO query: 
+```
+interface UserDao {
+   @Transaction
+   @Query("SELECT * FROM User WHERE username= :username")
+   abstract fun getUserAndTheirPosts(String username): UserAndPost
+}
+```
+
+Since the query is asking for `User` entity to be fetched but declaring `UserAndPost` as the return type of the query, then that sends a signal to Room to first fetch `User` objects and then execute another query to fetch the `Post`s related to this `User`. And then room will combine the `User` fields and that `User`'s associated list of `Post` fields as fields of `UserAndPost` object that you will finally get as the result of executing this query.
+
+This means that the final `UserAndPost` object that you will get as a result of the query, will let you do this:
+```
+val user = userAndPostObject.username
+val posts: List<Post> = userAndPostObject.posts
+```
