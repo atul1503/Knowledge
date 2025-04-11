@@ -384,7 +384,7 @@ Here, `username` is a field in `User` entity class and `PostOwnerUsername` is a 
 So this means that with `@Relation` annotation, we are relating the fields of both entities togather, thereby establishing a relation.
 
 
-Regarding why we use `@Embedded` as `User` is because if this data class type is used as return type in DAO query, then that means, you have to just define the query to get only the `User` object and then using the `Relation` defined above, Room is intelligent enough to also fetch the associated `List<Post>` associated to the user object.
+Regarding why we use `@Embedded` as `User` is because if this data class type(`UserAndPost`) is used as return type in any DAO query, then that means, you have to just define the query to get only the `User` object and then using the `Relation` defined above, Room is intelligent enough to also fetch the associated `List<Post>` associated to the user object.
 
 For eg, here is a DAO query: 
 ```
@@ -400,5 +400,9 @@ Since the query is asking for `User` entity to be fetched but declaring `UserAnd
 This means that the final `UserAndPost` object that you will get as a result of the query, will let you do this:
 ```
 val user = userAndPostObject.user.username
-val posts: List<Post> = userAndPostObject.posts
+val posts: List<Post> = userAndPostObject.posts.postText
 ```
+
+Don't be confused as to why `parentColumn` arg(in `@Relation`) is assigned the name of `User` entity and not the `PostOwnerUsername` field name of `Post` entity. This is because you have declared `User` type field with `@Embedded`, which makes `User` entity as the parent entity. And so that is why, in the DAO query string, you fetch the parent entity(here `User`) only.  
+
+You have to use `@Transaction` annotation for these query since internally it is calling 2 queries and we want those queries to be a part of single transaction.
