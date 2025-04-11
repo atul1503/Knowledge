@@ -399,6 +399,6 @@ Since the query is asking for `User` entity to be fetched but declaring `UserAnd
 
 This means that the final `UserAndPost` object that you will get as a result of the query, will let you do this:
 ```
-val user = userAndPostObject.username
+val user = userAndPostObject.user.username
 val posts: List<Post> = userAndPostObject.posts
 ```
