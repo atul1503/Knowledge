@@ -410,3 +410,5 @@ This is because the `User` field in `UserAndPost` is annotated with `@Embedded`,
 As a result, the DAO query must select from the `User` table, and Room will then use the mapping defined in `@Relation` to automatically fetch and match the related Post rows based on the specified columns.
 
 You have to use `@Transaction` annotation for these query since internally it is calling 2 queries and we want those queries to be a part of single transaction.
+
+*Remember that DAO is not tied to any enitity so that in a single DAO interface you can define queries for all enitities that you have in the DB. But it's not recommended.*
