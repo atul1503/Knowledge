@@ -403,10 +403,10 @@ val user = userAndPostObject.user.username
 val posts: List<Post> = userAndPostObject.posts.postText
 ```
 
-Don’t be confused about why the parentColumn argument in the @Relation annotation refers to a field from the User entity (like username), and not a field from the Post entity (like PostOwnerUsername).
+Don’t be confused about why the `parentColumn` argument in the `@Relation` annotation refers to a field from the `User` entity (like `username`), and not a field from the `Post` entity (like `PostOwnerUsername`).
 
-This is because the User field in UserAndPost is annotated with @Embedded, which tells Room that User is the parent entity.
+This is because the `User` field in `UserAndPost` is annotated with `@Embedded`, which tells Room that `User` is the parent entity.
 
-As a result, the DAO query must select from the User table, and Room will then use the mapping defined in @Relation to automatically fetch and match the related Post rows based on the specified columns.
+As a result, the DAO query must select from the `User` table, and Room will then use the mapping defined in `@Relation` to automatically fetch and match the related Post rows based on the specified columns.
 
 You have to use `@Transaction` annotation for these query since internally it is calling 2 queries and we want those queries to be a part of single transaction.
