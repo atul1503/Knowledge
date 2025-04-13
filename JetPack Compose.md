@@ -412,3 +412,59 @@ As a result, the DAO query must select from the `User` table, and Room will then
 You have to use `@Transaction` annotation for these query since internally it is calling 2 queries and we want those queries to be a part of single transaction.
 
 *Remember that DAO interface is not tied to any enitity so that in a single DAO interface you can define queries for all enitities that you have in the DB. But it's not recommended to do that.*
+
+## How to create background services/tasks that run on the background
+
+1. First create a worker class for your job.
+   * This class should be a subclass of `CoroutineWorker` class. This will have a `doWork()` method which you have to override to define what you want your background task to do.
+   * This worker class is the class which represents the task that you want to be done.
+   * `doWork()` method  body need to be a `withContext(Dispatchers.IO)` function call. This function call accepts a lambda in which you write the code to do your task.
+2. Now, there is some point in your application where you tell the android OS to schedule/start your worker. This can be done in `onCreate()` method of your activity.
+3. Wherever, you put the code to tell android OS to start your worker, we will call that `SchedPlace`.
+4. In the `SchedPlace`, you have to tell android how often you need to run your worker. For that you have to create a work request. There are two types of work request:
+   * `OneTimeWorkRequest` which is run only once by android.
+   * `PeriodicWorkRequest` which runs forever on intervals that you specify.
+5. Creating a work request means specifying constraints about in what conditions should it run and also specify at what interval it should run(in case of `PeriodicWorkRequest`)
+6. Work request is created using a work request builder. Based on the type of work request you have to type of builders.
+7. Builder also needs to know the class of your worker so that it will run it.
+8. After building the worker request with a builder, you enqueue it into a queue of `WorkManager`. The queue is also of two types corresponding to the type of requests.
+9. In the enqueue method of the `WorkManager`, you also need to specify a policy to tell work manager to do something if there are multiple workers with same identity(since you also specify the name,tag of the worker when building and enqueing the work request). By providing a correct predefined policy, you tell work manager to either replace the exsiting worker with this new one or let it run or update etc.
+
+Enough with the conceptual theory, here is a simple worker:
+```
+class NotificationWorker(private val context: Context,params: WorkerParameters): CoroutineWorker(context,params){
+   override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+   //do something
+   } 
+}
+```
+1. The `WorkerParamters` are actually there if you want to pass some arguments to the worker while scheduling.
+
+Here is how you would build work request:
+```
+val constraints= Constraints.Builder()
+.setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+.build()
+
+val workerRequest= PeriodicWorkRequestBuilder<NotificationWorker>(
+            15, TimeUnit.MINUTES,
+            5, TimeUnit.MINUTES
+)
+.setConstraints(constraints)
+.addTag("RoutineNotificationWorkerTag")
+.build()
+
+```
+1. You can see we first create a constraints with its builder to specify that on any network type you can go ahead and run any worker on which this constraint is attached. You can create multiple rules in the same constraint.
+2. Next, we are building a `PeriodicWorkRequest` with `PeriodicWorkRequestBuilder` which takes your worker class as its generic constructor arg essentially, which will tell the workmanager to invoke `doWork()` of this class when its time to run the work.
+3. The `15,TimeUnit.MINUTES`(called the interval time) is being used to convey that work manager should run it every 15 minutes since it is a `PeriodicWorkRequest`. That 5 minutes(called the flex time) is telling work manager  that you are allowed to run even in 10-15 minute interval. Which can it can run either in 10,11,12,13,14 minute intervals. It is the choice of workmanager. You can decrease it to force work manager to run it closer and closer to the interval time(here, 15 minutes). **You can't set interval time less than 15 minutes**
+4. Adding tag (like `.addTag("RoutineNotificationWorkerTag")`) is important to identify workers in the workmanager later to cancel or delete them.
+5. We finally `build()` to get the work request object.
+
+Here, is how you work manager to enqueue this work request:
+```
+WorkManager.getInstance(this).enqueueUniquePeriodicWork("RoutineNotificationWorker",ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE,workerRequest)
+```
+1. `enqueueUniquePeriodicWork` on the work manager instance is used to enqueue your work request in this periodic work queue.
+2. `RoutineNotificationWorker` is just a name we are giving to our worker.
+3. `ExsitingPeriodicWorkPolicy` is used to tell work manager to what to do if it sees multiple workers with same name. Here we are asking it to cancel past ones and use this one.
