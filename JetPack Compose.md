@@ -49,6 +49,14 @@
 
 5. Objects like `CompositionLocal` exist so that they can be accessed by full heirarchy of all composables who have access to the object. But `Provider`s exist to provide different values for the same `CompositionLocal` which is how you provide scoped and global states.
 
+## Material theme and colors
+1. Material theme has `colors` arg.
+2. This arg needs to provide `primary`,`secondary`,`onPrimary`,`onSeocndary` colors.
+   * `primary`: color of background more often used for many widgets.
+   * `secondary`: color of background but less often used.
+   * `onPrimary`: text color to use when `primary` is the background.
+   * `onSecondary`: text color to use when `secondary` is the background.
+
 ## How to create mutable state for your activity
 
 1. Declare a `ViewModel` class seperately and put data for your state in it.
