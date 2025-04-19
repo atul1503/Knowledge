@@ -164,6 +164,22 @@ For eg, since, there is no simple way to position child from the top right corne
 Text(text = "1", modifier = Modifier.align(Alignment.TopEnd).offset(x=-100.dp,y=200.dp).background(color = Color.Red))
 ```
 
+### Important points about positioning
+## `Column`s
+1. To align children, use `horizontalAlignment` property to align them horizontally. Meaning defining how will flow left, or right or center.
+2. To put space between children, use `verticalArrangement = Arrangement.spacedBy(16.dp)` and specify exact number to specify how much space should be there between two children.
+
+## `Row`s
+1. To align children, use `verticalAlignment` property to align them vertically. Meaning, defining how will children flow: left, or right or center.
+2. To put space between children, use `horizontalArrangement = Arrangement.spacedBy(16.dp)` and specify exact number to specify how much space should be there between two children.
+
+## `Box`s
+1. Only children of the box can have alignment, the complete box cannot have alignment. So use `modifier.align()` to align a box's child inside box.
+2. Arrangement or space between children is not straightforward, use either absolute positioning or stack.
+
+## Use `LocalConfiguration.current.screenWidthDp` to get the width of screen. 
+Using this you can size 95% of the things so that you dont have to worry about different phone sizes.
+
 
 ## How to have simple value animations
 
