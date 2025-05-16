@@ -1,3 +1,97 @@
+## Dependency Injection using Hilt
+Hilt is a dependency injection library for android. Android projects need DI just so that we don't need to handle and manage objects and offload those tasks to the DI framework.
+
+### How to setup Hilt:
+Hilt is similar to springboot and most of its work is done duirng compile time, so for that you need to add its plugin to project build.gradle file:
+```
+id 'com.google.dagger.hilt.android' version '2.44' apply false
+```
+Version can be any stable version. Note that here we are not applying the plugin, just adding it to the project and this gives choice to modules inside the project whether they use it or not.
+
+Now, in your module's build.gradle, add this in plugin section.
+```
+id 'dagger.hilt.android.plugin'
+```
+Here we are applying this.
+
+Now, in the dependencies section add these: 
+```
+implementation "com.google.dagger:hilt-android:2.44"
+kapt "com.google.dagger:hilt-compiler:2.44"
+```
+Version can be any stable version. Kapt plugin also needs to installed as a prerequisite.
+   
+Dependency can be injected using public field injection or constructor injection using `@Inject` annotation.
+**Field injection**:
+```
+class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var repo: MyRepository
+```
+Remember that since we are not creating the `MyRepository` object here so we need to declare the field as `lateinit var` as Hilt will provide us this during runtime. This field can also not be private for the same reason.
+
+**Constructor Injection**:
+```
+class MyClass @Inject constructor(var dep1: Dep1, var dep2: Dep2) {
+   //your class implementation
+}
+```
+`val`,`var` or `lateinit` restrictions are not here. That depends on your usecase. 
+
+Dependency can be of any type even primitives also. 
+
+In situations where there is a dependency that you want hilt to manage but your project code is using it as a third party dependency(meanign that you didn't implement the code for it), then just like spring boot(where you could create configuration class), you can create a hilt module to define or provide multiple dependencies of such type:
+```
+@Module
+@InstallIn(SingletonComponent::class.java)
+class DepProvider
+
+   @Provides
+   fun provideDep1(dep1 : Dependency1) {
+      return Dependency1()
+   }
+   
+```
+So essentially, just like in spring boot we had bean factory functions in configuration classes, we have a hilt module which has dependency factory methods like this. Hilt uses this class to create dependencies when needed.
+`@Module` signals the same to hilt that is a hilt module which has functions which provide dependencies.
+
+#### What is `@InstallIn` here?
+Hilt creates and maintains several containers of dependencies internally and each of those containers have dependencies that have a common visibility. For eg, there is container for dependencies that are visible across the whole application, there is a container which contains dependencies which have visibility only across the activity it is associated with. So, in short there are containers for each of the android components including services,fragments etc.
+Here, with `SingletonComponent::class.java` arg, you are telling Hilt that all dependencies of this hilt module will have visibility across the whole app. 
+There are other Component classes like this, one is there for Activity, there is one for Fragment etc. Google it.
+
+#### Are containers same as scopes here?
+The containers like `SingletonComponent::class.java` are not a way to define scopes. Since a DI framework needs to know the scope or lifecycle of a dependency, we need to declare scopes for them. Hilt also has concept of scopes and you have two options:
+1. Either don't declare scopes for a dependency which will mean that whenever you ask for this dependency, Hilt will create a new instance of it. Old will still be there as long as the scope to which it is tied to doesnot die.
+2. Declare a scope. Scopes are also, like containers, of type activity, fragment, viewmodel etc. Google them. When their scoped components die the dependencies will also be put for garbage collection. Meaning that if you have provided a dependency with activity scope and hilt injects that in an activity then when the activity dies, your dependency also dies.
+
+Components and scopes need to be on same level. For eg, if Dependency A is scoped as activity scope then it should also be in ActivityComponent, otherwise you will get compile time error.
+
+#### Scopes declaration example:
+```
+@ActivityScoped
+class MyAnalyticsTracker @Inject constructor(...)
+
+
+@Module
+@InstallIn(ActivityComponent::class)
+object MyActivityModule {
+
+    @Provides
+    fun provideSomething(): Something = ...
+}
+```
+I know its unrelated but a good example.
+
+
+#### How to declare multiple dependencies of same type.
+Using `@Qualifier` annotations. Simply create your own qualifier annotation with retention policy of binary(annotation will be till compile time).
+And tag your injected 
+
+
+## General Tips
+
 1. You declare UI using `@Composable` annotated functions. These functions are called composables. These are similar to widgets in flutter.
 2. `LaunchedEffect` allows to run side effects. In its lambda, you need to call `launch()` with a dispatcher to un your code in different threads.  
 3. Inside each composable function, you can call other composable functions to declare your UI in a declarative format.
