@@ -131,6 +131,27 @@ class MainActivity : ComponentActivity() {
 ```
 
 
+### How to use a hilt view model in a composable
+Viewmodel handle business logic, you can call viewmodels directly inside a composable instead of passing viewmodels via composable args and its better to avoid getting viewmodel handle from an activity since your composable can be called from any activity.
+
+For this, hilt requires to declare a viewmodel as hilt view model, by using `@HiltViewModel` like this:
+```
+@HiltViewModel
+class MyViewModel @Inject constructor(
+    private val repository: MyRepository
+) : ViewModel() {
+    val message = "Hello from ViewModel"
+}
+```
+In the composable, you can directly get instance of the viewmodel like this:
+```
+@Composable
+fun MyScreen() {
+    val viewModel: MyViewModel = hiltViewModel()
+    Text(text = viewModel.message)
+}
+```
+
 ## General Tips
 
 1. You declare UI using `@Composable` annotated functions. These functions are called composables. These are similar to widgets in flutter.
