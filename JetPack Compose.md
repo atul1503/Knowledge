@@ -137,18 +137,19 @@ Viewmodel handle business logic, you can call viewmodels directly inside a compo
 For this, hilt requires to declare a viewmodel as hilt view model, by using `@HiltViewModel` like this:
 ```
 @HiltViewModel
-class MyViewModel @Inject constructor(
-    private val repository: MyRepository
-) : ViewModel() {
-    val message = "Hello from ViewModel"
+class MyViewModel @Inject constructor(repo: MyRepository) : ViewModel() {
+    val mystate= MutableStateFlow(repo.getData())
 }
 ```
 In the composable, you can directly get instance of the viewmodel like this:
 ```
 @Composable
-fun MyScreen() {
-    val viewModel: MyViewModel = hiltViewModel()
-    Text(text = viewModel.message)
+fun Greeting(name: String, modifier: Modifier = Modifier) {
+    val vm: MyViewModel= hiltViewModel()
+    Text(
+        text = "Hello ${vm.mystate.collectAsState().value}!",
+        modifier = modifier
+    )
 }
 ```
 
