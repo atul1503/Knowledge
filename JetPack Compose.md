@@ -153,6 +153,9 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
 }
 ```
 
+### Hilt Tips:
+1. Composables should not interact or get Hilt dependencies directly, they should only have a handle to the viewmodel and ensure that all complex operations of using hilt dependencies for complex business logic should be done in view model only and the composable should just call the viewmodel code to get them done.
+
 ## General Tips
 
 1. You declare UI using `@Composable` annotated functions. These functions are called composables. These are similar to widgets in flutter.
