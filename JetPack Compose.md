@@ -87,7 +87,48 @@ I know its unrelated but a good example.
 
 #### How to declare multiple dependencies of same type.
 Using `@Qualifier` annotations. Simply create your own qualifier annotation with retention policy of binary(annotation will be till compile time).
-And tag your injected 
+And tag either your `@Provides` function or  `@Inject` constrcutor or field with this annotation. Now wherver this dependency is required as arg of a constructor or field, also tag it there with this annotation. Like this:
+```
+//Declaring seperate annotation for tagging.
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class BaseUrl
+
+// another annotation declared to for any other dependency
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class ThirdPartyUrl
+
+
+//module which provides the depednency
+@Module
+@InstallIn(SingletonComponent::class)
+object ProviderModule {
+
+    @Provides
+    @BaseUrl
+    fun provideBaseUrl() = "https://www.google.com"
+
+}
+
+//component which requires a string dependency.
+class MyRepository
+@Inject
+constructor(@BaseUrl val baseUrl: String) {
+    fun getData(): String {
+        return baseUrl
+    }
+}
+// tagged a string arg as the annotation to signal hilt that it should come which one we are talking about.
+
+
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var repo: MyRepository
+
+```
 
 
 ## General Tips
