@@ -309,7 +309,60 @@ myViewModelInstance.flowVariable.collect {
 // this code will always have the latest value of the state flow as `it`
 }
 ``` 
-the lambda will always have the latest value of the state flow as `it`. Remember that `.collect` is a suspend function that means it will block the coroutine which is running the side effect until the composable, in which the side effect is, goes out of UI tree as unlike normal flows , state flows never complete that is they never stop emiting.
+the lambda will always have the latest value of the state flow as `it`. Remember that `.collect` is a suspend function that means it will block the coroutine which is running the side effect until the composable, in which the side effect is, goes out of UI tree as unlike normal flows , state flows never complete, that is, they never stop emiting.
+
+Here is a full example:
+```
+class MyViewModel(repo: MyRepository) : ViewModel() {
+    var mystate= MutableStateFlow(repo.getData())
+    var count= MutableStateFlow(0)
+}
+
+@Composable
+fun Greeting(name: String, modifier: Modifier = Modifier) {
+    val vm: MyViewModel= hiltViewModel()
+    Row() {
+        Text(
+            text = "Hello ${vm.mystate.collectAsState().value}!",
+            modifier = modifier
+        )
+
+        Button(onClick = {
+
+            vm.mystate.value = "www.facebook.com"
+
+        }) {
+
+            Text("To facebook")
+
+        }
+        Button(onClick = { 
+            vm.mystate.value="www.google.com"
+        }) {
+            Text(text = "Back to google")
+        }
+    }
+
+    LaunchedEffect(key1 = Unit, block = {
+        while (true) {
+            delay(1500)
+            vm.count.value+=1
+        }
+    } )
+
+    LaunchedEffect(key1 = Unit, block = {
+        vm.count.collect {
+            if(it%2==0) {
+                vm.mystate.value="www.facebook.com"
+            }
+            else {
+                vm.mystate.value="www.google.com"
+            }
+        }
+    })
+}
+```
+here count and mystate both mutable state flows.
 
 ## How to perform basic layouts
 
