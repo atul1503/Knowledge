@@ -294,6 +294,23 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
 
 For each activity, you can keep seperate view models.
 
+### How to use Mutable State Flows to create state more shareable.
+Mutable state flows are the best solutions for states that you want to be shared among composables. So for that you need to declare these as `MutableStateFlow<YourStateType>(initValue)` in youe view model.
+
+In the composable, get a handle of the view model and get these flows as:
+```
+val state=myViewModelInstance.flowVariable.collectAsState()
+```
+So this flow is collected as state and whenever the `.value` of `flowVariable` is changed your composable will recompose.
+
+`MutableStateFlow`s are good for side effects also. Inside side effects, call the `.collect()` method on the `flowVariable` and pass it a lambda, like this:
+```
+myViewModelInstance.flowVariable.collect {
+// this code will always have the latest value of the state flow as `it`
+}
+``` 
+the lambda will always have the latest value of the state flow as `it`. Remember that `.collect` is a suspend function that means it will block the coroutine which is running the side effect until the composable, in which the side effect is, goes out of UI tree as unlike normal flows , state flows never complete that is they never stop emiting.
+
 ## How to perform basic layouts
 
 ### For custom positioning of children inside a parent, use `Box` and put its children inside it.
