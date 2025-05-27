@@ -2,5 +2,5 @@ To create docs for any tech, use vs code agent or cursor agent by providing foll
 
 
 
-Look at this folder how I document concepts of different tech, analyze it and create a similar [technology name] md file.
-Use similar language simplicity and style.
+Look at this folder how I document concepts of different tech, analyze it and create a similar github actions md file.
+Use similar language simplicity and style. Explain each new property or field the very first time you use in any example
