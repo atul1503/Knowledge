@@ -179,6 +179,202 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
 
 3. You cannot call composable function from a non composable function. Only exception is the `setContent` inside the `onCreate` method of an activity class. That means you cannot call composable function from event handlers like onClick.
 
+## How to import and use images from local directories
+
+1. **Put your images in the drawable folder.** In Android Studio, navigate to `app/src/main/res/drawable` and copy your image files there. Android supports PNG, JPG, GIF, and WebP formats.
+   ```
+   app/
+   └── src/
+       └── main/
+           └── res/
+               └── drawable/
+                   ├── my_image.png        # Your image file
+                   ├── profile_pic.jpg     # Another image
+                   └── icon_home.png       # Icon image
+   ```
+
+2. **Use Image composable to display images.** The `Image` composable is like an `ImageView` in traditional Android development.
+   ```kotlin
+   @Composable
+   fun MyImageScreen() {
+       Image(
+           painter = painterResource(id = R.drawable.my_image),    // Reference to your drawable
+           contentDescription = "Description for accessibility",   // For screen readers
+           modifier = Modifier.size(200.dp)                       // Size of the image
+       )
+   }
+   ```
+
+3. **Different ways to scale and fit images.** Use `contentScale` parameter to control how the image fits in the available space.
+   ```kotlin
+   @Composable
+   fun ImageScalingExamples() {
+       Column {
+           // Crop the image to fill the entire space
+           Image(
+               painter = painterResource(R.drawable.my_image),
+               contentDescription = "Cropped image",
+               contentScale = ContentScale.Crop,               // Crop to fill space
+               modifier = Modifier.size(150.dp)
+           )
+           
+           // Fit the entire image inside the space (may have empty areas)
+           Image(
+               painter = painterResource(R.drawable.my_image),
+               contentDescription = "Fitted image", 
+               contentScale = ContentScale.Fit,                // Fit entire image
+               modifier = Modifier.size(150.dp)
+           )
+           
+           // Fill the width and scale height proportionally
+           Image(
+               painter = painterResource(R.drawable.my_image),
+               contentDescription = "Fill width image",
+               contentScale = ContentScale.FillWidth,          // Fill width, scale height
+               modifier = Modifier.fillMaxWidth()
+           )
+       }
+   }
+   ```
+
+4. **Add images as backgrounds.** Use `Modifier.background()` with `painterResource` to set images as backgrounds.
+   ```kotlin
+   @Composable
+   fun ImageBackground() {
+       Box(
+           modifier = Modifier
+               .fillMaxSize()
+               .background(
+                   brush = Brush.verticalGradient(              // You can also use solid colors
+                       colors = listOf(Color.Blue, Color.Green)
+                   )
+               )
+               .paint(                                          // Add image as background
+                   painter = painterResource(R.drawable.background_image),
+                   contentScale = ContentScale.Crop
+               )
+       ) {
+           Text(
+               text = "Text over background image",
+               color = Color.White,
+               modifier = Modifier.align(Alignment.Center)
+           )
+       }
+   }
+   ```
+
+5. **Create circular or rounded images.** Use `Modifier.clip()` to shape your images.
+   ```kotlin
+   @Composable
+   fun ShapedImages() {
+       Row {
+           // Circular image (like profile picture)
+           Image(
+               painter = painterResource(R.drawable.profile_pic),
+               contentDescription = "Profile picture",
+               contentScale = ContentScale.Crop,
+               modifier = Modifier
+                   .size(80.dp)
+                   .clip(CircleShape)                           // Makes it circular
+           )
+           
+           // Rounded corner image
+           Image(
+               painter = painterResource(R.drawable.my_image),
+               contentDescription = "Rounded image",
+               contentScale = ContentScale.Crop,
+               modifier = Modifier
+                   .size(80.dp)
+                   .clip(RoundedCornerShape(16.dp))             // Rounded corners
+           )
+       }
+   }
+   ```
+
+6. **Handle different screen densities.** Android automatically picks the right image based on screen density if you organize them properly.
+   ```
+   drawable/                    # Default images (mdpi - 160dpi)
+   drawable-hdpi/              # High density images (240dpi)
+   drawable-xhdpi/             # Extra high density (320dpi)
+   drawable-xxhdpi/            # Extra extra high density (480dpi)
+   drawable-xxxhdpi/           # Extra extra extra high density (640dpi)
+   ```
+   Put the same image with different resolutions in these folders. Android will automatically choose the best one.
+
+7. **Load images with error handling.** Use `AsyncImage` from Coil library for more advanced image loading (you need to add Coil dependency).
+   ```kotlin
+   // First add to build.gradle (Module: app)
+   // implementation "io.coil-kt:coil-compose:2.4.0"
+   
+   @Composable
+   fun ImageWithErrorHandling() {
+       AsyncImage(
+           model = R.drawable.my_image,                         // Can also be URL for network images
+           contentDescription = "Image with error handling",
+           placeholder = painterResource(R.drawable.placeholder), // Show while loading
+           error = painterResource(R.drawable.error_image),     // Show if loading fails
+           contentScale = ContentScale.Crop,
+           modifier = Modifier.size(200.dp)
+       )
+   }
+   ```
+
+8. **Create image buttons.** Combine `Image` with `clickable` modifier or use `IconButton`.
+   ```kotlin
+   @Composable
+   fun ImageButtons() {
+       Column {
+           // Clickable image
+           Image(
+               painter = painterResource(R.drawable.icon_home),
+               contentDescription = "Home button",
+               modifier = Modifier
+                   .size(48.dp)
+                   .clickable { 
+                       // Handle click
+                       println("Image clicked!")
+                   }
+           )
+           
+           // Icon button (better for accessibility)
+           IconButton(
+               onClick = { 
+                   // Handle click
+                   println("Icon button clicked!")
+               }
+           ) {
+               Image(
+                   painter = painterResource(R.drawable.icon_home),
+                   contentDescription = "Home button",
+                   modifier = Modifier.size(24.dp)
+               )
+           }
+       }
+   }
+   ```
+
+9. **Vector drawables vs raster images.** Use vector drawables (SVG-like) for icons and simple graphics, raster images (PNG/JPG) for photos.
+   ```kotlin
+   @Composable
+   fun VectorVsRaster() {
+       Row {
+           // Vector drawable (scales perfectly, small file size)
+           Image(
+               painter = painterResource(R.drawable.ic_vector_icon),  // .xml vector file
+               contentDescription = "Vector icon",
+               modifier = Modifier.size(48.dp)
+           )
+           
+           // Raster image (good for photos, larger file size)
+           Image(
+               painter = painterResource(R.drawable.photo),           // .png/.jpg file
+               contentDescription = "Photo",
+               modifier = Modifier.size(48.dp)
+           )
+       }
+   }
+   ```
+
 ## How to declare readonly global or scoped state for your app.
    
    1. Declare an object of type `ProvidableCompositionLocal<T>` which you will later use to access the state value using the `current` property of this object.
