@@ -170,29 +170,77 @@ As you can see that the variables declared in the scope where the `scope` `Corou
     }
     ```
 
-21. For Android projects, the `build.gradle.kts` looks different:
+21. For Android projects, the `build.gradle.kts` looks different because Android has its own build system on top of Gradle:
     ```kotlin
     plugins {
-        id("com.android.application")
+        id("com.android.application")  // For apps. Use "com.android.library" for libraries
         kotlin("android")
+        kotlin("kapt")  // For annotation processing (Room, Dagger, etc.)
     }
     
     android {
-        compileSdk = 34
+        namespace = "com.example.myapp"  // Replaces applicationId in manifest
+        compileSdk = 34                  // SDK version to compile against
         
         defaultConfig {
-            applicationId = "com.example.myapp"
-            minSdk = 24
-            targetSdk = 34
-            versionCode = 1
-            versionName = "1.0"
+            applicationId = "com.example.myapp"  // Unique app identifier (like bundle ID)
+            minSdk = 24                          // Minimum Android version supported
+            targetSdk = 34                       // Target Android version (latest features)
+            versionCode = 1                      // Internal version number (increment for updates)
+            versionName = "1.0"                  // User-visible version string
+            
+            testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         }
         
         buildTypes {
-            release {
-                isMinifyEnabled = false
-                proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            debug {
+                isDebuggable = true
+                applicationIdSuffix = ".debug"   // Different app ID for debug builds
+                versionNameSuffix = "-DEBUG"
             }
+            release {
+                isMinifyEnabled = true           // Shrink code and resources
+                isShrinkResources = true         // Remove unused resources
+                proguardFiles(
+                    getDefaultProguardFile("proguard-android-optimize.txt"),
+                    "proguard-rules.pro"
+                )
+                signingConfig = signingConfigs.getByName("release")  // Sign for Play Store
+            }
+        }
+        
+        // For different app flavors (free vs paid, different backends, etc.)
+        flavorDimensions += "version"
+        productFlavors {
+            create("free") {
+                dimension = "version"
+                applicationIdSuffix = ".free"
+                versionNameSuffix = "-free"
+            }
+            create("paid") {
+                dimension = "version"
+                applicationIdSuffix = ".paid"
+                versionNameSuffix = "-paid"
+            }
+        }
+        
+        compileOptions {
+            sourceCompatibility = JavaVersion.VERSION_1_8
+            targetCompatibility = JavaVersion.VERSION_1_8
+        }
+        
+        kotlinOptions {
+            jvmTarget = "1.8"
+        }
+        
+        buildFeatures {
+            viewBinding = true    // Generate binding classes for layouts
+            dataBinding = true    // Enable data binding
+            compose = true        // Enable Jetpack Compose
+        }
+        
+        composeOptions {
+            kotlinCompilerExtensionVersion = "1.5.4"
         }
     }
     
@@ -200,8 +248,28 @@ As you can see that the variables declared in the scope where the `scope` `Corou
         implementation("androidx.core:core-ktx:1.12.0")
         implementation("androidx.appcompat:appcompat:1.6.1")
         implementation("com.google.android.material:material:1.9.0")
+        implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+        
+        // Jetpack Compose
+        implementation(platform("androidx.compose:compose-bom:2023.10.01"))
+        implementation("androidx.compose.ui:ui")
+        implementation("androidx.compose.material3:material3")
+        implementation("androidx.activity:activity-compose:1.8.0")
+        
+        // Testing
+        testImplementation("junit:junit:4.13.2")
+        androidTestImplementation("androidx.test.ext:junit:1.1.5")
+        androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     }
     ```
+    
+    Key differences from regular Kotlin projects:
+    * `android` block configures Android-specific settings
+    * `minSdk`/`targetSdk` define Android version compatibility
+    * Build types (debug/release) with different configurations
+    * Product flavors for app variants
+    * Special dependencies like `androidx` libraries
+    * Signing configuration for Play Store releases
 
 22. Gradle has different dependency types:
     ```kotlin
@@ -226,30 +294,184 @@ As you can see that the variables declared in the scope where the `scope` `Corou
     }
     ```
 
-24. For multiplatform projects (Kotlin can run on JVM, Android, iOS, JS, Native):
+24. For multiplatform projects, Kotlin can run on JVM, Android, iOS, JavaScript, and Native platforms. This means you can share code between different platforms while still having platform-specific code when needed:
     ```kotlin
     plugins {
         kotlin("multiplatform")
+        id("com.android.library")  // If you want Android support
     }
     
     kotlin {
-        jvm()
+        // Define target platforms
+        jvm {
+            jvmToolchain(8)
+            withJava()  // Include Java sources
+        }
+        
+        android {
+            compilations.all {
+                kotlinOptions {
+                    jvmTarget = "1.8"
+                }
+            }
+        }
+        
         js(IR) {
-            browser()
+            browser {
+                commonWebpackConfig {
+                    cssSupport {
+                        enabled.set(true)
+                    }
+                }
+            }
             nodejs()
         }
         
+        // iOS targets
+        iosX64()
+        iosArm64()
+        iosSimulatorArm64()
+        
+        // Native targets (optional)
+        linuxX64()
+        mingwX64()
+        macosX64()
+        
         sourceSets {
+            // Common code that works on all platforms
             val commonMain by getting {
                 dependencies {
                     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+                    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+                    implementation("io.ktor:ktor-client-core:2.3.5")
                 }
             }
-            val jvmMain by getting
-            val jsMain by getting
+            
+            val commonTest by getting {
+                dependencies {
+                    implementation(kotlin("test"))
+                }
+            }
+            
+            // JVM-specific code
+            val jvmMain by getting {
+                dependencies {
+                    implementation("io.ktor:ktor-client-cio:2.3.5")  // JVM HTTP client
+                }
+            }
+            
+            // Android-specific code
+            val androidMain by getting {
+                dependencies {
+                    implementation("androidx.core:core-ktx:1.12.0")
+                    implementation("io.ktor:ktor-client-android:2.3.5")  // Android HTTP client
+                }
+            }
+            
+            // JavaScript-specific code
+            val jsMain by getting {
+                dependencies {
+                    implementation("io.ktor:ktor-client-js:2.3.5")  // JS HTTP client
+                }
+            }
+            
+            // iOS-specific code (shared between all iOS targets)
+            val iosMain by creating {
+                dependsOn(commonMain)
+                dependencies {
+                    implementation("io.ktor:ktor-client-darwin:2.3.5")  // iOS HTTP client
+                }
+            }
+            
+            // Connect iOS targets to shared iOS source set
+            val iosX64Main by getting { dependsOn(iosMain) }
+            val iosArm64Main by getting { dependsOn(iosMain) }
+            val iosSimulatorArm64Main by getting { dependsOn(iosMain) }
+        }
+    }
+    
+    android {
+        namespace = "com.example.shared"
+        compileSdk = 34
+        defaultConfig {
+            minSdk = 24
         }
     }
     ```
+    
+    Project structure for multiplatform:
+    ```
+    src/
+    ├── commonMain/kotlin/          # Code that works everywhere
+    │   └── com/example/
+    │       ├── ApiClient.kt        # Shared business logic
+    │       └── DataModel.kt        # Shared data classes
+    ├── commonTest/kotlin/          # Tests for common code
+    ├── jvmMain/kotlin/             # JVM-specific code
+    │   └── com/example/
+    │       └── DatabaseHelper.kt   # JVM database access
+    ├── androidMain/kotlin/         # Android-specific code
+    │   └── com/example/
+    │       └── AndroidUtils.kt     # Android UI helpers
+    ├── jsMain/kotlin/              # JavaScript-specific code
+    │   └── com/example/
+    │       └── DomUtils.kt         # DOM manipulation
+    └── iosMain/kotlin/             # iOS-specific code
+        └── com/example/
+            └── IOSUtils.kt         # iOS native interop
+    ```
+    
+    Using `expect` and `actual` for platform-specific implementations:
+    ```kotlin
+    // In commonMain - declare what you expect each platform to provide
+    expect class Platform() {
+        val name: String
+    }
+    
+    expect fun getCurrentTimestamp(): Long
+    
+    // In jvmMain - provide JVM implementation
+    actual class Platform {
+        actual val name: String = "JVM"
+    }
+    
+    actual fun getCurrentTimestamp(): Long = System.currentTimeMillis()
+    
+    // In jsMain - provide JavaScript implementation
+    actual class Platform {
+        actual val name: String = "JavaScript"
+    }
+    
+    actual fun getCurrentTimestamp(): Long = js("Date.now()") as Long
+    
+    // In iosMain - provide iOS implementation
+    actual class Platform {
+        actual val name: String = "iOS"
+    }
+    
+    actual fun getCurrentTimestamp(): Long = NSDate().timeIntervalSince1970.toLong() * 1000
+    ```
+    
+    Common multiplatform use cases:
+    * **Shared business logic**: API clients, data models, validation
+    * **Mobile apps**: Share logic between Android and iOS
+    * **Full-stack**: Share models between server (JVM) and client (JS)
+    * **Libraries**: Create libraries that work on multiple platforms
+    
+    Build commands for multiplatform:
+    ```bash
+    ./gradlew build                    # Build all targets
+    ./gradlew jvmTest                  # Test JVM target only
+    ./gradlew jsTest                   # Test JavaScript target only
+    ./gradlew iosX64Test               # Test iOS simulator
+    ./gradlew publishToMavenLocal      # Publish to local Maven repo
+    ```
+    
+    Benefits of multiplatform:
+    * Write business logic once, use everywhere
+    * Type-safe sharing between platforms
+    * Platform-specific optimizations when needed
+    * Gradual adoption - start with small shared modules
 
 25. Gradle wrapper (`gradlew`) is included in projects so you don't need to install Gradle globally. It downloads the right version automatically.
 
@@ -259,25 +481,9 @@ As you can see that the variables declared in the scope where the `scope` `Corou
     * Gradle caches everything, sometimes you need to clear cache with `./gradlew clean`
     * Dependencies can conflict - use `./gradlew dependencies` to debug
 
-27. For publishing libraries, add publishing plugin:
-    ```kotlin
-    plugins {
-        kotlin("jvm")
-        `maven-publish`
-    }
-    
-    publishing {
-        publications {
-            create<MavenPublication>("maven") {
-                from(components["java"])
-            }
-        }
-    }
-    ```
+27. Gradle build phases: initialization → configuration → execution. Your build scripts run during configuration phase.
 
-28. Gradle build phases: initialization → configuration → execution. Your build scripts run during configuration phase.
-
-29. You can create custom tasks:
+28. You can create custom tasks:
     ```kotlin
     tasks.register("hello") {
         doLast {
@@ -287,7 +493,7 @@ As you can see that the variables declared in the scope where the `scope` `Corou
     ```
     Run with: `./gradlew hello`
 
-30. For faster builds, add these to `gradle.properties`:
+29. For faster builds, add these to `gradle.properties`:
     ```properties
     org.gradle.daemon=true
     org.gradle.parallel=true
