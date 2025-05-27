@@ -416,69 +416,179 @@ Notes:
 
 ## Swift Package Manager (SPM) - No Xcode Needed
 
-29. Create a new Swift project from terminal using `swift package init`.
+29. Create a new Swift project from terminal using `swift package init`. This creates all the files and folders you need.
     ```bash
-    # Create executable project
+    # Create executable project (makes an app you can run)
     swift package init --type executable --name MyApp
     
-    # Create library project  
+    # Create library project (makes code others can import)
     swift package init --type library --name MyLibrary
     
-    # Create empty package
+    # Create empty package (you decide what to put in it)
     swift package init
+    
+    # You can also create in a specific directory
+    mkdir MyProject && cd MyProject
+    swift package init --type executable
+    ```
+    
+    After running this, you get a complete project structure:
+    ```
+    MyApp/
+    ├── Package.swift          // Project configuration
+    ├── README.md             // Documentation
+    ├── .gitignore           // Git ignore file
+    ├── Sources/
+    │   └── MyApp/
+    │       └── main.swift    // Your app's entry point
+    └── Tests/
+        └── MyAppTests/
+            └── MyAppTests.swift  // Your tests
     ```
 
-30. **Package.swift** is your project config file. It defines targets, products, and dependencies.
+30. **Package.swift** is your project config file. It's like a recipe that tells Swift how to build your project.
     ```swift
-    // swift-tools-version: 5.8
+    // swift-tools-version: 5.8  // Minimum Swift version needed
     import PackageDescription
     
     let package = Package(
-        name: "MyApp",
+        name: "MyApp",                    // Name of your package
+        platforms: [.macOS(.v12)],        // Which platforms it supports (optional)
         products: [
+            // Products are what gets built - executables or libraries
             .executable(name: "MyApp", targets: ["MyApp"]),
         ],
         dependencies: [
+            // External packages your project uses
             .package(url: "https://github.com/apple/swift-argument-parser", from: "1.0.0"),
+            .package(url: "https://github.com/vapor/vapor.git", from: "4.0.0"),
         ],
         targets: [
+            // Targets are groups of source files
             .executableTarget(
-                name: "MyApp",
+                name: "MyApp",            // This target builds the main app
                 dependencies: [
-                    .product(name: "ArgumentParser", package: "swift-argument-parser")
+                    .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                    .product(name: "Vapor", package: "vapor"),
                 ]
             ),
             .testTarget(
-                name: "MyAppTests",
-                dependencies: ["MyApp"]
+                name: "MyAppTests",       // This target builds the tests
+                dependencies: ["MyApp"]   // Tests depend on the main app
             ),
         ]
     )
     ```
+    
+    Each part does something specific:
+    - **name**: What your package is called
+    - **platforms**: Which OS versions you support (iOS 14+, macOS 11+, etc.)
+    - **products**: What gets built (apps, libraries)
+    - **dependencies**: External code you want to use  
+    - **targets**: Groups of your source files
 
-31. **Products** are what your package builds. Can be executables or libraries.
+31. **Products** are what your package builds - the end result people can use.
     ```swift
     products: [
-        .executable(name: "MyApp", targets: ["MyApp"]),           // Makes an app you can run
-        .library(name: "MyLibrary", targets: ["MyLibrary"]),     // Makes a library others can import
+        // Executable product - makes a command-line app
+        .executable(name: "MyApp", targets: ["MyApp"]),
+        
+        // Library product - makes code others can import
+        .library(name: "MyLibrary", targets: ["MyLibrary"]),
+        
+        // You can have multiple products from one package
+        .executable(name: "AdminTool", targets: ["AdminTool"]),
+        .library(name: "SharedUtils", targets: ["Utils", "Helpers"]),
     ]
     ```
+    
+    **Executable** products:
+    - Can be run from command line: `swift run MyApp`
+    - Have a `main.swift` file or `@main` struct
+    - Good for CLI tools, servers, scripts
+    
+    **Library** products:
+    - Other packages can import them: `import MyLibrary`
+    - Can't be run directly - they're code for other code
+    - Good for reusable components, frameworks
+    
+    One package can make multiple products. For example, a web framework might have:
+    - Library for the framework itself
+    - Executable for code generation tools
 
-32. **Targets** are groups of source files. Each target becomes a module.
+32. **Targets** are groups of source files. Each target becomes a module you can import.
     ```swift
     targets: [
-        .executableTarget(name: "MyApp"),        // App target
-        .target(name: "MyLibrary"),              // Library target  
-        .testTarget(name: "MyAppTests"),         // Test target
+        // Executable target - has a main.swift or @main
+        .executableTarget(
+            name: "MyApp",
+            dependencies: ["Networking", "Database"],  // Uses other targets
+            path: "Sources/MyApp",                     // Where the source files are (optional)
+            exclude: ["README.md", "old_code/"],       // Files to ignore (optional)
+            sources: ["main.swift", "AppLogic.swift"], // Specific files (optional)
+            resources: [.copy("config.json")]          // Include data files (optional)
+        ),
+        
+        // Regular target - library code
+        .target(
+            name: "Networking",
+            dependencies: [
+                .product(name: "AsyncHTTPClient", package: "async-http-client")
+            ]
+        ),
+        
+        // Another target
+        .target(name: "Database"),
+        
+        // Test target - tests your code
+        .testTarget(
+            name: "MyAppTests",
+            dependencies: ["MyApp", "Networking"],     // What it tests
+            resources: [.copy("test_data.json")]       // Test data files
+        ),
     ]
     ```
+    
+    Target types:
+    - **executableTarget**: Makes an executable, needs main.swift or @main
+    - **target**: Makes a library/module, no main.swift  
+    - **testTarget**: Contains tests, runs with `swift test`
+    
+    Each target gets its own folder under Sources/ with the same name.
 
-33. **Dependencies** are external packages you want to use.
+33. **Dependencies** are external packages you want to use. SPM downloads and builds them for you.
     ```swift
     dependencies: [
+        // GitHub packages - most common
         .package(url: "https://github.com/vapor/vapor.git", from: "4.0.0"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.0.0"),
+        
+        // You can use different version requirements
+        .package(url: "https://github.com/user/repo.git", .upToNextMajor(from: "1.0.0")),  // 1.x.x
+        .package(url: "https://github.com/user/repo.git", .upToNextMinor(from: "1.2.0")), // 1.2.x
+        .package(url: "https://github.com/user/repo.git", exact: "2.1.5"),                // Exactly 2.1.5
+        .package(url: "https://github.com/user/repo.git", "1.0.0"..<"3.0.0"),            // Between versions
+        
+        // Development versions
+        .package(url: "https://github.com/user/repo.git", branch: "main"),               // Latest from main
+        .package(url: "https://github.com/user/repo.git", revision: "abc123def"),        // Specific commit
+        
+        // Local packages (for development)
+        .package(path: "../MyLocalPackage"),           // Relative path
+        .package(path: "/Users/me/Code/MyPackage"),    // Absolute path
     ],
+    ```
+    
+    After adding dependencies, you use them in targets:
+    ```swift
+    .target(
+        name: "MyApp",
+        dependencies: [
+            .product(name: "Vapor", package: "vapor"),        // Use specific product
+            .product(name: "NIO", package: "swift-nio"),
+            "SomeLocalTarget",                                // Use target from same package
+        ]
+    )
     ```
 
 34. Basic project structure SPM creates:
@@ -494,52 +604,158 @@ Notes:
     └── .gitignore
     ```
 
-35. Build and run your project from terminal:
+35. Build and run your project from terminal. SPM handles all the compilation.
     ```bash
-    # Build the project
+    # Build the project (debug mode by default)
     swift build
     
-    # Run the executable
-    swift run
+    # Build for release (optimized, takes longer)
+    swift build -c release
     
-    # Run specific executable if you have multiple
-    swift run MyApp
+    # Run the executable (builds first if needed)
+    swift run                    # Runs the default executable
+    swift run MyApp              # Runs specific executable if you have multiple
+    swift run MyApp arg1 arg2    # Pass arguments to your app
     
     # Run tests
-    swift test
+    swift test                   # Runs all tests
+    swift test --filter MyAppTests.testSomething  # Run specific test
+    swift test --parallel        # Run tests in parallel (faster)
     
-    # Build for release (optimized)
-    swift build -c release
+    # Clean build artifacts
+    swift package clean
+    
+    # Show package info
+    swift package describe       # Shows package structure
+    swift package show-dependencies  # Shows dependency tree
+    
+    # Generate Xcode project (if you want to use Xcode)
+    swift package generate-xcodeproj
     ```
-
-36. Add dependencies by editing Package.swift, then run `swift package resolve`:
+    
+    Build outputs go to `.build/debug/` or `.build/release/`:
     ```bash
-    # After adding dependencies to Package.swift
-    swift package resolve
+    # You can run the built executable directly
+    ./.build/debug/MyApp
     
-    # Update dependencies to latest versions
-    swift package update
+    # Or the release version
+    ./.build/release/MyApp
     ```
 
-37. **Modules** are what you import. Each target becomes a module.
+36. Add dependencies by editing Package.swift, then let SPM download them:
+    ```bash
+    # After adding dependencies to Package.swift, resolve them
+    swift package resolve          # Downloads and locks dependency versions
+    
+    # Update dependencies to latest allowed versions
+    swift package update           # Updates within your version constraints
+    swift package update MyPackage # Update just one dependency
+    
+    # Reset dependencies (delete and re-download)
+    swift package reset
+    
+    # See what versions are being used
+    swift package show-dependencies
+    ```
+    
+    SPM creates these files to track dependencies:
+    ```
+    Package.resolved      # Exact versions being used (commit this to git)
+    .build/               # Build artifacts (don't commit this)
+    ```
+    
+    **Package.resolved** is important - it locks exact versions so everyone gets the same dependencies:
+    ```json
+    {
+      "version": 2,
+      "dependencies": [
+        {
+          "identity": "vapor",
+          "kind": "remoteSourceControl",
+          "location": "https://github.com/vapor/vapor.git",
+          "state": {
+            "revision": "abc123...",
+            "version": "4.65.2"
+          }
+        }
+      ]
+    }
+    ```
+
+37. **Modules** are what you import. Each target becomes a module you can use in other code.
     ```swift
-    // If you have a target named "Networking"
-    import Networking
+    // Import your own targets/modules
+    import Networking     // If you have a target named "Networking"
+    import Database       // If you have a target named "Database"
     
-    // System modules
-    import Foundation
-    import SwiftUI
+    // Import external package products
+    import Vapor          // From vapor dependency
+    import ArgumentParser // From swift-argument-parser dependency
+    
+    // System modules (built into Swift/platform)
+    import Foundation     // Basic types, networking, file system
+    import SwiftUI        // UI framework (Apple platforms)
+    import Dispatch       // Grand Central Dispatch
     ```
+    
+    Module visibility rules:
+    ```swift
+    // In your Networking target
+    public class APIClient {        // Available to other modules
+        internal func setup() {}    // Only available within Networking module
+        private func validate() {}  // Only available within this file
+    }
+    
+    // In your main app
+    import Networking
+    let client = APIClient()        // Works - it's public
+    client.setup()                  // Error - setup() is internal
+    ```
+    
+    **public**: Available to anyone who imports your module
+    **internal**: Available only within the same module (default)
+    **private**: Available only within the same file
 
-38. Create multiple targets for different parts of your app:
+38. Create multiple targets to organize your code into logical pieces:
     ```swift
     targets: [
-        .executableTarget(name: "MyApp", dependencies: ["Networking", "Database"]),
-        .target(name: "Networking"),     // Network related code
-        .target(name: "Database"),       // Database related code
+        // Main app uses other targets
+        .executableTarget(
+            name: "MyApp", 
+            dependencies: ["Networking", "Database", "Utils"]
+        ),
+        
+        // Networking module - handles API calls
+        .target(
+            name: "Networking",
+            dependencies: [
+                .product(name: "AsyncHTTPClient", package: "async-http-client")
+            ]
+        ),
+        
+        // Database module - handles data storage
+        .target(
+            name: "Database",
+            dependencies: [
+                .product(name: "SQLite", package: "sqlite.swift")
+            ]
+        ),
+        
+        // Utility functions used by multiple modules
+        .target(name: "Utils"),
+        
+        // Tests for each module
+        .testTarget(name: "NetworkingTests", dependencies: ["Networking"]),
+        .testTarget(name: "DatabaseTests", dependencies: ["Database"]),
         .testTarget(name: "MyAppTests", dependencies: ["MyApp"]),
     ]
     ```
+    
+    Benefits of multiple targets:
+    - **Separation**: Each target has a clear purpose
+    - **Reusability**: Other projects can import just what they need
+    - **Testing**: Test each component separately
+    - **Build time**: Only rebuild what changed
 
 39. Organize code in folders under Sources:
     ```
@@ -592,110 +808,265 @@ Notes:
 
 ## Interfacing Swift with Other Languages
 
-44. Swift can call C code directly. Just import the C library and use it.
+44. Swift can call C code directly. Just import the C library and use it. Foundation already imports lots of C functions.
     ```swift
-    import Foundation  // Has tons of C functions
+    import Foundation  // Has tons of C functions like malloc, free, strcpy, etc.
     
-    // Using C math functions
-    let result = sqrt(16.0)  // C function from math.h
-    let randomNum = arc4random()  // C function
+    // Using C math functions - these come from math.h
+    let result = sqrt(16.0)  // Returns 4.0, same as C's sqrt()
+    let randomNum = arc4random()  // C random function, returns UInt32
+    let power = pow(2.0, 3.0)  // 2 to the power of 3 = 8.0
+    
+    // C string functions work too
+    let cStr = strdup("Hello")  // Duplicates a C string
+    defer { free(cStr) }  // Always free malloc'd memory
     ```
 
-45. **Bridging headers** let you use C/Objective-C code in Swift projects. Create a file ending in `-Bridging-Header.h`.
+45. **Bridging headers** let you use your own C/Objective-C code in Swift projects. This is like telling Swift "hey, these C functions exist".
     ```c
-    // MyApp-Bridging-Header.h
-    #include "my_c_library.h"
-    #include "SomeObjectiveCClass.h"
+    // MyApp-Bridging-Header.h - put this in your project root
+    #include "my_c_library.h"      // Your custom C library
+    #include "SomeObjectiveCClass.h"  // Objective-C class you want to use
+    
+    // You can also declare C functions directly here
+    int my_c_function(int x, int y);
+    void process_data(char* buffer, int size);
     ```
     
-    Then set it in your build settings or Package.swift:
+    In Xcode, set the bridging header path in Build Settings. For SPM, it's trickier - you usually put headers in `include/` folder:
     ```swift
     .target(
         name: "MyApp",
-        publicHeadersPath: "include",
+        publicHeadersPath: "include",  // Headers go in Sources/MyApp/include/
         cSettings: [
-            .headerSearchPath("path/to/headers")
+            .headerSearchPath("include"),  // Tell compiler where to find headers
+            .headerSearchPath("/usr/local/include"),  // System header paths
         ]
     )
     ```
-
-46. **Module maps** let you import C libraries as modules. Create a `module.modulemap` file:
+    
+    Project structure would look like:
     ```
+    Sources/
+    └── MyApp/
+        ├── main.swift
+        ├── include/
+        │   ├── my_c_library.h
+        │   └── module.modulemap
+        └── my_c_library.c
+    ```
+
+46. **Module maps** let you import C libraries as modules instead of using bridging headers. This is cleaner for libraries.
+    ```
+    // module.modulemap - put this in your include/ folder
     module MyCLibrary {
-        header "my_library.h"
-        link "my_library"
+        header "my_library.h"        // Main header file to expose
+        header "helper_functions.h"  // You can have multiple headers
+        link "my_library"            // Link against libmy_library.a or .so
+        export *                     // Export everything from headers
+    }
+    
+    // For system libraries
+    module SQLite {
+        header "/usr/include/sqlite3.h"
+        link "sqlite3"
         export *
     }
     ```
     
-    Then import it like:
+    Then import it in Swift like any other module:
     ```swift
     import MyCLibrary
+    import SQLite
+    
+    // Now you can use C functions directly
+    let result = my_c_function(10, 20)  // From MyCLibrary
+    let db = sqlite3_open("test.db")    // From SQLite module
     ```
+    
+    This is better than bridging headers because each module is separate and you can import only what you need.
 
-47. Swift automatically converts C types to Swift types:
+47. Swift automatically converts C types to Swift types, but you need to know the mappings:
     ```c
-    // C function
-    int add_numbers(int a, int b);
-    char* get_string(void);
+    // C functions in your library
+    int add_numbers(int a, int b);           // int becomes Int32
+    unsigned int get_count(void);            // unsigned int becomes UInt32
+    long get_big_number(void);               // long becomes Int
+    float get_price(void);                   // float becomes Float
+    double get_precise_value(void);          // double becomes Double
+    char* get_string(void);                  // char* becomes UnsafePointer<CChar>
+    void process_buffer(char* data, int len); // void returns Void (nothing)
+    bool is_valid(void);                     // bool becomes Bool (if you include stdbool.h)
     ```
     
     ```swift
-    // Swift usage
-    let result = add_numbers(5, 3)  // Int
-    let str = String(cString: get_string())  // Convert C string to Swift String
+    // Swift usage - types are automatically converted
+    let result = add_numbers(5, 3)           // Returns Int32, not Int!
+    let count = get_count()                  // Returns UInt32
+    let bigNum = get_big_number()            // Returns Int
+    let price = get_price()                  // Returns Float
+    let precise = get_precise_value()        // Returns Double
+    
+    // C strings need manual conversion
+    let cStringPtr = get_string()            // UnsafePointer<CChar>
+    let swiftString = String(cString: cStringPtr)  // Convert to Swift String
+    
+    // Calling functions with buffers
+    let data = "Hello World"
+    data.withCString { cString in
+        process_buffer(cString, Int32(data.count))  // Need to cast count to Int32
+    }
+    
+    let valid = is_valid()                   // Returns Bool
     ```
 
-48. **Using C libraries** in SPM - add them as system libraries:
+48. **Using C libraries** in SPM - tell the linker which libraries to link against at build time:
     ```swift
     .target(
         name: "MyApp",
         dependencies: [],
         linkerSettings: [
-            .linkedLibrary("sqlite3"),  // Link against libsqlite3
-            .linkedLibrary("curl"),     // Link against libcurl
+            .linkedLibrary("sqlite3"),      // Links libsqlite3.dylib (macOS) or libsqlite3.so (Linux)
+            .linkedLibrary("curl"),         // Links libcurl for HTTP requests
+            .linkedLibrary("z"),            // Links zlib for compression
+            .linkedLibrary("m"),            // Links math library (usually needed on Linux)
+            .linkedFramework("Foundation"), // Links frameworks on Apple platforms
         ]
     )
     ```
+    
+    On Linux you might need to install dev packages first:
+    ```bash
+    # Ubuntu/Debian
+    sudo apt-get install libsqlite3-dev libcurl4-openssl-dev zlib1g-dev
+    
+    # CentOS/RHEL
+    sudo yum install sqlite-devel libcurl-devel zlib-devel
+    ```
+    
+    Then in your Swift code:
+    ```swift
+    import SQLite3  // If you made a module map
+    // or just use the functions directly if they're in a bridging header
+    
+    var db: OpaquePointer?
+    let result = sqlite3_open("database.db", &db)  // C function
+    if result == SQLITE_OK {
+        print("Database opened successfully")
+        sqlite3_close(db)
+    }
+    ```
 
-49. **C++ interop** is limited but possible through C wrappers. Create C wrapper functions:
+49. **C++ interop** is limited because Swift can't directly call C++. You need to create C wrapper functions that call your C++ code:
     ```cpp
-    // wrapper.cpp
+    // MyCppLibrary.cpp - your existing C++ code
+    class Calculator {
+    public:
+        int add(int a, int b) { return a + b; }
+        double multiply(double x, double y) { return x * y; }
+        std::string getName() { return "Calculator v1.0"; }
+    };
+    
+    // wrapper.cpp - C functions that call C++ code
+    #include "MyCppLibrary.cpp"
     extern "C" {
+        // Wrapper for the add function
         int cpp_add(int a, int b) {
-            MyCppClass obj;
-            return obj.add(a, b);
+            Calculator calc;
+            return calc.add(a, b);
+        }
+        
+        // Wrapper for multiply function
+        double cpp_multiply(double x, double y) {
+            Calculator calc;
+            return calc.multiply(x, y);
+        }
+        
+        // Wrapper for string function - returns C string
+        const char* cpp_get_name() {
+            Calculator calc;
+            static std::string name = calc.getName();  // Keep it alive
+            return name.c_str();
         }
     }
     ```
     
     ```c
-    // wrapper.h
+    // wrapper.h - C header that Swift can understand
     #ifdef __cplusplus
     extern "C" {
     #endif
     
     int cpp_add(int a, int b);
+    double cpp_multiply(double x, double y);
+    const char* cpp_get_name(void);
     
     #ifdef __cplusplus
     }
     #endif
     ```
+    
+    Then in Swift:
+    ```swift
+    // Swift code using the C wrappers
+    let sum = cpp_add(5, 3)                          // Calls C++, gets Int32
+    let product = cpp_multiply(2.5, 4.0)             // Calls C++, gets Double
+    let name = String(cString: cpp_get_name())       // Convert C string to Swift
+    ```
 
-50. **Objective-C** works seamlessly with Swift (on Apple platforms):
+50. **Objective-C** works seamlessly with Swift on Apple platforms. No wrappers needed, just include the headers:
     ```objc
     // SomeClass.h
     @interface SomeClass : NSObject
-    - (NSString *)getName;
-    - (void)setName:(NSString *)name;
+    @property (nonatomic, strong) NSString *name;  // Property becomes Swift property
+    @property (nonatomic, assign) NSInteger count; // NSInteger becomes Int
+    
+    - (NSString *)getName;                          // Method becomes func getName() -> String
+    - (void)setName:(NSString *)name;              // Method becomes func setName(_ name: String)
+    - (void)processArray:(NSArray *)items;         // NSArray becomes [Any]
+    - (void)processNumbers:(NSArray<NSNumber *> *)numbers; // Becomes [NSNumber]
+    @end
+    
+    // SomeClass.m
+    @implementation SomeClass
+    - (NSString *)getName {
+        return self.name ?: @"Unknown";
+    }
+    
+    - (void)setName:(NSString *)name {
+        self.name = name;
+    }
+    
+    - (void)processArray:(NSArray *)items {
+        NSLog(@"Processing %ld items", items.count);
+    }
+    
+    - (void)processNumbers:(NSArray<NSNumber *> *)numbers {
+        for (NSNumber *num in numbers) {
+            NSLog(@"Number: %@", num);
+        }
+    }
     @end
     ```
     
     ```swift
-    // Swift usage
+    // Swift usage - types are automatically bridged
     let obj = SomeClass()
-    obj.setName("Hello")
-    let name = obj.getName()
+    
+    // Property access
+    obj.name = "Hello World"        // Calls setter automatically
+    let currentName = obj.name      // Calls getter, might be nil
+    
+    // Method calls
+    obj.setName("Hello")            // Explicit setter call
+    let name = obj.getName()        // Returns String, never nil due to ?: in ObjC
+    
+    // Array bridging
+    let mixedArray: [Any] = ["string", 42, true]
+    obj.processArray(mixedArray)    // Swift Array becomes NSArray
+    
+    let numbers = [1, 2, 3, 4, 5].map { NSNumber(value: $0) }
+    obj.processNumbers(numbers)     // [NSNumber] works directly
     ```
 
 51. **Calling Swift from C** is harder. You need to expose Swift functions with `@_cdecl`:
@@ -711,30 +1082,80 @@ Notes:
     swiftc -emit-library -emit-module MySwiftCode.swift -o libmyswift.dylib
     ```
 
-52. **Common C interop patterns**:
+52. **Common C interop patterns** for working with pointers and memory:
     ```swift
-    // C pointers become UnsafePointer in Swift
-    func c_function(data: UnsafePointer<UInt8>, length: Int)
+    // C function that takes a buffer
+    // void process_data(unsigned char* data, int length);
     
-    // C arrays
-    var buffer = [UInt8](repeating: 0, count: 1024)
+    // Pattern 1: Swift Array to C buffer
+    var buffer = [UInt8](repeating: 0, count: 1024)  // Create Swift array
     buffer.withUnsafeBufferPointer { ptr in
-        c_function(ptr.baseAddress!, ptr.count)
+        // ptr.baseAddress is UnsafePointer<UInt8>
+        // ptr.count is Int
+        process_data(ptr.baseAddress!, Int32(ptr.count))  // Call C function
     }
     
-    // C strings
-    let cString = "hello world".withCString { $0 }
+    // Pattern 2: Swift String to C string
+    let swiftString = "hello world"
+    swiftString.withCString { cString in
+        // cString is UnsafePointer<CChar> (same as char* in C)
+        some_c_function(cString)
+    }
+    
+    // Pattern 3: Getting data back from C
+    // If C function allocates memory: char* get_data(int* size);
+    var size: Int32 = 0
+    let cData = get_data(&size)  // C allocates memory
+    defer { free(cData) }        // Always free C memory!
+    
+    // Convert to Swift array
+    let swiftArray = Array(UnsafeBufferPointer(start: cData, count: Int(size)))
+    
+    // Pattern 4: Passing Swift closure to C (as function pointer)
+    // C function: void set_callback(void (*callback)(int));
+    let callback: @convention(c) (Int32) -> Void = { value in
+        print("C called back with: \(value)")
+    }
+    set_callback(callback)
     ```
 
-53. **Memory management** when interfacing with C:
+53. **Memory management** when interfacing with C - be careful who owns what:
     ```swift
-    // Swift manages memory automatically, but with C you might need manual management
-    let ptr = malloc(1024)
-    defer { free(ptr) }  // Always free C memory
+    // Rule 1: If C allocates, you must free
+    let ptr = malloc(1024)           // C's malloc
+    defer { free(ptr) }              // Must use C's free
     
-    // Or use Swift's memory management
+    // Rule 2: If you allocate with Swift, let Swift handle it
     let buffer = UnsafeMutableBufferPointer<UInt8>.allocate(capacity: 1024)
-    defer { buffer.deallocate() }
+    defer { buffer.deallocate() }    // Swift deallocates
+    
+    // Rule 3: If C function returns malloc'd memory, you must free it
+    // char* get_error_message(void);  // C function that returns malloc'd string
+    let errorPtr = get_error_message()
+    if errorPtr != nil {
+        let error = String(cString: errorPtr!)
+        free(errorPtr)               // Must free what C malloc'd
+        print("Error: \(error)")
+    }
+    
+    // Rule 4: If C just returns a pointer to its own memory, don't free it
+    // const char* get_version(void);  // Returns pointer to static string
+    let versionPtr = get_version()   // Don't free this!
+    let version = String(cString: versionPtr!)
+    
+    // Rule 5: When passing Swift data to C, keep Swift object alive
+    class DataHolder {
+        var data = [UInt8](repeating: 42, count: 1000)
+        
+        func processWithC() {
+            data.withUnsafeBufferPointer { ptr in
+                // C function that stores the pointer for later use
+                c_function_that_stores_pointer(ptr.baseAddress!)
+                // BAD: If this function returns and DataHolder gets freed,
+                // the C code will have a dangling pointer!
+            }
+        }
+    }
     ```
 
 54. **Working with C structs**:
