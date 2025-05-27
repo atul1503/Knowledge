@@ -119,3 +119,180 @@ As you can see that the variables declared in the scope where the `scope` `Corou
 * In kotlin or whatever programming language which has concept of closures, the closure stores the memory address of the variable itself so that we can reference them directly and correctly in callbacks and lambda functions. This also means that we are reading their actual values and not their stale values. If the variable value is changed, that is also reflected in the callback or lambda function.
 
 * You can use labels in kotlin to decide which loop/function to `continue`,`break` or `return`. Labels are declared like this `mylable@ { return@mylable }`. Here, although this is a very simplest example, but inside nested functions, you can return to a specific function if you label that function and then use that label in the return statement. Here, the lambda marked with `mylable@` has been returned using `return@mylabel`. Same is the case for break and continue. Make sure you declare a label just before the function or loop which will allow kotlin to mark those loops and functions with those labels.  
+
+## Gradle Builds for Kotlin
+
+17. Gradle is the build tool for Kotlin projects. It handles dependencies, compilation, and packaging. Think of it like `npm` for JavaScript or `pip` for Python but more powerful.
+
+18. Basic `build.gradle.kts` file structure for a Kotlin project:
+    ```kotlin
+    plugins {
+        kotlin("jvm") version "1.9.10"
+        application
+    }
+    
+    group = "com.example"
+    version = "1.0-SNAPSHOT"
+    
+    repositories {
+        mavenCentral()
+    }
+    
+    dependencies {
+        implementation("org.jetbrains.kotlin:kotlin-stdlib")
+        testImplementation("org.junit.jupiter:junit-jupiter:5.9.2")
+    }
+    
+    application {
+        mainClass.set("MainKt")  // Your main function file
+    }
+    ```
+
+19. Common Gradle commands you'll use:
+    ```bash
+    ./gradlew build          # Compile and build the project
+    ./gradlew run            # Run the application
+    ./gradlew test           # Run tests
+    ./gradlew clean          # Clean build artifacts
+    ./gradlew jar            # Create a JAR file
+    ./gradlew dependencies   # Show all dependencies
+    ```
+
+20. Adding dependencies is simple. Just put them in the `dependencies` block:
+    ```kotlin
+    dependencies {
+        implementation("com.squareup.okhttp3:okhttp:4.11.0")      // HTTP client
+        implementation("com.google.code.gson:gson:2.10.1")        // JSON parsing
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")  // Coroutines
+        
+        testImplementation("org.junit.jupiter:junit-jupiter:5.9.2")
+        testImplementation("io.mockk:mockk:1.13.7")               // Mocking for tests
+    }
+    ```
+
+21. For Android projects, the `build.gradle.kts` looks different:
+    ```kotlin
+    plugins {
+        id("com.android.application")
+        kotlin("android")
+    }
+    
+    android {
+        compileSdk = 34
+        
+        defaultConfig {
+            applicationId = "com.example.myapp"
+            minSdk = 24
+            targetSdk = 34
+            versionCode = 1
+            versionName = "1.0"
+        }
+        
+        buildTypes {
+            release {
+                isMinifyEnabled = false
+                proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            }
+        }
+    }
+    
+    dependencies {
+        implementation("androidx.core:core-ktx:1.12.0")
+        implementation("androidx.appcompat:appcompat:1.6.1")
+        implementation("com.google.android.material:material:1.9.0")
+    }
+    ```
+
+22. Gradle has different dependency types:
+    ```kotlin
+    dependencies {
+        implementation("lib")     // Available at compile and runtime
+        api("lib")               // Like implementation but exposes to consumers
+        compileOnly("lib")       // Only available at compile time
+        runtimeOnly("lib")       // Only available at runtime
+        testImplementation("lib") // Only for tests
+    }
+    ```
+
+23. You can create multiple source sets for different environments:
+    ```kotlin
+    sourceSets {
+        main {
+            kotlin.srcDirs("src/main/kotlin")
+        }
+        test {
+            kotlin.srcDirs("src/test/kotlin")
+        }
+    }
+    ```
+
+24. For multiplatform projects (Kotlin can run on JVM, Android, iOS, JS, Native):
+    ```kotlin
+    plugins {
+        kotlin("multiplatform")
+    }
+    
+    kotlin {
+        jvm()
+        js(IR) {
+            browser()
+            nodejs()
+        }
+        
+        sourceSets {
+            val commonMain by getting {
+                dependencies {
+                    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+                }
+            }
+            val jvmMain by getting
+            val jsMain by getting
+        }
+    }
+    ```
+
+25. Gradle wrapper (`gradlew`) is included in projects so you don't need to install Gradle globally. It downloads the right version automatically.
+
+26. Common Gradle gotchas:
+    * Use `./gradlew` on Mac/Linux, `gradlew.bat` on Windows
+    * If build fails, try `./gradlew clean build`
+    * Gradle caches everything, sometimes you need to clear cache with `./gradlew clean`
+    * Dependencies can conflict - use `./gradlew dependencies` to debug
+
+27. For publishing libraries, add publishing plugin:
+    ```kotlin
+    plugins {
+        kotlin("jvm")
+        `maven-publish`
+    }
+    
+    publishing {
+        publications {
+            create<MavenPublication>("maven") {
+                from(components["java"])
+            }
+        }
+    }
+    ```
+
+28. Gradle build phases: initialization → configuration → execution. Your build scripts run during configuration phase.
+
+29. You can create custom tasks:
+    ```kotlin
+    tasks.register("hello") {
+        doLast {
+            println("Hello from custom task!")
+        }
+    }
+    ```
+    Run with: `./gradlew hello`
+
+30. For faster builds, add these to `gradle.properties`:
+    ```properties
+    org.gradle.daemon=true
+    org.gradle.parallel=true
+    org.gradle.caching=true
+    kotlin.code.style=official
+    ```
+
+Remember: Gradle is powerful but can be confusing. Start with a simple `build.gradle.kts`, add dependencies as needed, and use `./gradlew build` to compile. Most of the time that's all you need.
