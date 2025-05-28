@@ -38,6 +38,285 @@ Notes:
    }
    ```
 
+4a. **`guard` vs `if` - when to use which one.** Both can check conditions, but they have different purposes and strengths. Use `guard` for early exits and requirements, use `if` for branching logic.
+
+   ```swift
+   // GUARD - Use for early exits and requirements
+   // Guard says "this MUST be true to continue, otherwise get out"
+   
+   func processOrder(items: [String]?, customerID: String?, paymentMethod: String?) {
+       // Check requirements at the start - if any fail, exit early
+       guard let orderItems = items, !orderItems.isEmpty else {
+           print("Error: No items in order")
+           return  // Must exit the function
+       }
+       
+       guard let customer = customerID, !customer.isEmpty else {
+           print("Error: No customer ID")
+           return  // Must exit the function
+       }
+       
+       guard let payment = paymentMethod else {
+           print("Error: No payment method")
+           return  // Must exit the function
+       }
+       
+       // If we get here, everything is valid - continue with main logic
+       print("Processing order for \(customer): \(orderItems.joined(separator: ", "))")
+       print("Payment method: \(payment)")
+       
+       // All the variables (orderItems, customer, payment) are available here
+       // because guard unwrapped them in the same scope
+   }
+   
+   // IF - Use for branching logic and optional paths
+   // If says "do this OR do that" 
+   
+   func displayUserInfo(user: User?) {
+       if let validUser = user {
+           // Do something with valid user
+           print("Welcome, \(validUser.name)!")
+           print("Email: \(validUser.email)")
+           
+           // validUser is only available inside this if block
+           if validUser.isPremium {
+               print("Premium features available")
+           } else {
+               print("Upgrade to premium for more features")
+           }
+       } else {
+           // Do something else when user is nil
+           print("Please log in to continue")
+           showLoginScreen()
+       }
+       
+       // Continue with other logic regardless of user status
+       print("App version: 1.0")
+   }
+   
+   // WHEN TO USE GUARD:
+   // ✅ Checking function parameters at the start
+   // ✅ Validating preconditions before doing work
+   // ✅ Early exits when something is wrong
+   // ✅ When you need the unwrapped value throughout the rest of the function
+   
+   func calculateArea(width: Double?, height: Double?) -> Double? {
+       guard let w = width, w > 0 else {
+           print("Invalid width")
+           return nil
+       }
+       
+       guard let h = height, h > 0 else {
+           print("Invalid height") 
+           return nil
+       }
+       
+       // w and h are available for the rest of the function
+       let area = w * h
+       print("Calculated area: \(area)")
+       return area
+   }
+   
+   // WHEN TO USE IF:
+   // ✅ When you have different paths to take
+   // ✅ When nil/false is a valid scenario to handle differently
+   // ✅ When you only need the unwrapped value in a small block
+   // ✅ When you want to continue regardless of the condition
+   
+   func updateUI(user: User?) {
+       if let user = user {
+           nameLabel.text = user.name
+           emailLabel.text = user.email
+           profileImage.image = user.avatar
+       } else {
+           nameLabel.text = "Guest User"
+           emailLabel.text = "Not logged in"
+           profileImage.image = defaultAvatar
+       }
+       
+       // Always update the timestamp, regardless of user status
+       lastUpdatedLabel.text = "Updated: \(Date())"
+   }
+   ```
+
+4b. **Guard with assignments and multiple conditions.** Guard can check multiple things at once and assign values that stay available after the guard statement.
+
+   ```swift
+   // MULTIPLE CONDITIONS in guard
+   // All conditions must be true, or else the guard fails
+   
+   func createUser(name: String?, email: String?, age: Int?) {
+       guard let userName = name, !userName.isEmpty,           // Check name exists and not empty
+             let userEmail = email, userEmail.contains("@"),   // Check email exists and has @
+             let userAge = age, userAge >= 18                  // Check age exists and >= 18
+       else {
+           print("Invalid user data")
+           return
+       }
+       
+       // All three variables (userName, userEmail, userAge) are now available
+       // and guaranteed to be valid for the rest of the function
+       let user = User(name: userName, email: userEmail, age: userAge)
+       print("Created user: \(user)")
+   }
+   
+   // GUARD with complex conditions
+   func processPayment(amount: Double?, card: CreditCard?) {
+       guard let paymentAmount = amount, 
+             paymentAmount > 0,                    // Amount must be positive
+             paymentAmount <= 10000,               // Amount must be reasonable
+             let creditCard = card,                // Card must exist
+             !creditCard.isExpired,                // Card must not be expired
+             creditCard.hasValidNumber             // Card must have valid number
+       else {
+           print("Payment validation failed")
+           return
+       }
+       
+       // Process payment with validated data
+       print("Processing $\(paymentAmount) on card ending in \(creditCard.lastFourDigits)")
+   }
+   
+   // GUARD with function calls and computed properties
+   func downloadFile(url: String?) {
+       guard let urlString = url,
+             !urlString.isEmpty,
+             let validURL = URL(string: urlString),    // URL(string:) returns optional
+             validURL.scheme == "https"                // Only allow HTTPS
+       else {
+           print("Invalid URL")
+           return
+       }
+       
+       // validURL is available and guaranteed to be a valid HTTPS URL
+       print("Downloading from: \(validURL)")
+       // ... download logic
+   }
+   
+   // GUARD vs IF for the same logic - see the difference
+   
+   // Using GUARD - cleaner for validation
+   func loginUser(username: String?, password: String?) -> Bool {
+       guard let user = username, !user.isEmpty else {
+           print("Username required")
+           return false
+       }
+       
+       guard let pass = password, pass.count >= 8 else {
+           print("Password must be at least 8 characters")
+           return false
+       }
+       
+       // Main logic is not nested - easier to read
+       print("Logging in user: \(user)")
+       return authenticateUser(user, pass)
+   }
+   
+   // Using IF - more nested and harder to read
+   func loginUserWithIf(username: String?, password: String?) -> Bool {
+       if let user = username, !user.isEmpty {
+           if let pass = password, pass.count >= 8 {
+               // Main logic is deeply nested
+               print("Logging in user: \(user)")
+               return authenticateUser(user, pass)
+           } else {
+               print("Password must be at least 8 characters")
+               return false
+           }
+       } else {
+           print("Username required")
+           return false
+       }
+   }
+   
+   // GUARD with different exit strategies
+   func processData(data: Data?) throws {
+       // In throwing functions, you can throw instead of return
+       guard let validData = data, !validData.isEmpty else {
+           throw DataError.emptyData
+       }
+       
+       // Process the data...
+   }
+   
+   func processInLoop(items: [String?]) {
+       for item in items {
+           // In loops, you can use continue instead of return
+           guard let validItem = item, !validItem.isEmpty else {
+               print("Skipping invalid item")
+               continue  // Skip to next iteration
+           }
+           
+           print("Processing: \(validItem)")
+       }
+   }
+   
+   // COMMON PATTERNS with guard
+   
+   // Pattern 1: API response validation
+   func handleAPIResponse(data: Data?, response: URLResponse?, error: Error?) {
+       guard error == nil else {
+           print("Network error: \(error!)")
+           return
+       }
+       
+       guard let responseData = data else {
+           print("No data received")
+           return
+       }
+       
+       guard let httpResponse = response as? HTTPURLResponse,
+             httpResponse.statusCode == 200 else {
+           print("Invalid HTTP response")
+           return
+       }
+       
+       // All validations passed - process the data
+       parseJSON(responseData)
+   }
+   
+   // Pattern 2: User input validation
+   func registerUser(form: RegistrationForm) {
+       guard !form.email.isEmpty,
+             form.email.contains("@"),
+             form.email.contains(".") else {
+           showError("Please enter a valid email")
+           return
+       }
+       
+       guard form.password.count >= 8,
+             form.password.contains(where: { $0.isNumber }),
+             form.password.contains(where: { $0.isUppercase }) else {
+           showError("Password must be 8+ chars with number and uppercase")
+           return
+       }
+       
+       guard form.password == form.confirmPassword else {
+           showError("Passwords don't match")
+           return
+       }
+       
+       // All validation passed
+       createAccount(email: form.email, password: form.password)
+   }
+   
+   // KEY DIFFERENCES SUMMARY:
+   // 
+   // GUARD:
+   // - Must have 'else' clause that exits (return, throw, continue, break)
+   // - Unwrapped values available in same scope after guard
+   // - Best for validation and early exits
+   // - Keeps main logic unindented and readable
+   // - Says "this must be true to continue"
+   //
+   // IF:
+   // - Optional 'else' clause
+   // - Unwrapped values only available inside if block
+   // - Best for branching logic and alternatives
+   // - Can handle both success and failure cases
+   // - Says "do this or do that"
+   ```
+
 5. Put variables inside strings with `\()`.
    ```swift
    let user = "John"
@@ -739,6 +1018,264 @@ Notes:
         }
         // More processing...
     }
+    ```
+
+27a. **Labeled statements let you break out of specific loops or switch statements.** Just like Kotlin, Swift allows you to label loops and use those labels with `break` and `continue` to control exactly which loop you want to exit or skip.
+
+    ```swift
+    // BASIC LABELED BREAK - exit specific outer loop
+    // Without labels, break only exits the innermost loop
+    
+    let numbers = 1...10
+    
+    // Problem: regular break only exits inner loop
+    for i in numbers {
+        for j in numbers {
+            if i * j == 20 {
+                print("Found: \(i) * \(j) = 20")
+                break  // Only breaks inner loop, outer continues
+            }
+        }
+    }
+    
+    // Solution: labeled break exits the specific loop you name
+    outerLoop: for i in numbers {
+        for j in numbers {
+            if i * j == 20 {
+                print("Found: \(i) * \(j) = 20")
+                break outerLoop  // Breaks out of BOTH loops
+            }
+        }
+    }
+    
+    // LABELED CONTINUE - skip to next iteration of specific loop
+    searchLoop: for department in departments {
+        for employee in department.employees {
+            if employee.name == "John" {
+                print("Found John in \(department.name)")
+                continue searchLoop  // Skip to next department
+            }
+            print("Checking \(employee.name)")
+        }
+    }
+    
+    // REAL-WORLD EXAMPLE: Finding a combination
+    let options = ["up", "down", "left", "right"]
+    let secretCombination = ["up", "up", "right"]
+    
+    combinationSearch: for option1 in options {
+        for option2 in options {
+            for option3 in options {
+                let attempt = [option1, option2, option3]
+                print("Trying: \(attempt)")
+                
+                if attempt == secretCombination {
+                    print("Found combination: \(attempt)")
+                    break combinationSearch  // Exit all three loops at once
+                }
+            }
+        }
+    }
+    
+    // WITHOUT LABELS - messy with extra variables
+    var found = false
+    for option1 in options {
+        if found { break }
+        for option2 in options {
+            if found { break }
+            for option3 in options {
+                let attempt = [option1, option2, option3]
+                if attempt == secretCombination {
+                    print("Found: \(attempt)")
+                    found = true
+                    break
+                }
+            }
+        }
+    }
+    
+    // LABELED STATEMENTS with different control flow
+    
+    // Example 1: Employee search across departments
+    func findEmployee(name: String, in departments: [Department]) -> Employee? {
+        departmentLoop: for department in departments {
+            print("Searching in \(department.name)")
+            
+            for employee in department.employees {
+                if employee.name == name {
+                    print("Found \(name) in \(department.name)")
+                    return employee  // Could also use break departmentLoop
+                }
+            }
+            
+            print("Not found in \(department.name)")
+        }
+        
+        print("Employee \(name) not found anywhere")
+        return nil
+    }
+    
+    // Example 2: Processing data with early exit conditions
+    func processMatrix(matrix: [[Int]]) {
+        rowLoop: for (rowIndex, row) in matrix.enumerated() {
+            columnLoop: for (colIndex, value) in row.enumerated() {
+                
+                // Skip negative values in this row
+                if value < 0 {
+                    print("Negative value at [\(rowIndex)][\(colIndex)], skipping row")
+                    continue rowLoop
+                }
+                
+                // Stop everything if we find a specific value
+                if value == 999 {
+                    print("Found terminator value 999, stopping all processing")
+                    break rowLoop
+                }
+                
+                // Skip just this column if value is zero
+                if value == 0 {
+                    print("Zero at [\(rowIndex)][\(colIndex)], skipping to next column")
+                    continue columnLoop
+                }
+                
+                print("Processing value \(value) at [\(rowIndex)][\(colIndex)]")
+            }
+        }
+    }
+    
+    // LABELED STATEMENTS with switch statements
+    func processCommands(commands: [String]) {
+        commandLoop: for command in commands {
+            switch command {
+            case "start":
+                print("Starting process...")
+                
+            case "data":
+                // Process data, but if we find "stop", exit everything
+                dataLoop: for i in 1...100 {
+                    switch i {
+                    case 50:
+                        print("Halfway through data processing")
+                    case 75:
+                        print("Found critical error, stopping all commands")
+                        break commandLoop  // Exit the outer command loop
+                    default:
+                        print("Processing data item \(i)")
+                    }
+                }
+                
+            case "stop":
+                print("Stop command received")
+                break commandLoop
+                
+            default:
+                print("Unknown command: \(command)")
+            }
+        }
+    }
+    
+    // NESTED SWITCH with labels
+    func analyzeAnimal(animals: [Animal]) {
+        animalLoop: for animal in animals {
+            switch animal.species {
+            case .dog:
+                switch animal.name {
+                case "Lucky":
+                    print("Found our dog Lucky!")
+                    break animalLoop  // Found what we wanted, stop searching
+                default:
+                    print("Found a dog named \(animal.name), but not Lucky")
+                }
+                
+            case .cat:
+                print("Found a cat named \(animal.name)")
+                
+            default:
+                print("Found other animal: \(animal.species)")
+            }
+        }
+    }
+    
+    // MULTIPLE LABELED LOOPS for complex algorithms
+    func findPath(in maze: [[Character]]) -> [(Int, Int)]? {
+        var path: [(Int, Int)] = []
+        
+        startSearch: for startRow in 0..<maze.count {
+            for startCol in 0..<maze[startRow].count {
+                
+                // Only start from 'S' positions
+                guard maze[startRow][startCol] == "S" else { continue }
+                
+                path = [(startRow, startCol)]
+                
+                // Try to find path from this starting point
+                pathSearch: for step in 1...100 {  // Max 100 steps
+                    let currentPos = path.last!
+                    
+                    // Check all four directions
+                    directionLoop: for direction in [(0,1), (1,0), (0,-1), (-1,0)] {
+                        let newRow = currentPos.0 + direction.0
+                        let newCol = currentPos.1 + direction.1
+                        
+                        // Check bounds
+                        guard newRow >= 0, newRow < maze.count,
+                              newCol >= 0, newCol < maze[newRow].count else {
+                            continue directionLoop
+                        }
+                        
+                        let cell = maze[newRow][newCol]
+                        
+                        switch cell {
+                        case "E":  // Found exit
+                            path.append((newRow, newCol))
+                            print("Found path with \(path.count) steps")
+                            return path
+                            
+                        case ".":  // Open path
+                            if !path.contains(where: { $0.0 == newRow && $0.1 == newCol }) {
+                                path.append((newRow, newCol))
+                                continue pathSearch
+                            }
+                            
+                        case "#":  // Wall
+                            continue directionLoop
+                            
+                        default:
+                            continue directionLoop
+                        }
+                    }
+                    
+                    // Dead end, try next starting position
+                    continue startSearch
+                }
+            }
+        }
+        
+        return nil  // No path found
+    }
+    
+    // WHEN TO USE LABELED STATEMENTS:
+    // ✅ Nested loops where you need to exit multiple levels
+    // ✅ Complex search algorithms with early termination
+    // ✅ State machines with nested switch statements
+    // ✅ Processing hierarchical data structures
+    // ✅ When you want to avoid extra boolean variables
+    
+    // WHEN NOT TO USE:
+    // ❌ Simple single loops (regular break/continue is fine)
+    // ❌ When you can restructure code to avoid nesting
+    // ❌ If it makes code harder to understand
+    // ❌ Overusing them - they should be rare
+    
+    // COMPARISON WITH KOTLIN:
+    // Swift: labelName: for item in items { break labelName }
+    // Kotlin: labelName@ for (item in items) { break@labelName }
+    // 
+    // Both languages support the same concept, just different syntax:
+    // - Swift uses colon (:) after label name
+    // - Kotlin uses @ before label name and @ before label in break/continue
+    // - Both support labeled break and continue
+    // - Both work with loops and when/switch statements
     ```
 
 28. Use enums instead of strings when possible. Compiler catches typos.
@@ -1958,189 +2495,3 @@ Notes:
     - Memory management: Windows API often returns handles, not pointers
     - Use Windows SDK documentation for detailed API reference
     - Test on actual Windows machines, not just emulators
-
-     // Key differences:
-     // - Default values: Simple, static values set when property is declared
-     // - Convenience initializers: Complex logic, can call methods, can derive values
-     // - You can have BOTH default values AND convenience initializers
-     // - 'convenience' keyword is ONLY for initializers, never for other methods or properties
-     
-     // CALLING SUPERCLASS CONSTRUCTORS (INITIALIZERS)
-     
-     // In Swift, you call superclass initializers using super.init()
-     // This is similar to super() in other languages like Java or Python
-     
-     class Vehicle {
-         let wheels: Int
-         let brand: String
-         var speed: Double = 0.0
-         
-         init(wheels: Int, brand: String) {
-             self.wheels = wheels
-             self.brand = brand
-             print("Vehicle created: \(brand) with \(wheels) wheels")
-         }
-         
-         convenience init(brand: String) {
-             self.init(wheels: 4, brand: brand)  // Call designated initializer
-         }
-     }
-     
-     class Car: Vehicle {
-         let doors: Int
-         let model: String
-         
-         // Designated initializer - must call super.init()
-         init(doors: Int, model: String, brand: String) {
-             // STEP 1: Set all properties in current class FIRST
-             self.doors = doors
-             self.model = model
-             
-             // STEP 2: Call superclass initializer
-             super.init(wheels: 4, brand: brand)  // Cars always have 4 wheels
-             
-             // STEP 3: Do any additional setup (optional)
-             print("Car created: \(brand) \(model) with \(doors) doors")
-         }
-         
-         // Another initializer with different parameters
-         init(model: String, brand: String) {
-             self.doors = 4      // Default to 4 doors
-             self.model = model
-             super.init(wheels: 4, brand: brand)
-         }
-         
-         // Convenience initializer - can call other initializers in same class
-         convenience init(model: String) {
-             self.init(model: model, brand: "Unknown")  // Call designated init in same class
-         }
-     }
-     
-     class SportsCar: Car {
-         let topSpeed: Int
-         let isConvertible: Bool
-         
-         init(model: String, brand: String, topSpeed: Int, isConvertible: Bool) {
-             // STEP 1: Set properties in current class
-             self.topSpeed = topSpeed
-             self.isConvertible = isConvertible
-             
-             // STEP 2: Call parent class initializer
-             super.init(doors: 2, model: model, brand: brand)  // Sports cars have 2 doors
-             
-             // STEP 3: Additional setup
-             print("Sports car created: \(brand) \(model), top speed: \(topSpeed) mph")
-         }
-         
-         // Convenience initializer
-         convenience init(model: String, brand: String) {
-             self.init(model: model, brand: brand, topSpeed: 200, isConvertible: false)
-         }
-     }
-     
-     // INITIALIZATION ORDER RULES:
-     // 1. Set ALL properties in current class BEFORE calling super.init()
-     // 2. Call super.init() to initialize parent class
-     // 3. After super.init(), you can modify inherited properties or do additional setup
-     
-     // Examples of creating objects:
-     let vehicle = Vehicle(wheels: 2, brand: "Yamaha")           // Motorcycle
-     let car1 = Car(doors: 4, model: "Camry", brand: "Toyota")
-     let car2 = Car(model: "Accord", brand: "Honda")             // Uses default 4 doors
-     let car3 = Car(model: "Civic")                              // Uses convenience init
-     let sports1 = SportsCar(model: "911", brand: "Porsche", topSpeed: 300, isConvertible: true)
-     let sports2 = SportsCar(model: "Corvette", brand: "Chevrolet")  // Uses convenience init
-     
-     // REQUIRED INITIALIZERS - subclasses MUST implement them
-     class Animal {
-         let species: String
-         
-         required init(species: String) {  // 'required' means all subclasses must have this
-             self.species = species
-         }
-     }
-     
-     class Dog: Animal {
-         let breed: String
-         
-         // MUST implement required initializer
-         required init(species: String) {
-             self.breed = "Unknown"
-             super.init(species: species)
-         }
-         
-         // Can also have additional initializers
-         init(breed: String) {
-             self.breed = breed
-             super.init(species: "Dog")  // Call required initializer in parent
-         }
-     }
-     
-     // FAILABLE INITIALIZERS with inheritance
-     class BankAccount {
-         let accountNumber: String
-         var balance: Double
-         
-         init?(accountNumber: String, balance: Double) {
-             guard !accountNumber.isEmpty, balance >= 0 else {
-                 return nil  // Initialization failed
-             }
-             self.accountNumber = accountNumber
-             self.balance = balance
-         }
-     }
-     
-     class SavingsAccount: BankAccount {
-         let interestRate: Double
-         
-         init?(accountNumber: String, balance: Double, interestRate: Double) {
-             guard interestRate > 0 else {
-                 return nil  // Fail if invalid interest rate
-             }
-             
-             self.interestRate = interestRate
-             
-             // Call failable superclass initializer
-             super.init(accountNumber: accountNumber, balance: balance)
-             
-             // If super.init() returns nil, this initializer also returns nil
-         }
-     }
-     
-     // COMMON MISTAKES AND HOW TO AVOID THEM:
-     
-     class BadExample: Vehicle {
-         let color: String
-         
-         init(color: String, brand: String) {
-             // ❌ WRONG: Trying to call super.init() before setting own properties
-             // super.init(wheels: 4, brand: brand)  // This would cause a compiler error
-             // self.color = color
-             
-             // ✅ CORRECT: Set own properties first
-             self.color = color
-             super.init(wheels: 4, brand: brand)
-         }
-     }
-     
-     class AnotherBadExample: Vehicle {
-         var color: String = "Red"
-         
-         init(brand: String) {
-             super.init(wheels: 4, brand: brand)
-             
-             // ❌ WRONG: Trying to access inherited properties before super.init()
-             // print(self.brand)  // This would work because super.init() was called
-             
-             // ✅ CORRECT: Access inherited properties after super.init()
-             print("Created \(self.brand) vehicle in \(color)")  // This works
-         }
-     }
-     
-     // KEY POINTS ABOUT super.init():
-     // 1. You MUST call super.init() in designated initializers of subclasses
-     // 2. Set your own class properties BEFORE calling super.init()
-     // 3. You can access inherited properties AFTER calling super.init()
-     // 4. Convenience initializers don't call super.init() - they call self.init()
-     // 5. If superclass init is failable (init?), your init can also fail
-     // 6. Required initializers must be implemented by all subclasses
