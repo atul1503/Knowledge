@@ -352,178 +352,125 @@ Notes:
         // 2. They reduce code duplication by reusing the main initializer
         // 3. They make your API easier to use by providing sensible defaults
         // 4. They must eventually call a designated initializer (the "real" one)
+        
+        // IMPORTANT: 'convenience' is ONLY for initializers, not other methods or properties!
+        // You cannot write: convenience func someMethod() or convenience var someProperty
     }
     
-    // Benefits of convenience initializers in practice:
-    // Without convenience init, you'd have to write:
-    let person1 = Person(name: "Alice", age: 25)
-    let person2 = Person(name: "Bob", age: 0)        // Have to specify age even if you don't care
+    // About default values in classes vs structs:
     
-    // With convenience init, you can write:
-    let person3 = Person(name: "Alice", age: 25)     // Full initialization
-    let person4 = Person(name: "Bob")                // Convenience - age defaults to 0
-    let person5 = Person(name: "Charlie", age: 30, email: "charlie@example.com")  // Another convenience
-    
-    // Real-world example: Date class might have convenience initializers
-    class CustomDate {
-        let year: Int
-        let month: Int
-        let day: Int
+    // Classes CAN have default values for properties
+    class PersonWithDefaults {
+        let name: String
+        var age: Int = 0                    // Default value allowed
+        var email: String? = nil            // Default value allowed
+        var isActive: Bool = true           // Default value allowed
+        var createdAt: Date = Date()        // Default value allowed
         
-        // Designated initializer - the main one that does all the work
-        init(year: Int, month: Int, day: Int) {
-            self.year = year
-            self.month = month
-            self.day = day
+        // Even with defaults, you still need an initializer for non-optional properties without defaults
+        init(name: String) {
+            self.name = name  // 'name' has no default, so must be set in init
+            // age, email, isActive, createdAt already have defaults
         }
         
-        // Convenience: create date for today (imaginary implementation)
-        convenience init() {
-            // Get current date components (simplified)
-            self.init(year: 2024, month: 1, day: 1)  // Must call designated init
-        }
-        
-        // Convenience: create date from string
-        convenience init(dateString: String) {
-            // Parse string like "2024-01-15" (simplified)
-            let parts = dateString.split(separator: "-")
-            let year = Int(parts[0]) ?? 2024
-            let month = Int(parts[1]) ?? 1
-            let day = Int(parts[2]) ?? 1
-            self.init(year: year, month: month, day: day)  // Call designated init
-        }
-        
-        // Convenience: create date for New Year's Day of a specific year
-        convenience init(newYearOf year: Int) {
-            self.init(year: year, month: 1, day: 1)  // January 1st
+        // You can override defaults in initializers
+        init(name: String, age: Int) {
+            self.name = name
+            self.age = age      // Override the default of 0
+            // Other properties keep their defaults
         }
     }
     
-    // Now you can create dates in multiple convenient ways:
-    let specificDate = CustomDate(year: 2024, month: 12, day: 25)  // Designated initializer
-    let today = CustomDate()                                       // Convenience - defaults to today
-    let parsed = CustomDate(dateString: "2024-06-15")             // Convenience - from string
-    let newYear = CustomDate(newYearOf: 2025)                     // Convenience - New Year's Day
-    
-    // Struct initializers work similarly but are simpler
-    struct Point {
-        var x: Double
-        var y: Double
+    // Structs are even more flexible with defaults
+    struct PersonStruct {
+        let name: String
+        var age: Int = 0
+        var email: String? = nil
+        var isActive: Bool = true
         
-        // Swift automatically creates this initializer for structs
-        // init(x: Double, y: Double) { ... }
+        // Swift automatically creates this initializer for structs:
+        // init(name: String, age: Int = 0, email: String? = nil, isActive: Bool = true)
         
-        // You can add custom initializers
-        init() {
-            self.x = 0.0
-            self.y = 0.0
-        }
-        
-        init(bothCoordinates value: Double) {
-            self.x = value
-            self.y = value
-        }
-        
-        // Initializer with validation
-        init(x: Double, y: Double) {
-            // Ensure coordinates are within bounds
-            self.x = max(-100, min(100, x))  // Clamp between -100 and 100
-            self.y = max(-100, min(100, y))
+        // You can also add custom initializers
+        init(name: String) {
+            self.name = name
+            // All other properties use their defaults
         }
     }
     
-    let origin = Point()                           // Uses init()
-    let center = Point(bothCoordinates: 5.0)       // x=5.0, y=5.0
-    let corner = Point(x: 10.0, y: 20.0)          // Uses custom init with validation
+    // Usage examples:
+    let person1 = PersonWithDefaults(name: "Alice")                    // Uses defaults
+    let person2 = PersonWithDefaults(name: "Bob", age: 25)             // Overrides age default
     
-    // Failable initializers - can return nil if initialization fails
-    class BankAccount {
-        let accountNumber: String
-        var balance: Double
+    let struct1 = PersonStruct(name: "Charlie")                        // Uses defaults
+    let struct2 = PersonStruct(name: "Diana", age: 30)                 // Overrides age
+    let struct3 = PersonStruct(name: "Eve", age: 25, email: "eve@example.com", isActive: false)  // Override multiple
+    
+    // Why use convenience initializers when you have default values?
+    // 1. For complex initialization logic that can't be done with simple defaults
+    // 2. When you need to call other methods during initialization
+    // 3. For computed or derived values
+    // 4. When working with inheritance (structs don't inherit)
+    
+    class SmartPerson {
+        let name: String
+        var age: Int = 0
+        var email: String?
+        var username: String = ""           // Default value
+        var displayName: String = ""        // Default value
         
-        // Regular initializer
-        init(accountNumber: String, initialBalance: Double) {
-            self.accountNumber = accountNumber
-            self.balance = initialBalance
+        // Designated initializer
+        init(name: String, age: Int) {
+            self.name = name
+            self.age = age
+            // email stays nil (default)
+            // username and displayName get set by setupDefaults()
+            setupDefaults()
         }
         
-        // Failable initializer - returns nil if something goes wrong
-        init?(accountNumber: String, initialBalance: Double) {
-            // Validation: account number must be 10 digits
-            guard accountNumber.count == 10,
-                  accountNumber.allSatisfy({ $0.isNumber }),
-                  initialBalance >= 0 else {
-                return nil  // Initialization failed
+        // Convenience initializer with complex logic
+        convenience init(name: String) {
+            self.init(name: name, age: 0)    // Call designated initializer
+            
+            // Additional setup that can't be done with simple default values
+            if name.contains(" ") {
+                let parts = name.split(separator: " ")
+                self.username = String(parts[0]).lowercased()
+            } else {
+                self.username = name.lowercased()
             }
             
-            self.accountNumber = accountNumber
-            self.balance = initialBalance
-        }
-    }
-    
-    // Failable initializer returns an optional
-    let validAccount = BankAccount(accountNumber: "1234567890", initialBalance: 100.0)  // Success
-    let invalidAccount = BankAccount(accountNumber: "123", initialBalance: -50.0)       // Returns nil
-    
-    if let account = validAccount {
-        print("Account created: \(account.accountNumber)")
-    }
-    
-    // Required initializers - subclasses must implement them
-    class Vehicle {
-        let wheels: Int
-        
-        required init(wheels: Int) {  // 'required' means subclasses must have this
-            self.wheels = wheels
-        }
-    }
-    
-    class Car: Vehicle {
-        let doors: Int
-        
-        required init(wheels: Int) {  // Must implement required initializer
-            self.doors = 4
-            super.init(wheels: wheels)  // Call parent's initializer
+            self.displayName = "User: \(name)"
         }
         
-        init(doors: Int) {
-            self.doors = doors
-            super.init(wheels: 4)  // Cars have 4 wheels by default
-        }
-    }
-    
-    // Initialization order in inheritance:
-    // 1. Set all properties in current class
-    // 2. Call super.init()
-    // 3. Do any additional setup
-    
-    // Real-world example: User registration
-    class User {
-        let username: String
-        let email: String
-        var isVerified: Bool
-        var createdAt: Date
-        
-        init(username: String, email: String) {
-            // Validate input
-            guard !username.isEmpty, email.contains("@") else {
-                fatalError("Invalid username or email")  // In real code, use failable init
-            }
-            
-            // Set properties
-            self.username = username
+        // Convenience initializer for email signup
+        convenience init(email: String) {
+            // Extract name from email
+            let namePart = email.split(separator: "@")[0]
+            self.init(name: String(namePart).capitalized)
             self.email = email
-            self.isVerified = false
-            self.createdAt = Date()
-            
-            // Additional setup
-            sendWelcomeEmail()
         }
         
-        private func sendWelcomeEmail() {
-            print("Welcome email sent to \(email)")
+        private func setupDefaults() {
+            if username.isEmpty {
+                username = name.lowercased().replacingOccurrences(of: " ", with: "_")
+            }
+            if displayName.isEmpty {
+                displayName = name
+            }
         }
     }
+    
+    // Different ways to create SmartPerson:
+    let smart1 = SmartPerson(name: "John Doe", age: 30)        // Designated init
+    let smart2 = SmartPerson(name: "Jane Smith")               // Convenience with name logic
+    let smart3 = SmartPerson(email: "bob@example.com")         // Convenience from email
+    
+    // Key differences:
+    // - Default values: Simple, static values set when property is declared
+    // - Convenience initializers: Complex logic, can call methods, can derive values
+    // - You can have BOTH default values AND convenience initializers
+    // - 'convenience' keyword is ONLY for initializers, never for other methods or properties
     ```
 
 12. Protocols are like contracts. Types that adopt them must have certain things.
