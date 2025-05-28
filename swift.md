@@ -1958,3 +1958,189 @@ Notes:
     - Memory management: Windows API often returns handles, not pointers
     - Use Windows SDK documentation for detailed API reference
     - Test on actual Windows machines, not just emulators
+
+     // Key differences:
+     // - Default values: Simple, static values set when property is declared
+     // - Convenience initializers: Complex logic, can call methods, can derive values
+     // - You can have BOTH default values AND convenience initializers
+     // - 'convenience' keyword is ONLY for initializers, never for other methods or properties
+     
+     // CALLING SUPERCLASS CONSTRUCTORS (INITIALIZERS)
+     
+     // In Swift, you call superclass initializers using super.init()
+     // This is similar to super() in other languages like Java or Python
+     
+     class Vehicle {
+         let wheels: Int
+         let brand: String
+         var speed: Double = 0.0
+         
+         init(wheels: Int, brand: String) {
+             self.wheels = wheels
+             self.brand = brand
+             print("Vehicle created: \(brand) with \(wheels) wheels")
+         }
+         
+         convenience init(brand: String) {
+             self.init(wheels: 4, brand: brand)  // Call designated initializer
+         }
+     }
+     
+     class Car: Vehicle {
+         let doors: Int
+         let model: String
+         
+         // Designated initializer - must call super.init()
+         init(doors: Int, model: String, brand: String) {
+             // STEP 1: Set all properties in current class FIRST
+             self.doors = doors
+             self.model = model
+             
+             // STEP 2: Call superclass initializer
+             super.init(wheels: 4, brand: brand)  // Cars always have 4 wheels
+             
+             // STEP 3: Do any additional setup (optional)
+             print("Car created: \(brand) \(model) with \(doors) doors")
+         }
+         
+         // Another initializer with different parameters
+         init(model: String, brand: String) {
+             self.doors = 4      // Default to 4 doors
+             self.model = model
+             super.init(wheels: 4, brand: brand)
+         }
+         
+         // Convenience initializer - can call other initializers in same class
+         convenience init(model: String) {
+             self.init(model: model, brand: "Unknown")  // Call designated init in same class
+         }
+     }
+     
+     class SportsCar: Car {
+         let topSpeed: Int
+         let isConvertible: Bool
+         
+         init(model: String, brand: String, topSpeed: Int, isConvertible: Bool) {
+             // STEP 1: Set properties in current class
+             self.topSpeed = topSpeed
+             self.isConvertible = isConvertible
+             
+             // STEP 2: Call parent class initializer
+             super.init(doors: 2, model: model, brand: brand)  // Sports cars have 2 doors
+             
+             // STEP 3: Additional setup
+             print("Sports car created: \(brand) \(model), top speed: \(topSpeed) mph")
+         }
+         
+         // Convenience initializer
+         convenience init(model: String, brand: String) {
+             self.init(model: model, brand: brand, topSpeed: 200, isConvertible: false)
+         }
+     }
+     
+     // INITIALIZATION ORDER RULES:
+     // 1. Set ALL properties in current class BEFORE calling super.init()
+     // 2. Call super.init() to initialize parent class
+     // 3. After super.init(), you can modify inherited properties or do additional setup
+     
+     // Examples of creating objects:
+     let vehicle = Vehicle(wheels: 2, brand: "Yamaha")           // Motorcycle
+     let car1 = Car(doors: 4, model: "Camry", brand: "Toyota")
+     let car2 = Car(model: "Accord", brand: "Honda")             // Uses default 4 doors
+     let car3 = Car(model: "Civic")                              // Uses convenience init
+     let sports1 = SportsCar(model: "911", brand: "Porsche", topSpeed: 300, isConvertible: true)
+     let sports2 = SportsCar(model: "Corvette", brand: "Chevrolet")  // Uses convenience init
+     
+     // REQUIRED INITIALIZERS - subclasses MUST implement them
+     class Animal {
+         let species: String
+         
+         required init(species: String) {  // 'required' means all subclasses must have this
+             self.species = species
+         }
+     }
+     
+     class Dog: Animal {
+         let breed: String
+         
+         // MUST implement required initializer
+         required init(species: String) {
+             self.breed = "Unknown"
+             super.init(species: species)
+         }
+         
+         // Can also have additional initializers
+         init(breed: String) {
+             self.breed = breed
+             super.init(species: "Dog")  // Call required initializer in parent
+         }
+     }
+     
+     // FAILABLE INITIALIZERS with inheritance
+     class BankAccount {
+         let accountNumber: String
+         var balance: Double
+         
+         init?(accountNumber: String, balance: Double) {
+             guard !accountNumber.isEmpty, balance >= 0 else {
+                 return nil  // Initialization failed
+             }
+             self.accountNumber = accountNumber
+             self.balance = balance
+         }
+     }
+     
+     class SavingsAccount: BankAccount {
+         let interestRate: Double
+         
+         init?(accountNumber: String, balance: Double, interestRate: Double) {
+             guard interestRate > 0 else {
+                 return nil  // Fail if invalid interest rate
+             }
+             
+             self.interestRate = interestRate
+             
+             // Call failable superclass initializer
+             super.init(accountNumber: accountNumber, balance: balance)
+             
+             // If super.init() returns nil, this initializer also returns nil
+         }
+     }
+     
+     // COMMON MISTAKES AND HOW TO AVOID THEM:
+     
+     class BadExample: Vehicle {
+         let color: String
+         
+         init(color: String, brand: String) {
+             // ❌ WRONG: Trying to call super.init() before setting own properties
+             // super.init(wheels: 4, brand: brand)  // This would cause a compiler error
+             // self.color = color
+             
+             // ✅ CORRECT: Set own properties first
+             self.color = color
+             super.init(wheels: 4, brand: brand)
+         }
+     }
+     
+     class AnotherBadExample: Vehicle {
+         var color: String = "Red"
+         
+         init(brand: String) {
+             super.init(wheels: 4, brand: brand)
+             
+             // ❌ WRONG: Trying to access inherited properties before super.init()
+             // print(self.brand)  // This would work because super.init() was called
+             
+             // ✅ CORRECT: Access inherited properties after super.init()
+             print("Created \(self.brand) vehicle in \(color)")  // This works
+         }
+     }
+     
+     // KEY POINTS ABOUT super.init():
+     // 1. You MUST call super.init() in designated initializers of subclasses
+     // 2. Set your own class properties BEFORE calling super.init()
+     // 3. You can access inherited properties AFTER calling super.init()
+     // 4. Convenience initializers don't call super.init() - they call self.init()
+     // 5. If superclass init is failable (init?), your init can also fail
+     // 6. Required initializers must be implemented by all subclasses
