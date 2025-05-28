@@ -828,38 +828,574 @@ Notes:
     }
     ```
 
-16. Swift handles memory automatically. Use `weak` to avoid retain cycles where objects hold onto each other.
+16. **Swift handles memory automatically using ARC (Automatic Reference Counting). Use `weak` to avoid retain cycles where objects hold onto each other.** Understanding retain cycles and how `weak` breaks them is crucial for preventing memory leaks.
+
+    **What is ARC (Automatic Reference Counting)?**
+    Swift automatically manages memory by counting how many references point to each object. When the reference count reaches zero, the object is deallocated (freed from memory).
+    
     ```swift
     class Person {
         let name: String
-        weak var apartment: Apartment?  // weak to break cycle
+        init(name: String) { 
+            self.name = name 
+            print("\(name) is being created")
+        }
+        deinit { 
+            print("\(name) is being deallocated") 
+        }
+    }
+    
+    // Reference counting in action
+    var person1: Person? = Person(name: "Alice")  // Reference count: 1
+    var person2 = person1                         // Reference count: 2
+    person1 = nil                                 // Reference count: 1 (still alive)
+    person2 = nil                                 // Reference count: 0 (deallocated)
+    // Output: "Alice is being created" then "Alice is being deallocated"
+    ```
+    
+    **What is a Retain Cycle?**
+    A retain cycle happens when two or more objects hold strong references to each other, creating a circular dependency. This prevents ARC from deallocating them because their reference counts never reach zero.
+    
+    ```swift
+    // PROBLEMATIC CODE - Creates a retain cycle
+    class Parent {
+        let name: String
+        var child: Child?  // Strong reference to Child
+        
+        init(name: String) { 
+            self.name = name 
+            print("Parent \(name) created")
+        }
+        deinit { print("Parent \(name) deallocated") }
+    }
+    
+    class Child {
+        let name: String
+        var parent: Parent?  // Strong reference to Parent - THIS CAUSES THE CYCLE!
+        
+        init(name: String) { 
+            self.name = name 
+            print("Child \(name) created")
+        }
+        deinit { print("Child \(name) deallocated") }
+    }
+    
+    // Creating the retain cycle
+    func createRetainCycle() {
+        let parent = Parent(name: "John")      // Parent reference count: 1
+        let child = Child(name: "Emma")        // Child reference count: 1
+        
+        parent.child = child                   // Child reference count: 2
+        child.parent = parent                  // Parent reference count: 2
+        
+        // When this function ends:
+        // - Local 'parent' variable goes away: Parent reference count becomes 1
+        // - Local 'child' variable goes away: Child reference count becomes 1
+        // - But Parent still holds Child, and Child still holds Parent
+        // - Neither can be deallocated! MEMORY LEAK!
+    }
+    
+    createRetainCycle()
+    // Output: "Parent John created" and "Child Emma created"
+    // Missing: No deallocation messages - they're stuck in memory forever!
+    ```
+    
+    **How `weak` References Break the Cycle**
+    A `weak` reference doesn't increase the reference count. It can become `nil` automatically when the object it points to is deallocated.
+    
+    ```swift
+    // SOLUTION - Using weak to break the cycle
+    class Parent {
+        let name: String
+        var child: Child?  // Strong reference to Child (Parent "owns" Child)
+        
+        init(name: String) { 
+            self.name = name 
+            print("Parent \(name) created")
+        }
+        deinit { print("Parent \(name) deallocated") }
+    }
+    
+    class Child {
+        let name: String
+        weak var parent: Parent?  // WEAK reference to Parent - breaks the cycle!
+        
+        init(name: String) { 
+            self.name = name 
+            print("Child \(name) created")
+        }
+        deinit { print("Child \(name) deallocated") }
+    }
+    
+    // No more retain cycle
+    func createHealthyRelationship() {
+        let parent = Parent(name: "John")      // Parent reference count: 1
+        let child = Child(name: "Emma")        // Child reference count: 1
+        
+        parent.child = child                   // Child reference count: 2
+        child.parent = parent                  // Parent reference count: STILL 1 (weak doesn't count!)
+        
+        // When this function ends:
+        // - Local 'parent' variable goes away: Parent reference count becomes 0
+        // - Parent gets deallocated immediately
+        // - Parent's 'child' property goes away: Child reference count becomes 1
+        // - Local 'child' variable goes away: Child reference count becomes 0
+        // - Child gets deallocated
+        // - Child's weak 'parent' automatically becomes nil
+    }
+    
+    createHealthyRelationship()
+    // Output: "Parent John created", "Child Emma created", 
+    //         "Parent John deallocated", "Child Emma deallocated"
+    ```
+    
+    **Real-world Example: Apartment and Tenant**
+    ```swift
+    class Person {
+        let name: String
+        weak var apartment: Apartment?  // Person doesn't "own" the apartment
         
         init(name: String) {
             self.name = name
+        }
+        
+        deinit {
+            print("\(name) is moving out")
         }
     }
     
     class Apartment {
         let unit: String
-        weak var tenant: Person?        // weak reference
+        weak var tenant: Person?        // Apartment doesn't "own" the person either
         
         init(unit: String) {
             self.unit = unit
         }
+        
+        deinit {
+            print("Apartment \(unit) is being demolished")
+        }
+    }
+    
+    // Usage - both can be deallocated properly
+    func rentApartment() {
+        let person = Person(name: "Alice")
+        let apartment = Apartment(unit: "4B")
+        
+        person.apartment = apartment    // Weak reference
+        apartment.tenant = person       // Weak reference
+        
+        print("\(person.name) lives in apartment \(apartment.unit)")
+        // Both will be deallocated when function ends
     }
     ```
-
-17. Use `[weak self]` in closures to avoid retain cycles.
+    
+    **When to Use `weak` vs `strong` References**
+    
+    Use **strong** references when:
+    - One object "owns" another (parent-child relationship)
+    - You want to keep the object alive
+    - The relationship is hierarchical (one-way dependency)
+    
+    Use **weak** references when:
+    - Objects have a mutual relationship but neither "owns" the other
+    - You want to avoid retain cycles
+    - The relationship is temporary or optional
+    - One object might outlive the other
+    
     ```swift
+    // OWNERSHIP EXAMPLES
+    
+    // Strong: ViewController owns its views
     class ViewController {
-        var name = "Controller"
+        let titleLabel = UILabel()     // Strong - VC owns the label
+        let submitButton = UIButton()  // Strong - VC owns the button
+    }
+    
+    // Weak: Delegate pattern (delegate doesn't own the delegator)
+    protocol DataSourceDelegate: AnyObject {
+        func dataDidUpdate()
+    }
+    
+    class DataSource {
+        weak var delegate: DataSourceDelegate?  // Weak - doesn't own delegate
         
-        func setupTimer() {
-            Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-                guard let self = self else { return }
-                print("Timer fired in \(self.name)")
+        func fetchData() {
+            // ... fetch data ...
+            delegate?.dataDidUpdate()  // Might be nil, that's OK
+        }
+    }
+    
+    class ViewController: DataSourceDelegate {
+        let dataSource = DataSource()  // Strong - VC owns data source
+        
+        override func viewDidLoad() {
+            dataSource.delegate = self  // Weak reference back to VC
+        }
+        
+        func dataDidUpdate() {
+            // Update UI
+        }
+    }
+    ```
+    
+    **Important Notes about `weak` References:**
+    
+    1. **Always optionals**: `weak` references are always optionals because they can become `nil`
+    2. **Automatic nil-ing**: When the referenced object is deallocated, `weak` references automatically become `nil`
+    3. **Only for classes**: You can only use `weak` with class instances, not structs or enums
+    4. **Performance**: `weak` references have slight overhead compared to strong references
+    
+    ```swift
+    class Manager {
+        weak var assistant: Employee?  // Must be optional
+    }
+    
+    class Employee {
+        let name: String
+        init(name: String) { self.name = name }
+        deinit { print("\(name) quit") }
+    }
+    
+    let manager = Manager()
+    
+    // Create employee in a scope
+    do {
+        let employee = Employee(name: "Bob")
+        manager.assistant = employee        // Weak reference
+        print(manager.assistant?.name)      // Prints "Optional("Bob")"
+    }  // employee goes out of scope and is deallocated
+    
+    print(manager.assistant?.name)          // Prints "nil" - automatically nil-ed!
+    // Output: "Bob quit" (from deinit)
+    ```
+
+17. **Use `[weak self]` in closures to avoid retain cycles.** Closures can capture and hold onto objects, creating retain cycles when the object also holds onto the closure. Understanding closure capture and how `[weak self]` breaks these cycles is essential for preventing memory leaks.
+
+    **What is Closure Capture?**
+    Closures automatically "capture" variables and objects from their surrounding context so they can use them later. By default, this creates strong references to captured objects.
+    
+    ```swift
+    class DataProcessor {
+        var name = "Processor"
+        
+        func startProcessing() {
+            // This closure captures 'self' strongly
+            DispatchQueue.global().async {
+                // 'self' is captured here - strong reference!
+                print("Processing data in \(self.name)")
+                self.finishProcessing()
             }
         }
+        
+        func finishProcessing() {
+            print("Processing complete")
+        }
+        
+        deinit {
+            print("\(name) is being deallocated")
+        }
+    }
+    
+    // This works fine for short-lived operations
+    func quickExample() {
+        let processor = DataProcessor()
+        processor.startProcessing()
+        // processor will be deallocated after async work completes
+    }
+    ```
+    
+    **The Problem: Retain Cycles with Long-Running Closures**
+    When an object holds onto a closure that also captures the object strongly, you get a retain cycle. This commonly happens with timers, notifications, and long-running async operations.
+    
+    ```swift
+    // PROBLEMATIC CODE - Creates a retain cycle
+    class ViewController {
+        var name = "Controller"
+        var timer: Timer?
+        
+        func setupTimer() {
+            // ViewController holds the timer (strong reference)
+            timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+                // Timer's closure captures self strongly
+                // Now: ViewController -> Timer -> Closure -> ViewController (CYCLE!)
+                print("Timer fired in \(self.name)")
+                self.updateUI()
+            }
+        }
+        
+        func updateUI() {
+            print("Updating UI...")
+        }
+        
+        deinit {
+            print("\(name) is being deallocated")
+            timer?.invalidate()  // This will never run because of the retain cycle!
+        }
+    }
+    
+    // Creating the retain cycle
+    func createLeakyViewController() {
+        let vc = ViewController()
+        vc.setupTimer()
+        // When this function ends, 'vc' should be deallocated
+        // But it won't be because of the retain cycle!
+        // The timer keeps running forever, holding onto the ViewController
+    }
+    
+    createLeakyViewController()
+    // Missing: "Controller is being deallocated" - it's stuck in memory!
+    ```
+    
+    **The Solution: `[weak self]` Capture List**
+    A capture list with `[weak self]` tells the closure to capture `self` weakly, breaking the retain cycle.
+    
+    ```swift
+    // SOLUTION - Using [weak self] to break the cycle
+    class ViewController {
+        var name = "Controller"
+        var timer: Timer?
+        
+        func setupTimer() {
+            // ViewController holds the timer (strong reference)
+            timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                // Closure captures self weakly - no retain cycle!
+                // self is now optional and might be nil
+                guard let self = self else { 
+                    print("ViewController was deallocated, stopping timer")
+                    return 
+                }
+                print("Timer fired in \(self.name)")
+                self.updateUI()
+            }
+        }
+        
+        func updateUI() {
+            print("Updating UI...")
+        }
+        
+        deinit {
+            print("\(name) is being deallocated")
+            timer?.invalidate()  // This will run properly now!
+        }
+    }
+    
+    // No more retain cycle
+    func createHealthyViewController() {
+        let vc = ViewController()
+        vc.setupTimer()
+        // When this function ends, vc can be deallocated
+        // The timer's closure won't prevent deallocation
+    }
+    
+    createHealthyViewController()
+    // Output: "Controller is being deallocated" - memory is freed!
+    ```
+    
+    **Common Patterns and Examples**
+    
+    **1. Network Requests**
+    ```swift
+    class APIClient {
+        var name = "APIClient"
+        
+        func fetchData() {
+            URLSession.shared.dataTask(with: URL(string: "https://api.example.com")!) { [weak self] data, response, error in
+                // Without [weak self], this closure would keep APIClient alive
+                // until the network request completes
+                guard let self = self else {
+                    print("APIClient was deallocated before request completed")
+                    return
+                }
+                
+                if let data = data {
+                    self.processData(data)
+                } else {
+                    self.handleError(error)
+                }
+            }.resume()
+        }
+        
+        func processData(_ data: Data) {
+            print("\(name) processing \(data.count) bytes")
+        }
+        
+        func handleError(_ error: Error?) {
+            print("\(name) encountered error: \(error?.localizedDescription ?? "Unknown")")
+        }
+        
+        deinit {
+            print("\(name) deallocated")
+        }
+    }
+    ```
+    
+    **2. Animation Completions**
+    ```swift
+    class AnimationController {
+        var view = UIView()
+        
+        func animateView() {
+            UIView.animate(withDuration: 2.0, animations: {
+                // Animation block doesn't need [weak self] because it's short-lived
+                self.view.alpha = 0.5
+            }) { [weak self] completed in
+                // Completion block needs [weak self] because it might run later
+                guard let self = self else { return }
+                
+                if completed {
+                    self.onAnimationComplete()
+                }
+            }
+        }
+        
+        func onAnimationComplete() {
+            print("Animation finished")
+        }
+    }
+    ```
+    
+    **3. Notification Observers**
+    ```swift
+    class NotificationHandler {
+        var name = "Handler"
+        
+        func setupNotifications() {
+            NotificationCenter.default.addObserver(
+                forName: .UIApplicationDidBecomeActive,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                // Without [weak self], the notification center would keep
+                // this object alive until you manually remove the observer
+                guard let self = self else { return }
+                self.handleAppBecameActive()
+            }
+        }
+        
+        func handleAppBecameActive() {
+            print("\(name) handling app activation")
+        }
+        
+        deinit {
+            print("\(name) deallocated")
+            // Don't forget to remove observers!
+            NotificationCenter.default.removeObserver(self)
+        }
+    }
+    ```
+    
+    **4. Combine Publishers**
+    ```swift
+    import Combine
+    
+    class DataManager: ObservableObject {
+        @Published var items: [String] = []
+        private var cancellables = Set<AnyCancellable>()
+        var name = "DataManager"
+        
+        func fetchData() {
+            URLSession.shared.dataTaskPublisher(for: URL(string: "https://api.example.com")!)
+                .map(\.data)
+                .decode(type: [String].self, decoder: JSONDecoder())
+                .receive(on: DispatchQueue.main)
+                .sink(
+                    receiveCompletion: { [weak self] completion in
+                        guard let self = self else { return }
+                        self.handleCompletion(completion)
+                    },
+                    receiveValue: { [weak self] items in
+                        guard let self = self else { return }
+                        self.items = items
+                        print("\(self.name) received \(items.count) items")
+                    }
+                )
+                .store(in: &cancellables)
+        }
+        
+        func handleCompletion(_ completion: Subscribers.Completion<Error>) {
+            switch completion {
+            case .finished:
+                print("\(name) finished successfully")
+            case .failure(let error):
+                print("\(name) failed: \(error)")
+            }
+        }
+        
+        deinit {
+            print("\(name) deallocated")
+        }
+    }
+    ```
+    
+    **When You DON'T Need `[weak self]`**
+    
+    ```swift
+    class QuickOperations {
+        func performQuickTask() {
+            // Short-lived operations that complete quickly don't need [weak self]
+            DispatchQueue.main.async {
+                self.updateUI()  // OK - this runs immediately
+            }
+            
+            // Synchronous operations don't need [weak self]
+            let result = [1, 2, 3].map { value in
+                return self.processValue(value)  // OK - runs synchronously
+            }
+        }
+        
+        func updateUI() { }
+        func processValue(_ value: Int) -> String { return "\(value)" }
+    }
+    ```
+    
+    **Alternative: `[unowned self]`**
+    Sometimes you can use `[unowned self]` instead of `[weak self]`, but it's riskier:
+    
+    ```swift
+    class RiskyExample {
+        func setupCallback() {
+            someAsyncOperation { [unowned self] in
+                // unowned self is NOT optional - no guard let needed
+                // BUT: if self is deallocated before this runs, your app will CRASH!
+                self.handleResult()
+            }
+        }
+        
+        func handleResult() { }
+    }
+    
+    // Safer approach with [weak self]
+    class SafeExample {
+        func setupCallback() {
+            someAsyncOperation { [weak self] in
+                guard let self = self else { return }  // Gracefully handle deallocation
+                self.handleResult()
+            }
+        }
+        
+        func handleResult() { }
+    }
+    ```
+    
+    **Key Rules for `[weak self]`:**
+    
+    1. **Use `[weak self]` when**: The closure might outlive the object, or the object holds onto the closure
+    2. **Don't use it when**: The closure runs immediately and synchronously
+    3. **Always use `guard let self = self else { return }`** after `[weak self]` to safely unwrap
+    4. **Prefer `[weak self]` over `[unowned self]`** - it's safer and won't crash if the object is deallocated
+    5. **Remember**: `self` becomes optional inside the closure when using `[weak self]`
+    
+    ```swift
+    // Template for using [weak self]
+    someAsyncOperation { [weak self] result in
+        guard let self = self else { 
+            print("Object was deallocated")
+            return 
+        }
+        
+        // Now you can safely use self
+        self.handleResult(result)
     }
     ```
 
@@ -1293,6 +1829,353 @@ Notes:
         }
     }
     ``` 
+
+28a. **Use `mutating` when a method in a struct or enum needs to modify the instance itself.** Swift structs and enums are value types, so by default their methods can't change their properties. The `mutating` keyword tells Swift "this method will change the instance."
+
+    **Why `mutating` is needed:**
+    Structs and enums are value types - when you pass them around, Swift makes copies. If methods could freely modify properties, it would be confusing which copy gets changed. `mutating` makes it explicit when a method will modify the instance.
+    
+    ```swift
+    struct BankAccount {
+        var balance: Double = 0.0
+        let accountNumber: String
+        
+        // NON-MUTATING methods - can read but not modify properties
+        func getBalance() -> Double {
+            return balance  // ✅ Reading is allowed
+        }
+        
+        func getAccountInfo() -> String {
+            return "Account \(accountNumber): $\(balance)"  // ✅ Reading multiple properties
+        }
+        
+        // MUTATING methods - can modify properties
+        mutating func deposit(_ amount: Double) {
+            balance += amount  // ✅ Modifying balance requires mutating
+        }
+        
+        mutating func withdraw(_ amount: Double) -> Bool {
+            guard balance >= amount else { return false }
+            balance -= amount  // ✅ Modifying balance requires mutating
+            return true
+        }
+        
+        // This would be an ERROR without mutating:
+        // func badDeposit(_ amount: Double) {
+        //     balance += amount  // ❌ Error: Cannot assign to property
+        // }
+    }
+    
+    // Usage - the variable itself must be mutable (var) to call mutating methods
+    var account = BankAccount(accountNumber: "12345")  // Must be 'var', not 'let'
+    
+    account.deposit(100.0)        // ✅ Works - account is var, method is mutating
+    account.withdraw(50.0)        // ✅ Works - account is var, method is mutating
+    print(account.getBalance())   // ✅ Works - non-mutating methods work on let or var
+    
+    // This would be an ERROR:
+    let immutableAccount = BankAccount(accountNumber: "67890")
+    // immutableAccount.deposit(100.0)  // ❌ Error: Cannot use mutating member on immutable value
+    ```
+    
+    **Mutating with Enums - Changing Cases:**
+    Enums can use `mutating` to change which case they represent.
+    
+    ```swift
+    enum PlayerState {
+        case idle
+        case walking(speed: Double)
+        case running(speed: Double)
+        case jumping
+        
+        // Non-mutating - just reads current state
+        func getCurrentSpeed() -> Double {
+            switch self {
+            case .idle, .jumping:
+                return 0.0
+            case .walking(let speed), .running(let speed):
+                return speed
+            }
+        }
+        
+        // Mutating - changes the enum case
+        mutating func startWalking(speed: Double) {
+            self = .walking(speed: speed)  // ✅ Changing self requires mutating
+        }
+        
+        mutating func startRunning() {
+            switch self {
+            case .walking(let speed):
+                self = .running(speed: speed * 2)  // Double the walking speed
+            case .idle:
+                self = .running(speed: 5.0)        // Default running speed
+            default:
+                self = .running(speed: 5.0)
+            }
+        }
+        
+        mutating func stop() {
+            self = .idle  // ✅ Changing to idle state
+        }
+        
+        mutating func jump() {
+            self = .jumping  // ✅ Change to jumping, regardless of current state
+        }
+    }
+    
+    // Usage
+    var player = PlayerState.idle
+    player.startWalking(speed: 2.0)     // ✅ Changes to .walking(speed: 2.0)
+    player.startRunning()               // ✅ Changes to .running(speed: 4.0)
+    player.jump()                       // ✅ Changes to .jumping
+    player.stop()                       // ✅ Changes to .idle
+    ```
+    
+    **Mutating in Protocols:**
+    When you define a protocol, you must mark methods as `mutating` if they might modify the conforming type.
+    
+    ```swift
+    protocol Resettable {
+        mutating func reset()           // Conforming types might need to modify themselves
+        func getCurrentState() -> String // Non-mutating - just reads state
+    }
+    
+    struct Counter: Resettable {
+        var count: Int = 0
+        
+        mutating func reset() {         // Must be mutating to modify count
+            count = 0
+        }
+        
+        func getCurrentState() -> String {
+            return "Count: \(count)"
+        }
+        
+        mutating func increment() {
+            count += 1
+        }
+    }
+    
+    class ReferenceCounter: Resettable {
+        var count: Int = 0
+        
+        func reset() {                  // Classes don't need mutating (reference types)
+            count = 0
+        }
+        
+        func getCurrentState() -> String {
+            return "Reference Count: \(count)"
+        }
+    }
+    ```
+    
+    **Common Patterns with Mutating:**
+    
+    ```swift
+    // Pattern 1: Collection-like structs
+    struct Stack<Element> {
+        private var items: [Element] = []
+        
+        mutating func push(_ item: Element) {
+            items.append(item)          // Modifying internal array
+        }
+        
+        mutating func pop() -> Element? {
+            return items.popLast()      // Modifying internal array
+        }
+        
+        func peek() -> Element? {       // Non-mutating - just reading
+            return items.last
+        }
+        
+        var count: Int {                // Computed property - non-mutating
+            return items.count
+        }
+        
+        var isEmpty: Bool {             // Computed property - non-mutating
+            return items.isEmpty
+        }
+    }
+    
+    // Pattern 2: State machines
+    struct GameState {
+        var score: Int = 0
+        var lives: Int = 3
+        var level: Int = 1
+        var isGameOver: Bool = false
+        
+        mutating func addPoints(_ points: Int) {
+            score += points
+            
+            // Level up every 1000 points
+            if score >= level * 1000 {
+                level += 1
+            }
+        }
+        
+        mutating func loseLife() {
+            lives -= 1
+            if lives <= 0 {
+                isGameOver = true
+            }
+        }
+        
+        mutating func resetGame() {
+            score = 0
+            lives = 3
+            level = 1
+            isGameOver = false
+        }
+        
+        // Non-mutating helper methods
+        func canContinue() -> Bool {
+            return !isGameOver && lives > 0
+        }
+        
+        func getDisplayText() -> String {
+            return "Score: \(score) | Lives: \(lives) | Level: \(level)"
+        }
+    }
+    
+    // Pattern 3: Builder pattern with structs
+    struct URLBuilder {
+        private var scheme: String = "https"
+        private var host: String = ""
+        private var path: String = ""
+        private var queryItems: [String: String] = [:]
+        
+        mutating func setScheme(_ scheme: String) {
+            self.scheme = scheme
+        }
+        
+        mutating func setHost(_ host: String) {
+            self.host = host
+        }
+        
+        mutating func setPath(_ path: String) {
+            self.path = path
+        }
+        
+        mutating func addQueryItem(key: String, value: String) {
+            queryItems[key] = value
+        }
+        
+        // Non-mutating - builds the final URL
+        func build() -> URL? {
+            var components = URLComponents()
+            components.scheme = scheme
+            components.host = host
+            components.path = path
+            
+            if !queryItems.isEmpty {
+                components.queryItems = queryItems.map { URLQueryItem(name: $0.key, value: $0.value) }
+            }
+            
+            return components.url
+        }
+    }
+    
+    // Usage of builder pattern
+    var builder = URLBuilder()
+    builder.setHost("api.example.com")
+    builder.setPath("/users")
+    builder.addQueryItem(key: "page", value: "1")
+    builder.addQueryItem(key: "limit", value: "10")
+    
+    if let url = builder.build() {
+        print("Built URL: \(url)")  // https://api.example.com/users?page=1&limit=10
+    }
+    ```
+    
+    **When You DON'T Need Mutating:**
+    
+    ```swift
+    struct ReadOnlyData {
+        let id: String
+        let createdAt: Date
+        private let items: [String]
+        
+        // All these methods are non-mutating because they don't change anything
+        func getItemCount() -> Int {
+            return items.count
+        }
+        
+        func getItem(at index: Int) -> String? {
+            guard index >= 0 && index < items.count else { return nil }
+            return items[index]
+        }
+        
+        func contains(_ item: String) -> Bool {
+            return items.contains(item)
+        }
+        
+        func getAllItems() -> [String] {
+            return items  // Returns a copy, doesn't modify original
+        }
+        
+        // Even complex operations don't need mutating if they don't change the struct
+        func getFilteredItems(containing text: String) -> [String] {
+            return items.filter { $0.contains(text) }
+        }
+    }
+    
+    // Classes never need mutating because they're reference types
+    class MutableClass {
+        var value: Int = 0
+        
+        func increment() {              // No mutating needed for classes
+            value += 1
+        }
+        
+        func reset() {                  // No mutating needed for classes
+            value = 0
+        }
+    }
+    ```
+    
+    **Key Rules for Mutating:**
+    
+    1. **Structs and Enums only**: Classes never need `mutating` because they're reference types
+    2. **Property modification**: If a method changes any stored property, it needs `mutating`
+    3. **Self assignment**: If a method assigns to `self`, it needs `mutating`
+    4. **Calling mutating methods**: If a method calls another `mutating` method, it must also be `mutating`
+    5. **Variable requirement**: You can only call `mutating` methods on `var` instances, not `let`
+    6. **Protocol conformance**: If a protocol method might modify conforming types, mark it `mutating`
+    
+    ```swift
+    struct Example {
+        var data: [Int] = []
+        
+        // Needs mutating - modifies stored property
+        mutating func addItem(_ item: Int) {
+            data.append(item)
+        }
+        
+        // Needs mutating - calls mutating method
+        mutating func addMultipleItems(_ items: [Int]) {
+            for item in items {
+                addItem(item)  // Calling mutating method requires this to be mutating
+            }
+        }
+        
+        // Needs mutating - assigns to self
+        mutating func replaceWith(_ newData: [Int]) {
+            self = Example(data: newData)  // Assigning to self requires mutating
+        }
+        
+        // Doesn't need mutating - only reads data
+        func getCount() -> Int {
+            return data.count
+        }
+        
+        // Doesn't need mutating - returns new instance without modifying self
+        func withAdditionalItem(_ item: Int) -> Example {
+            var copy = self
+            copy.data.append(item)
+            return copy
+        }
+    }
+    ```
 
 ## Swift Package Manager (SPM) - No Xcode Needed
 
