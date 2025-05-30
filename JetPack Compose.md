@@ -919,3 +919,312 @@ WorkManager.getInstance(this).enqueueUniquePeriodicWork("RoutineNotificationWork
 2. `RoutineNotificationWorker` is just a name we are giving to our worker.
 3. `ExsitingPeriodicWorkPolicy` is used to tell work manager to what to do if it sees multiple workers with same name. Here we are asking it to cancel past ones and use this one.
 4. In the last arg, we provide our work request object.
+
+```
+
+## How to manage Jetpack Compose dependencies and ensure version compatibility
+
+Managing dependencies in Jetpack Compose projects is crucial for avoiding version conflicts and ensuring your app works properly. Here's how to handle dependencies effectively:
+
+### 1. Use Compose BOM (Bill of Materials) for version alignment
+
+The Compose BOM automatically manages versions of all Compose libraries to ensure they work together. This is the **most important** step for dependency management.
+
+```kotlin
+// In your module's build.gradle file
+dependencies {
+    // Import the Compose BOM - this manages versions of all Compose libraries
+    implementation platform('androidx.compose:compose-bom:2023.10.01')
+    
+    // Now you can add Compose dependencies WITHOUT specifying versions
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.activity:activity-compose'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose'
+    
+    // For debugging (only in debug builds)
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
+}
+```
+
+**Why BOM is important:**
+- It ensures all Compose libraries use compatible versions
+- You don't need to specify version numbers for Compose libraries
+- When you update the BOM version, all Compose libraries update together
+- Prevents version conflicts between different Compose components
+
+### 2. Check and manage transitive dependencies
+
+Transitive dependencies are dependencies that your direct dependencies bring in automatically. Sometimes these can cause conflicts.
+
+**View your dependency tree:**
+```bash
+# Run this command in your project root to see all dependencies
+./gradlew app:dependencies
+
+# To see only implementation dependencies
+./gradlew app:dependencies --configuration implementation
+```
+
+**Common transitive dependency issues and solutions:**
+
+```kotlin
+dependencies {
+    // If you have version conflicts, you can force specific versions
+    implementation('androidx.compose.ui:ui') {
+        // Exclude a problematic transitive dependency
+        exclude group: 'androidx.lifecycle', module: 'lifecycle-viewmodel'
+    }
+    
+    // Then add the correct version explicitly
+    implementation 'androidx.lifecycle:lifecycle-viewmodel:2.7.0'
+    
+    // Or force a specific version for all occurrences
+    implementation 'androidx.lifecycle:lifecycle-viewmodel:2.7.0'
+    configurations.all {
+        resolutionStrategy {
+            force 'androidx.lifecycle:lifecycle-viewmodel:2.7.0'
+        }
+    }
+}
+```
+
+### 3. Ensure compatibility between different component versions
+
+**Create a versions catalog for centralized version management:**
+
+Create a file called `gradle/libs.versions.toml` in your project root:
+```toml
+[versions]
+compose-bom = "2023.10.01"
+activity-compose = "1.8.1"
+lifecycle = "2.7.0"
+navigation = "2.7.5"
+hilt = "2.48"
+room = "2.6.0"
+kotlin = "1.9.10"
+
+[libraries]
+compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
+compose-ui = { group = "androidx.compose.ui", name = "ui" }
+compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity-compose" }
+lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation" }
+hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
+hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version = "1.1.0" }
+room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+
+[plugins]
+android-application = { id = "com.android.application", version = "8.1.4" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+```
+
+**Then use it in your build.gradle:**
+```kotlin
+dependencies {
+    implementation platform(libs.compose.bom)
+    implementation libs.compose.ui
+    implementation libs.compose.material3
+    implementation libs.activity.compose
+    implementation libs.lifecycle.viewmodel.compose
+    implementation libs.navigation.compose
+    implementation libs.hilt.android
+    implementation libs.hilt.navigation.compose
+    implementation libs.room.runtime
+    implementation libs.room.ktx
+}
+```
+
+### 4. Check compatibility between major components
+
+**Important compatibility rules:**
+1. **Kotlin version** must be compatible with Compose Compiler version
+2. **Compose Compiler** version should match your Kotlin version
+3. **Android Gradle Plugin** should be recent enough for your Compose version
+
+**Check Compose Compiler compatibility:**
+```kotlin
+// In your module's build.gradle
+android {
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+    composeOptions {
+        // Make sure this version is compatible with your Kotlin version
+        kotlinCompilerExtensionVersion '1.5.4'
+    }
+}
+```
+
+**Kotlin and Compose Compiler compatibility table:**
+- Kotlin 1.9.10 → Compose Compiler 1.5.4
+- Kotlin 1.9.0 → Compose Compiler 1.5.0
+- Kotlin 1.8.22 → Compose Compiler 1.4.8
+
+### 5. Handle common dependency conflicts
+
+**Problem: Multiple versions of the same library**
+```kotlin
+// Solution: Use dependency resolution strategy
+configurations.all {
+    resolutionStrategy {
+        // Force specific versions to resolve conflicts
+        force 'androidx.lifecycle:lifecycle-viewmodel:2.7.0'
+        force 'androidx.lifecycle:lifecycle-livedata:2.7.0'
+        
+        // Or prefer specific modules
+        preferProjectModules()
+    }
+}
+```
+
+**Problem: Conflicting annotation processors (like Hilt and Room)**
+```kotlin
+dependencies {
+    // Make sure annotation processors are compatible
+    kapt "com.google.dagger:hilt-compiler:2.48"
+    kapt "androidx.room:room-compiler:2.6.0"
+    
+    // Sometimes you need to exclude conflicting processors
+    implementation('androidx.room:room-runtime:2.6.0') {
+        exclude group: 'com.google.dagger'
+    }
+}
+```
+
+### 6. Best practices for dependency management
+
+**1. Always use the latest stable versions:**
+```kotlin
+// Check for updates regularly
+// Use Android Studio's "Project Structure" dialog to see available updates
+```
+
+**2. Test after every dependency update:**
+```kotlin
+// Run these commands after updating dependencies
+./gradlew clean
+./gradlew build
+./gradlew test
+```
+
+**3. Use dependency locking for production builds:**
+```kotlin
+// In your build.gradle
+dependencyLocking {
+    lockAllConfigurations()
+}
+
+// Generate lock files
+./gradlew dependencies --write-locks
+```
+
+**4. Monitor for security vulnerabilities:**
+```kotlin
+// Add this plugin to check for vulnerable dependencies
+plugins {
+    id 'org.owasp.dependencycheck' version '8.4.0'
+}
+
+// Run security check
+./gradlew dependencyCheckAnalyze
+```
+
+### 7. Troubleshooting dependency issues
+
+**When you get "Duplicate class" errors:**
+```kotlin
+// Find which dependencies are causing conflicts
+./gradlew app:dependencies | grep "conflicting-library-name"
+
+// Exclude the duplicate
+implementation('library-with-conflict') {
+    exclude group: 'duplicate-group', module: 'duplicate-module'
+}
+```
+
+**When Compose preview doesn't work:**
+```kotlin
+// Make sure you have these debug dependencies
+debugImplementation 'androidx.compose.ui:ui-tooling'
+debugImplementation 'androidx.compose.ui:ui-test-manifest'
+
+// And this in your compose options
+composeOptions {
+    kotlinCompilerExtensionVersion = "1.5.4"
+}
+```
+
+**When build fails with "Cannot resolve" errors:**
+```kotlin
+// Check if you're missing repositories
+repositories {
+    google()
+    mavenCentral()
+    // Sometimes needed for specific libraries
+    maven { url 'https://jitpack.io' }
+}
+```
+
+### 8. Example of a well-managed dependency setup
+
+Here's a complete example of properly managed dependencies:
+
+```kotlin
+// Project level build.gradle
+plugins {
+    id 'com.android.application' version '8.1.4' apply false
+    id 'org.jetbrains.kotlin.android' version '1.9.10' apply false
+    id 'com.google.dagger.hilt.android' version '2.48' apply false
+}
+
+// Module level build.gradle
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'kotlin-kapt'
+    id 'dagger.hilt.android.plugin'
+}
+
+dependencies {
+    // Use BOM for version management
+    implementation platform('androidx.compose:compose-bom:2023.10.01')
+    
+    // Core Compose dependencies (no versions needed due to BOM)
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.material3:material3'
+    
+    // Activity and lifecycle
+    implementation 'androidx.activity:activity-compose:1.8.1'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0'
+    
+    // Navigation
+    implementation 'androidx.navigation:navigation-compose:2.7.5'
+    
+    // Dependency injection
+    implementation 'com.google.dagger:hilt-android:2.48'
+    implementation 'androidx.hilt:hilt-navigation-compose:1.1.0'
+    kapt 'com.google.dagger:hilt-compiler:2.48'
+    
+    // Database
+    implementation 'androidx.room:room-runtime:2.6.0'
+    implementation 'androidx.room:room-ktx:2.6.0'
+    kapt 'androidx.room:room-compiler:2.6.0'
+    
+    // Debug tools
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
+}
+```
+
+**Remember:** Always check the official Android documentation for the latest compatible versions, and update your BOM version regularly to get the latest stable Compose libraries.
