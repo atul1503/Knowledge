@@ -3884,3 +3884,113 @@ Tests/
 | Package      | `name:` in `Package(...)`     | Name of the whole package         | No folder needed      |
 | Product      | `name:` in `.library/.executable` | Name of the built output (lib/app) | No folder needed      |
 | Target       | `name:` in `.target/.testTarget`  | Name of the module/code group     | Yes, folder in Sources/ or specify `path:` |
+
+## How to add a dependency or create a target in Swift Package Manager (without Xcode)
+
+You can manage your Swift package entirely from the terminal and a text editor—no Xcode required!
+
+### 1. Add a dependency (library/package)
+- Open your `Package.swift` file in a text editor.
+- Find the `dependencies:` array and add your new package.
+
+**Example:** Add Alamofire HTTP networking library:
+```swift
+dependencies: [
+    .package(url: "https://github.com/Alamofire/Alamofire.git", from: "5.7.0"),
+    // ...other dependencies
+],
+```
+
+- In the target that needs Alamofire, add it to the `dependencies:` array:
+```swift
+.target(
+    name: "MyApp",
+    dependencies: [
+        .product(name: "Alamofire", package: "Alamofire")
+    ]
+)
+```
+
+- Save the file, then run in your terminal:
+```bash
+swift package resolve
+```
+This downloads and prepares the dependency.
+
+---
+
+### 2. Create a new target (module)
+- In your project folder, create a new directory under `Sources/` with the name of your new target:
+```bash
+mkdir Sources/MyNewModule
+# Add a Swift file to the new module
+nano Sources/MyNewModule/MyNewModule.swift
+```
+
+- In `Package.swift`, add a new target entry:
+```swift
+.target(
+    name: "MyNewModule"
+    // Optionally, add dependencies: [...]
+)
+```
+
+- If you want to use this new module in another target, add it to that target's dependencies:
+```swift
+.target(
+    name: "MyApp",
+    dependencies: [
+        "MyNewModule"
+    ]
+)
+```
+
+- Save the file. Now you can use `import MyNewModule` in your code.
+
+---
+
+### 3. Build and test your changes
+```bash
+swift build
+swift test
+```
+
+---
+
+### Summary Table
+
+| Task                | What to do (no Xcode)                                                                 |
+|---------------------|--------------------------------------------------------------------------------------|
+| Add dependency      | Edit `Package.swift` → add to `dependencies:` → run `swift package resolve`          |
+| Create new target   | Make folder in `Sources/` → add `.swift` file → edit `Package.swift` → add `.target` |
+| Use new target      | Add target name to another target's `dependencies:` in `Package.swift`               |
+| Build/test          | Run `swift build` and `swift test` in terminal                                       |
+
+---
+
+### Example: Adding a dependency and a target
+
+```swift
+// Package.swift
+let package = Package(
+    name: "MyApp",
+    products: [
+        .executable(name: "MyApp", targets: ["MyApp"]),
+    ],
+    dependencies: [
+        .package(url: "https://github.com/Alamofire/Alamofire.git", from: "5.7.0"),
+    ],
+    targets: [
+        .target(
+            name: "MyApp",
+            dependencies: [
+                "MyNewModule",
+                .product(name: "Alamofire", package: "Alamofire")
+            ]
+        ),
+        .target(
+            name: "MyNewModule"
+        ),
+    ]
+)
+```
