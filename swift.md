@@ -2703,13 +2703,13 @@ Notes:
     Swift Package Manager:
     MyApp/
     ├── Package.swift              // Project config (like pom.xml)
-    ├── Sources/                   // All source code goes here
-    │   ├── MyApp/                 // Main app target
-    │   │   └── main.swift
-    │   ├── Database/              // Database target
-    │   │   └── DatabaseManager.swift
-    │   └── API/                   // API target
-    │       └── APIClient.swift
+    |   ├── Sources/                   // All source code goes here
+    |   │   ├── MyApp/                 // Main app target
+    |   │   │   └── main.swift
+    |   ├── Database/              // Database target
+    |   │   └── DatabaseManager.swift
+    |   └── API/                   // API target
+    |       └── APIClient.swift
     └── Tests/                     // All tests go here
         ├── MyAppTests/
         ├── DatabaseTests/
@@ -3817,3 +3817,70 @@ Tests/
 
 **Summary:**
 - Use multiple targets in a product when you want to combine several modules into a single library or executable, for better code organization, reusability, and modularity.
+
+## Why do we keep providing `name:` everywhere in Package.swift?
+
+- **`name:` in the package declaration**
+  - This is the name of your whole package (the project as a whole).
+    ```swift
+    let package = Package(
+        name: "MyApp",
+        // ...
+    )
+    ```
+  - This is mostly for humans and for tools to identify your package.
+
+- **`name:` in products and targets**
+  - Every product and every target also needs a `name:`.
+    ```swift
+    .library(name: "MyLibrary", targets: ["MyLibrary"])
+    .target(name: "MyLibrary")
+    ```
+  - **Why?**
+    - You can have multiple products and multiple targets in one package, and their names might not match the package name.
+    - You might want to build several libraries or executables from the same package, each with a different name.
+    - Targets can be reused in different products, so each must have a unique name.
+  - **Analogy:**
+    - Package name = the name of your book series
+    - Product name = the name of a specific book in the series
+    - Target name = the name of a chapter or section in a book
+
+## Do each module/target have their own folder inside `Sources/`? Is that mandatory?
+
+- **Yes, by convention and for SPM to work smoothly:**
+  - Each target (module) should have its own folder inside `Sources/` (for code) or `Tests/` (for tests).
+  - The folder name should match the target name you declare in `Package.swift`.
+  ```
+  Sources/
+  ├── MyApp/         // Target: MyApp
+  ├── Utils/         // Target: Utils
+  └── Networking/    // Target: Networking
+  ```
+
+- **Is it mandatory?**
+  - For most use cases: **Yes.**
+    - SPM expects each target to have its own folder named exactly as the target.
+    - If you want to use a different folder name, you must specify the `path:` property in the target declaration:
+      ```swift
+      .target(
+          name: "Networking",
+          path: "Sources/NetCode" // Folder is NetCode, but target is Networking
+      )
+      ```
+    - But the default and simplest approach is to match folder and target names.
+
+## Do you use the folder name as the target name in the package file?
+
+- **By default, yes.**
+  - If you don't specify a `path:`, SPM looks for a folder in `Sources/` (or `Tests/`) with the same name as the target.
+  - The target name in `Package.swift` should match the folder name for everything to "just work."
+
+---
+
+### Summary Table
+
+| What         | Where is `name:` used?         | What does it mean?                | Folder required?      |
+|--------------|-------------------------------|-----------------------------------|-----------------------|
+| Package      | `name:` in `Package(...)`     | Name of the whole package         | No folder needed      |
+| Product      | `name:` in `.library/.executable` | Name of the built output (lib/app) | No folder needed      |
+| Target       | `name:` in `.target/.testTarget`  | Name of the module/code group     | Yes, folder in Sources/ or specify `path:` |
