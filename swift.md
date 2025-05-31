@@ -4120,3 +4120,82 @@ MyApp/
 - Resources for a target go in a `Resources/` folder inside that target's folder.
 - After building, binaries and resources are placed in `.build/debug/` or `.build/release/`.
 - Resources are not embedded in the binary, but are bundled alongside it in a `.resources/` directory.
+
+## What file types are produced by Swift Package Manager?
+
+### Executables
+
+- **On macOS and Linux:**  
+  Executables are **plain binaries** (no `.exe` extension).
+  - Example:
+    ```
+    .build/debug/MyApp      # Executable, run with ./MyApp
+    ```
+- **On Windows:**  
+  Executables have the `.exe` extension.
+  - Example:
+    ```
+    .build/debug/MyApp.exe
+    ```
+
+### Libraries
+
+- **Static libraries:**  
+  - File extension: `.a` (on all platforms)
+  - Example:
+    ```
+    .build/debug/libMyLibrary.a
+    ```
+  - These are archives of object files, linked at compile time.
+
+- **Dynamic/shared libraries:**  
+  - File extension depends on platform:
+    - **macOS:** `.dylib`
+    - **Linux:** `.so`
+    - **Windows:** `.dll`
+  - Example:
+    ```
+    .build/debug/libMyLibrary.dylib   # macOS
+    .build/debug/libMyLibrary.so      # Linux
+    .build/debug/MyLibrary.dll        # Windows
+    ```
+  - These are loaded at runtime.
+
+- **Object files:**  
+  - File extension: `.o`
+  - These are intermediate files created during compilation, not usually distributed or used directly.
+
+### Summary Table
+
+| Output Type         | macOS         | Linux         | Windows      | Notes                                 |
+|---------------------|---------------|---------------|--------------|---------------------------------------|
+| Executable          | (no extension)| (no extension)| `.exe`       | Run with `./MyApp` or `MyApp.exe`     |
+| Static library      | `.a`          | `.a`          | `.a`         | Linked at compile time                |
+| Dynamic library     | `.dylib`      | `.so`         | `.dll`       | Loaded at runtime                     |
+| Object file         | `.o`          | `.o`          | `.o`         | Intermediate, not usually distributed |
+
+---
+
+### Key Points
+
+- **Executables:**  
+  No extension on macOS/Linux, `.exe` on Windows.
+- **Static libraries:**  
+  Always `.a` (all platforms).
+- **Dynamic/shared libraries:**  
+  `.dylib` (macOS), `.so` (Linux), `.dll` (Windows).
+- **Object files:**  
+  `.o` (all platforms), not usually needed by end users.
+
+---
+
+### How to control what gets built?
+
+- The type of output (executable, static library, dynamic library) is determined by your `products` in `Package.swift`:
+  ```swift
+  products: [
+      .executable(name: "MyApp", targets: ["MyApp"]),
+      .library(name: "MyLibrary", targets: ["MyLibrary"]), // Default is static
+      .library(name: "MyDynamicLib", type: .dynamic, targets: ["MyDynamicLib"]),
+  ]
+  ```
