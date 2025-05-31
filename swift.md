@@ -2177,6 +2177,111 @@ Notes:
     }
     ```
 
+17a. **How closures capture variables (not just self), and what happens to their memory**
+
+When you create a closure in Swift, it automatically "captures" any variables or objects it uses from the surrounding scope. This means the closure keeps a reference to those variables, so it can use them later—even if the original scope is gone. This is called *closure capture*.
+
+**Key point:**
+- By default, closures capture variables *strongly*. This means the closure keeps the captured object alive as long as the closure itself is alive.
+- This is true for *any* object or variable the closure uses—not just `self`.
+
+**What does this mean for memory?**
+- If a closure is stored somewhere (like in a property, array, or as a callback), any objects it captures will NOT be deallocated until the closure itself is released.
+- This can cause memory leaks or keep objects alive longer than you expect, especially if the closure is long-lived.
+
+**Example: Closure capturing multiple objects**
+
+Let's see what happens when a closure captures several objects:
+
+```swift
+class Owner {
+    let name: String
+    init(name: String) { self.name = name }
+    deinit { print("Owner \(name) deallocated") }
+}
+
+class Pet {
+    let name: String
+    init(name: String) { self.name = name }
+    deinit { print("Pet \(name) deallocated") }
+}
+
+var owner: Owner? = Owner(name: "Alice")   // Create Owner object
+var pet: Pet? = Pet(name: "Fluffy")        // Create Pet object
+
+// Create a closure that captures both owner and pet
+let closure = {
+    // The closure uses both objects, so it captures them
+    print("Owner: \(owner!.name), Pet: \(pet!.name)")
+}
+
+owner = nil   // Try to release Owner
+pet = nil     // Try to release Pet
+// Both objects are still alive, because 'closure' holds strong references
+
+closure()     // Prints: Owner: Alice, Pet: Fluffy
+// Only when 'closure' is released will Owner and Pet be deallocated
+```
+
+**Line-by-line explanation:**
+- `class Owner` and `class Pet`: Simple classes with a name and a deinit to show when they're deallocated.
+- `var owner: Owner? = ...` and `var pet: Pet? = ...`: Create two objects.
+- `let closure = { ... }`: The closure uses both `owner` and `pet`, so it captures them *strongly*.
+- `owner = nil` and `pet = nil`: Set the original variables to nil. But the objects are NOT deallocated, because the closure still holds them.
+- `closure()`: The closure can still use both objects.
+- Only when the closure itself is released (e.g., goes out of scope or is set to nil) will the captured objects be deallocated.
+
+**How to avoid keeping objects alive?**
+- If you want the closure to NOT keep a strong reference to an object, you can use a *capture list* with `weak` or `unowned`, just like you do with `self`.
+- This works for ANY object, not just `self`.
+
+**Example: Using [weak owner, weak pet] in a closure**
+
+```swift
+var owner: Owner? = Owner(name: "Alice")
+var pet: Pet? = Pet(name: "Fluffy")
+
+let closure: () -> Void = { [weak owner, weak pet] in
+    // owner and pet are now optionals inside the closure
+    if let owner = owner, let pet = pet {
+        print("Owner: \(owner.name), Pet: \(pet.name)")
+    } else {
+        print("Owner or pet is gone")
+    }
+}
+
+owner = nil   // Now Owner can be deallocated
+pet = nil     // Now Pet can be deallocated
+
+closure()     // Prints: Owner or pet is gone
+```
+
+**Line-by-line explanation:**
+- `[weak owner, weak pet]`: The closure captures both variables weakly. Now, the closure does NOT keep them alive.
+- Inside the closure, `owner` and `pet` are optionals (they might be nil if deallocated).
+- The closure checks if both are still alive before using them.
+- When you set `owner = nil` and `pet = nil`, the objects are deallocated immediately (if nothing else holds them).
+- When you call the closure, it prints "Owner or pet is gone" because both are nil.
+
+**Summary:**
+- Closures capture *all* variables they use, not just `self`.
+- By default, this is a strong reference, which keeps the object alive.
+- To avoid memory leaks or unwanted retention, use `[weak ...]` or `[unowned ...]` in the closure's capture list for *any* object you don't want to keep alive.
+- Always check for nil if you use `weak` (since the object might be gone).
+- Use `unowned` only if you are sure the object will always be alive when the closure runs (otherwise, your app will crash).
+
+**When to worry about this:**
+- If your closure is stored somewhere (property, array, callback, etc.) and might outlive the objects it uses, always consider how it captures those objects.
+- If the closure is short-lived (runs immediately), you usually don't need to worry.
+
+**Template for capturing multiple objects weakly:**
+```swift
+let closure = { [weak obj1, weak obj2] in
+    guard let obj1 = obj1, let obj2 = obj2 else { return }
+    // Use obj1 and obj2 safely
+}
+```
+
 ## Swift Package Manager (SPM) - No Xcode Needed
 
 29. Create a new Swift project from terminal using `swift package init`. This creates all the files and folders you need.
