@@ -3994,3 +3994,129 @@ let package = Package(
     ]
 )
 ```
+
+## Swift Project Folder Structure: What goes where?
+
+A typical Swift Package Manager (SPM) project looks like this:
+
+```
+MyApp/
+├── Package.swift         # Project configuration file
+├── Sources/              # All your code (organized by target/module)
+│   ├── MyApp/            # Main target/module
+│   │   ├── main.swift
+│   │   └── ...           # Other Swift files
+│   └── Utils/            # Another target/module (optional)
+│       └── Helper.swift
+├── Tests/                # All your test code (organized by test target)
+│   └── MyAppTests/
+│       └── MyAppTests.swift
+├── Resources/            # (Optional) Shared resources for the package
+├── .build/               # Build artifacts (created by SPM, not in git)
+│   └── debug/            # Debug build output
+│   └── release/          # Release build output
+├── Package.resolved      # Locked dependency versions
+└── README.md             # Project documentation
+```
+
+### What does each folder contain?
+
+- **Package.swift**  
+  The manifest file that describes your package, its dependencies, targets, products, etc.
+
+- **Sources/**  
+  Contains all your source code, organized by target/module.  
+  Each subfolder is a target (module) and should match the target name in `Package.swift`.
+
+- **Tests/**  
+  Contains all your test code, organized by test target.  
+  Each subfolder is a test target and should match the test target name in `Package.swift`.
+
+- **Resources/** (optional)  
+  You can put shared resources here, but SPM expects resources for a target to be inside that target's folder (see below).
+
+- **.build/**  
+  Created by SPM when you build. Contains all build artifacts, including:
+  - **debug/**: Debug build output (executables, libraries, intermediate files)
+  - **release/**: Release build output (optimized binaries)
+  - **other internal folders**: Caches, dependency checkouts, etc.
+  - **You should NOT commit `.build/` to git.**
+
+- **Package.resolved**  
+  Records the exact versions of dependencies used. Should be committed to git.
+
+- **README.md**  
+  Your project's documentation.
+
+---
+
+### Where do resources go?
+
+- **Target-specific resources:**  
+  If you want to include resources (images, JSON, config files, etc.) in your app or library, put them in a `Resources/` folder inside the target's folder:
+
+  ```
+  Sources/
+  └── MyApp/
+      ├── main.swift
+      ├── Resources/
+      │   ├── config.json
+      │   └── logo.png
+  ```
+
+  In `Package.swift`, declare them in the target:
+  ```swift
+  .target(
+      name: "MyApp",
+      resources: [
+          .process("Resources")
+      ]
+  )
+  ```
+
+- **After building:**  
+  - For executables: Resources are bundled alongside the binary in the `.build/` output directory.
+  - For libraries: Resources are bundled in a way that importing packages can access them.
+  - **Resources are NOT embedded inside the binary itself** (unlike some other languages). They are packaged in a resources directory next to the binary.
+
+---
+
+### Where does the binary go after building?
+
+- **After you run `swift build`:**
+  - The built executable or library is placed in:
+    - `.build/debug/` for debug builds
+    - `.build/release/` for release builds
+
+  **Example:**
+  ```
+  .build/debug/MyApp         # Your executable (if you have an executable target)
+  .build/debug/libMyLibrary.a  # Your static library (if you have a library target)
+  .build/debug/MyApp.resources/ # Resources directory for your target
+  ```
+
+---
+
+### Summary Table
+
+| Folder/File         | What it contains / is for                                 |
+|---------------------|----------------------------------------------------------|
+| Package.swift       | Project configuration and manifest                       |
+| Sources/            | All source code, organized by target/module              |
+| Tests/              | All test code, organized by test target                  |
+| Resources/          | (Optional) Shared resources (not standard for SPM)       |
+| Sources/Target/Resources/ | Resources for a specific target                    |
+| .build/             | Build artifacts (binaries, resources, caches)            |
+| .build/debug/       | Debug build output (executables, libraries, resources)   |
+| .build/release/     | Release build output (optimized)                         |
+| Package.resolved    | Locked dependency versions                               |
+| README.md           | Project documentation                                    |
+
+---
+
+### Key Points
+
+- Each target/module has its own folder in `Sources/`.
+- Resources for a target go in a `Resources/` folder inside that target's folder.
+- After building, binaries and resources are placed in `.build/debug/` or `.build/release/`.
+- Resources are not embedded in the binary, but are bundled alongside it in a `.resources/` directory.
