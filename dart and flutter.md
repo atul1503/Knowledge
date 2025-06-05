@@ -1271,6 +1271,143 @@ Navigator.pop(context);
 - Use `Navigator.push`/`pop` for simple apps.
 - Use `go_router` (or Navigator 2.0) for enterprise apps and complex navigation.
 
+## How to place children in Container, Row, and Column in Flutter
+
+### 1. Container
+- `Container` can have a single child, set with the `child:` property.
+```dart
+Container(
+  width: 200,
+  height: 100,
+  color: Colors.blue,
+  child: Text('Inside Container'),
+)
+```
+- To add padding or alignment, use the `padding:` or `alignment:` properties:
+```dart
+Container(
+  padding: EdgeInsets.all(16),
+  alignment: Alignment.center,
+  child: Text('Centered'),
+)
+```
+
+### 2. Row
+- `Row` arranges multiple children horizontally, set with the `children:` property (a list of widgets).
+```dart
+Row(
+  children: [
+    Icon(Icons.star),
+    Text('Row Child'),
+    ElevatedButton(onPressed: () {}, child: Text('Button')),
+  ],
+)
+```
+- Control alignment and spacing with `mainAxisAlignment` and `crossAxisAlignment`:
+```dart
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween, // space between children
+  crossAxisAlignment: CrossAxisAlignment.center,     // vertical alignment
+  children: [
+    Text('Left'),
+    Text('Right'),
+  ],
+)
+```
+
+### 3. Column
+- `Column` arranges multiple children vertically, set with the `children:` property (a list of widgets).
+```dart
+Column(
+  children: [
+    Text('Top'),
+    Icon(Icons.arrow_downward),
+    ElevatedButton(onPressed: () {}, child: Text('Bottom')),
+  ],
+)
+```
+- Control alignment and spacing with `mainAxisAlignment` and `crossAxisAlignment`:
+```dart
+Column(
+  mainAxisAlignment: MainAxisAlignment.center,      // center children vertically
+  crossAxisAlignment: CrossAxisAlignment.start,     // align children to the left
+  children: [
+    Text('A'),
+    Text('B'),
+  ],
+)
+```
+
+**Summary:**
+- Use `child:` for a single child (Container).
+- Use `children:` for multiple children (Row, Column).
+- Use alignment and spacing properties to control layout.
+
+### How to make children occupy the space of the parent (Row/Column)
+
+By default, children in a Row or Column only take as much space as they need. To make them fill the available space, use the `Expanded` or `Flexible` widgets.
+
+#### Example: Using Expanded
+```dart
+Row(
+  children: [
+    Expanded(
+      child: Container(color: Colors.red, height: 50),
+    ),
+    Expanded(
+      child: Container(color: Colors.blue, height: 50),
+    ),
+  ],
+)
+```
+- Each child wrapped in `Expanded` will take equal space in the Row (or Column).
+- You can use the `flex:` property to set proportions:
+```dart
+Row(
+  children: [
+    Expanded(flex: 2, child: Container(color: Colors.red, height: 50)),
+    Expanded(flex: 1, child: Container(color: Colors.blue, height: 50)),
+  ],
+)
+```
+- Here, the red container takes twice as much space as the blue one.
+
+#### Example: Using Flexible
+- `Flexible` is similar to `Expanded` but allows the child to be smaller if it wants.
+```dart
+Row(
+  children: [
+    Flexible(child: Container(color: Colors.green, height: 50)),
+    Flexible(child: Container(color: Colors.yellow, height: 50)),
+  ],
+)
+```
+
+#### MainAxisAlignment and space distribution
+- `mainAxisAlignment` controls how the children are spaced along the main axis (horizontal for Row, vertical for Column):
+  - `MainAxisAlignment.start` (default): children at the start
+  - `MainAxisAlignment.end`: children at the end
+  - `MainAxisAlignment.center`: children in the center
+  - `MainAxisAlignment.spaceBetween`: space between children, none at ends
+  - `MainAxisAlignment.spaceAround`: equal space before, between, and after
+  - `MainAxisAlignment.spaceEvenly`: equal space before, between, and after, but all spaces are the same size
+
+```dart
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+  children: [
+    Icon(Icons.star),
+    Icon(Icons.star),
+    Icon(Icons.star),
+  ],
+)
+```
+
+**Summary:**
+- Use `Expanded` or `Flexible` to make children fill available space.
+- Use `flex:` to control proportions.
+- Use `mainAxisAlignment` to control how children are spaced along the main axis.
+
 
 
 
