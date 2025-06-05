@@ -1190,6 +1190,87 @@ void main() {
 - Place test files in the `test/` directory.
 - Use `flutter test` to run your tests.
 
+## Most common and enterprise way to add navigation in Flutter
+
+Flutter provides two main ways to handle navigation:
+- **Navigator 1.0 (classic push/pop):** Simple, good for small apps.
+- **Navigator 2.0 (Router API) and packages like go_router:** Recommended for enterprise apps, deep linking, and complex navigation.
+
+### 1. Simple navigation with Navigator 1.0
+```dart
+Navigator.push(
+  context,
+  MaterialPageRoute(builder: (context) => SecondPage()),
+);
+// To go back:
+Navigator.pop(context);
+```
+- Good for simple, stack-based navigation.
+
+### 2. Enterprise navigation with go_router (recommended)
+`go_router` is the most popular and enterprise-ready navigation package for Flutter. It supports deep linking, nested navigation, guards, and more.
+
+#### How to use go_router
+1. Add to your `pubspec.yaml`:
+   ```yaml
+   dependencies:
+     go_router: ^13.0.0
+   ```
+2. Define your routes and use `GoRouter`:
+   ```dart
+   import 'package:flutter/material.dart';
+   import 'package:go_router/go_router.dart';
+
+   void main() {
+     final GoRouter _router = GoRouter(
+       routes: [
+         GoRoute(
+           path: '/',
+           builder: (context, state) => HomePage(),
+         ),
+         GoRoute(
+           path: '/details/:id',
+           builder: (context, state) {
+             final id = state.params['id'];
+             return DetailsPage(id: id!);
+           },
+         ),
+       ],
+     );
+
+     runApp(MyApp(router: _router));
+   }
+
+   class MyApp extends StatelessWidget {
+     final GoRouter router;
+     MyApp({required this.router});
+     @override
+     Widget build(BuildContext context) {
+       return MaterialApp.router(
+         routerConfig: router,
+       );
+     }
+   }
+   ```
+3. Navigate between pages:
+   ```dart
+   // Go to details page with id=42
+   context.go('/details/42');
+   // Or use context.push('/details/42') to push onto the stack
+   ```
+- `go_router` supports named routes, query parameters, guards (for auth), nested navigation, and more.
+- Use `context.go()` for navigation and `context.pop()` to go back.
+
+### Why use go_router or Navigator 2.0 for enterprise apps?
+- Handles deep links and browser URLs (for web).
+- Supports complex navigation flows (auth, onboarding, tabs, etc.).
+- Easier to test and maintain.
+- Recommended by the Flutter team for new apps.
+
+**Summary:**
+- Use `Navigator.push`/`pop` for simple apps.
+- Use `go_router` (or Navigator 2.0) for enterprise apps and complex navigation.
+
 
 
 
