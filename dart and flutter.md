@@ -1602,6 +1602,19 @@ final count = ref.watch(counterProvider);
 ref.read(counterProvider.notifier).increment();
 ```
 
+- You can also use `context.watch<T>()`, `context.read<T>()`, and `context.select<T, R>()` (from the provider package) inside widgets:
+  - `context.watch<T>()`: Rebuilds the widget when the provider changes (like `Consumer`).
+  - `context.read<T>()`: Reads the provider value once, does not rebuild on changes.
+  - `context.select<T, R>((value) => value.something)`: Rebuilds only when the selected part changes.
+
+#### Example:
+```dart
+// Inside a build method
+final count = context.watch<CounterModel>().count; // rebuilds when count changes
+final model = context.read<CounterModel>(); // does not rebuild
+final even = context.select<CounterModel, bool>((c) => c.count.isEven); // rebuilds only if even/odd changes
+```
+
 **Summary:**
 - In Provider, call `notifyListeners()` in your state class to trigger widget rebuilds.
 - In Riverpod, update the provider's state; widgets using `ref.watch` are rebuilt automatically.
