@@ -1275,7 +1275,47 @@ Navigator.pop(context);
 ### 2. Enterprise navigation with go_router (recommended)
 `go_router` is the most popular and enterprise-ready navigation package for Flutter. It supports deep linking, nested navigation, guards, and more.
 
-#### How to use go_router
+#### Why is main() used in a Flutter application?
+- The `main()` function is the entry point for every Dart and Flutter application. The Dart VM (or the compiled app) always starts execution from `main()`.
+- In Flutter, you call `runApp()` inside `main()` to launch your app and attach it to the screen.
+- `runApp()` takes a widget (usually your root widget) and makes it the root of the widget tree.
+
+#### Where should I define the router and how do I link it to my app?
+- You can define your `GoRouter` instance inside `main()`, or as a top-level variable, or in a separate file for better organization.
+- You link the router to your app by passing it to `MaterialApp.router` (or `CupertinoApp.router`) using the `routerConfig:` parameter.
+
+##### Example:
+```dart
+void main() {
+  final GoRouter _router = GoRouter(
+    routes: [
+      // ... your routes here ...
+    ],
+  );
+
+  runApp(MyApp(router: _router));
+}
+
+class MyApp extends StatelessWidget {
+  final GoRouter router;
+  MyApp({required this.router});
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp.router(
+      routerConfig: router,
+    );
+  }
+}
+```
+- This pattern ensures the router is available before the app starts.
+- You can also define the router as a top-level variable if you want to use it in multiple places.
+
+**Summary:**
+- `main()` is always required as the entry point.
+- `runApp()` launches your app and attaches the widget tree.
+- Define your router before calling `runApp()`, and pass it to your root widget (usually via `MaterialApp.router`).
+
+#### Comprehensive go_router example
 1. Add to your `pubspec.yaml`:
    ```yaml
    dependencies:
@@ -1316,25 +1356,44 @@ Navigator.pop(context);
        );
      }
    }
-   ```
-3. Navigate between pages:
-   ```dart
-   // Go to details page with id=42
-   context.go('/details/42');
-   // Or use context.push('/details/42') to push onto the stack
-   ```
-- `go_router` supports named routes, query parameters, guards (for auth), nested navigation, and more.
-- Use `context.go()` for navigation and `context.pop()` to go back.
 
-### Why use go_router or Navigator 2.0 for enterprise apps?
-- Handles deep links and browser URLs (for web).
-- Supports complex navigation flows (auth, onboarding, tabs, etc.).
-- Easier to test and maintain.
-- Recommended by the Flutter team for new apps.
+   class HomePage extends StatelessWidget {
+     @override
+     Widget build(BuildContext context) {
+       return Scaffold(
+         appBar: AppBar(title: Text('Home')),
+         body: Center(
+           child: ElevatedButton(
+             onPressed: () {
+               // Navigate to details page with id=42
+               context.go('/details/42');
+             },
+             child: Text('Go to Details'),
+           ),
+         ),
+       );
+     }
+   }
+
+   class DetailsPage extends StatelessWidget {
+     final String id;
+     DetailsPage({required this.id});
+     @override
+     Widget build(BuildContext context) {
+       return Scaffold(
+         appBar: AppBar(title: Text('Details')),
+         body: Center(child: Text('Details for item $id')),
+       );
+     }
+   }
+   ```
+- Use `context.go('/details/42')` to navigate and `context.pop()` to go back.
+- You can add more routes, nested routes, guards, etc. as needed.
 
 **Summary:**
-- Use `Navigator.push`/`pop` for simple apps.
-- Use `go_router` (or Navigator 2.0) for enterprise apps and complex navigation.
+- `main()` is always required as the entry point.
+- `runApp()` launches your app and attaches the widget tree.
+- Define your router before calling `runApp()`, and pass it to your root widget (usually via `MaterialApp.router`).
 
 ## How to place children in Container, Row, and Column in Flutter
 
