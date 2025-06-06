@@ -624,6 +624,47 @@ Dart has several ways to define constructors:
 **Summary:**
 - Dart supports multiple constructor styles, arrow/lambda functions, and flexible ways to define function arguments (positional, optional, named, default values). Use curly braces `{}` for named arguments, square brackets `[]` for optional positional arguments, and `=>` for single-expression functions.
 
+### Types in Dart and variable keywords
+
+Dart is a statically typed language, but you can use type inference for convenience.
+
+- **Explicit types:**
+  ```
+  int age = 30;
+  String name = 'Atul';
+  double price = 9.99;
+  bool isActive = true;
+  List<int> numbers = [1, 2, 3];
+  Map<String, int> scores = {'a': 1, 'b': 2};
+  ```
+- **var:**
+  - Declares a variable with type inference (type is set at compile time and cannot change).
+  ```
+  var city = 'Delhi'; // String
+  var count = 42;    // int
+  ```
+- **final:**
+  - Like `var`, but the variable can only be set once (immutable after assignment).
+  ```
+  final pi = 3.1415;
+  final now = DateTime.now();
+  ```
+- **const:**
+  - Compile-time constant. Value must be known at compile time and never changes.
+  ```
+  const appName = 'MyApp';
+  const list = [1, 2, 3];
+  ```
+- **Difference between var, final, and const:**
+  - `var`: mutable, type inferred, value can change.
+  - `final`: immutable after assignment, value set at runtime.
+  - `const`: immutable and must be known at compile time.
+- **No let or val:** Dart does not have `let` or `val` keywords like some other languages.
+
+**Summary:**
+- Use explicit types for clarity, or `var` for type inference.
+- Use `final` for single-assignment variables, and `const` for compile-time constants.
+
 ## Dart: Major Array (List) and Map Methods for DSA
 
 ### List (Array) Methods
