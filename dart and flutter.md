@@ -702,6 +702,30 @@ Dart has several ways to define constructors:
   arr.clear(); // []
   ```
 
+### Iterating over a List: forEach and with index
+- **forEach:** Runs a function for each element in the list.
+  ```
+  var arr = [10, 20, 30];
+  arr.forEach((element) {
+    print(element);
+  });
+  // Output: 10\n20\n30
+  ```
+- **forEach with index:** Dart's `forEach` does not provide the index directly, but you can use `asMap()` or a regular for loop:
+  - Using `asMap()`:
+    ```
+    arr.asMap().forEach((index, value) {
+      print('Index: $index, Value: $value');
+    });
+    // Output: Index: 0, Value: 10 ...
+    ```
+  - Using a regular for loop (recommended for index):
+    ```
+    for (int i = 0; i < arr.length; i++) {
+      print('Index: $i, Value: ${arr[i]}');
+    }
+    ```
+
 ### Map Methods
 - **putIfAbsent(key, function):** Adds a key with a value if it does not exist.
   ```
