@@ -3,6 +3,7 @@ To create docs for any tech, use vs code agent or cursor agent by providing foll
 ```
 Look at this folder how I document concepts of different tech, analyze it and create a similar [your tech] md file.
 Use similar language simplicity and style. Explain each new property or field the very first time you use in any example.
+For eg, look at dart, kotlin and swift docs here.
 ```
 
 To modify or add something use this prompt:
