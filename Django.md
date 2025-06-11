@@ -2056,3 +2056,614 @@ Notes:
     # Production: Web server (nginx/Apache) handles static files directly
     # Django never sees requests to /static/* or /media/*
     ```
+
+# Django Development vs Production Deployment - Complete Guide
+
+## Development Environment Setup
+
+97. **Starting Django in development** - Local development setup with database configuration.
+
+    ```bash
+    # DEVELOPMENT SETUP STEPS
+    
+    # 1. Create virtual environment
+    python -m venv venv
+    
+    # 2. Activate virtual environment
+    # On macOS/Linux:
+    source venv/bin/activate
+    # On Windows:
+    # venv\Scripts\activate
+    
+    # 3. Install dependencies
+    pip install -r requirements.txt
+    
+    # 4. Set up environment variables (create .env file)
+    touch .env
+    
+    # 5. Configure database
+    python manage.py migrate
+    
+    # 6. Create superuser (optional)
+    python manage.py createsuperuser
+    
+    # 7. Collect static files (if using React)
+    python manage.py collectstatic --noinput
+    
+    # 8. Start development server
+    python manage.py runserver 8000
+    ```
+
+98. **Development environment variables** - Configure settings for local development.
+
+    ```bash
+    # .env file for development
+    DEBUG=True
+    SECRET_KEY=your-dev-secret-key-here
+    DATABASE_URL=sqlite:///db.sqlite3
+    
+    # Or for PostgreSQL in development
+    DATABASE_URL=postgresql://username:password@localhost:5432/myproject_dev
+    
+    # Optional settings
+    ALLOWED_HOSTS=localhost,127.0.0.1
+    CORS_ALLOWED_ORIGINS=http://localhost:3000
+    ```
+
+    ```python
+    # settings.py - Environment variable usage
+    import os
+    from pathlib import Path
+    from dotenv import load_dotenv
+    
+    load_dotenv()  # Load .env file
+    
+    BASE_DIR = Path(__file__).resolve().parent.parent
+    
+    # Environment variables
+    DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+    SECRET_KEY = os.getenv('SECRET_KEY', 'fallback-secret-key-for-dev')
+    ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost').split(',')
+    
+    # Database configuration
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+    
+    # Override with DATABASE_URL if provided
+    import dj_database_url
+    if os.getenv('DATABASE_URL'):
+        DATABASES['default'] = dj_database_url.parse(os.getenv('DATABASE_URL'))
+    ```
+
+99. **Development with PostgreSQL** - Set up PostgreSQL for local development.
+
+    ```bash
+    # Install PostgreSQL (macOS with Homebrew)
+    brew install postgresql
+    brew services start postgresql
+    
+    # Install PostgreSQL (Ubuntu)
+    sudo apt-get install postgresql postgresql-contrib
+    sudo systemctl start postgresql
+    
+    # Create database and user
+    sudo -u postgres psql
+    
+    # In PostgreSQL shell:
+    CREATE DATABASE myproject_dev;
+    CREATE USER myproject_user WITH PASSWORD 'your_password';
+    GRANT ALL PRIVILEGES ON DATABASE myproject_dev TO myproject_user;
+    \q
+    
+    # Install Python PostgreSQL adapter
+    pip install psycopg2-binary
+    ```
+
+    ```python
+    # settings.py - PostgreSQL configuration
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME', 'myproject_dev'),
+            'USER': os.getenv('DB_USER', 'myproject_user'),
+            'PASSWORD': os.getenv('DB_PASSWORD', 'your_password'),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+        }
+    }
+    ```
+
+## Production Environment Setup
+
+100. **Production environment variables** - Secure configuration for production deployment.
+
+     ```bash
+     # .env file for production (keep this secure!)
+     DEBUG=False
+     SECRET_KEY=your-super-secure-production-secret-key
+     DATABASE_URL=postgresql://user:password@hostname:5432/production_db
+     ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
+     
+     # Additional production settings
+     SECURE_SSL_REDIRECT=True
+     SECURE_PROXY_SSL_HEADER=HTTP_X_FORWARDED_PROTO,https
+     SECURE_HSTS_SECONDS=31536000
+     SECURE_HSTS_INCLUDE_SUBDOMAINS=True
+     
+     # Email configuration
+     EMAIL_HOST=smtp.gmail.com
+     EMAIL_PORT=587
+     EMAIL_USE_TLS=True
+     EMAIL_HOST_USER=your-email@gmail.com
+     EMAIL_HOST_PASSWORD=your-app-password
+     
+     # Cache configuration
+     REDIS_URL=redis://localhost:6379/1
+     ```
+
+101. **Production settings configuration** - Separate settings for production environment.
+
+     ```python
+     # settings/production.py
+     from .base import *
+     import dj_database_url
+     
+     # Security settings
+     DEBUG = False
+     SECRET_KEY = os.environ['SECRET_KEY']
+     ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
+     
+     # Database
+     DATABASES = {
+         'default': dj_database_url.parse(os.environ['DATABASE_URL'])
+     }
+     
+     # Static files
+     STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+     
+     # Security settings
+     SECURE_SSL_REDIRECT = True
+     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+     SECURE_HSTS_SECONDS = 31536000
+     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+     SECURE_HSTS_PRELOAD = True
+     SECURE_CONTENT_TYPE_NOSNIFF = True
+     SECURE_BROWSER_XSS_FILTER = True
+     SESSION_COOKIE_SECURE = True
+     CSRF_COOKIE_SECURE = True
+     
+     # Logging
+     LOGGING = {
+         'version': 1,
+         'disable_existing_loggers': False,
+         'handlers': {
+             'file': {
+                 'level': 'INFO',
+                 'class': 'logging.FileHandler',
+                 'filename': '/var/log/django/django.log',
+             },
+         },
+         'loggers': {
+             'django': {
+                 'handlers': ['file'],
+                 'level': 'INFO',
+                 'propagate': True,
+             },
+         },
+     }
+     ```
+
+102. **Production deployment with Gunicorn** - WSGI server for production.
+
+     ```bash
+     # Install Gunicorn
+     pip install gunicorn
+     
+     # Basic Gunicorn command
+     gunicorn myproject.wsgi:application --bind 0.0.0.0:8000
+     
+     # Production Gunicorn with optimizations
+     gunicorn myproject.wsgi:application \
+         --bind 0.0.0.0:8000 \
+         --workers 3 \
+         --timeout 120 \
+         --keep-alive 2 \
+         --max-requests 1000 \
+         --max-requests-jitter 100 \
+         --access-logfile /var/log/gunicorn/access.log \
+         --error-logfile /var/log/gunicorn/error.log \
+         --log-level info
+     ```
+
+     ```python
+     # gunicorn.conf.py - Gunicorn configuration file
+     import multiprocessing
+     
+     # Server socket
+     bind = "0.0.0.0:8000"
+     backlog = 2048
+     
+     # Worker processes
+     workers = multiprocessing.cpu_count() * 2 + 1
+     worker_class = "sync"
+     worker_connections = 1000
+     timeout = 120
+     keepalive = 2
+     max_requests = 1000
+     max_requests_jitter = 100
+     
+     # Logging
+     accesslog = "/var/log/gunicorn/access.log"
+     errorlog = "/var/log/gunicorn/error.log"
+     loglevel = "info"
+     
+     # Process naming
+     proc_name = "myproject"
+     
+     # Server mechanics
+     daemon = False
+     pidfile = "/var/run/gunicorn/myproject.pid"
+     user = "www-data"
+     group = "www-data"
+     tmp_upload_dir = None
+     
+     # SSL (if terminating SSL at Gunicorn level)
+     # keyfile = "/path/to/keyfile"
+     # certfile = "/path/to/certfile"
+     ```
+
+103. **Systemd service for Django** - Running Django as a system service.
+
+     ```ini
+     # /etc/systemd/system/myproject.service
+     [Unit]
+     Description=Gunicorn instance to serve myproject
+     After=network.target
+     
+     [Service]
+     User=www-data
+     Group=www-data
+     WorkingDirectory=/var/www/myproject
+     Environment="PATH=/var/www/myproject/venv/bin"
+     EnvironmentFile=/var/www/myproject/.env
+     ExecStart=/var/www/myproject/venv/bin/gunicorn \
+               --config /var/www/myproject/gunicorn.conf.py \
+               myproject.wsgi:application
+     ExecReload=/bin/kill -s HUP $MAINPID
+     Restart=always
+     RestartSec=3
+     
+     [Install]
+     WantedBy=multi-user.target
+     ```
+
+     ```bash
+     # Systemd service management
+     # Enable and start service
+     sudo systemctl daemon-reload
+     sudo systemctl enable myproject
+     sudo systemctl start myproject
+     
+     # Check service status
+     sudo systemctl status myproject
+     
+     # View logs
+     sudo journalctl -u myproject -f
+     
+     # Restart service
+     sudo systemctl restart myproject
+     ```
+
+## Database Management
+
+104. **Database setup for different environments** - Managing databases across dev/staging/production.
+
+     ```bash
+     # DEVELOPMENT DATABASE SETUP
+     
+     # SQLite (simplest for development)
+     python manage.py migrate
+     python manage.py createsuperuser
+     python manage.py loaddata fixtures/sample_data.json
+     
+     # PostgreSQL (recommended for production-like development)
+     # 1. Create database
+     createdb myproject_dev
+     
+     # 2. Run migrations
+     python manage.py migrate
+     
+     # 3. Load sample data
+     python manage.py loaddata fixtures/sample_data.json
+     ```
+
+     ```bash
+     # PRODUCTION DATABASE SETUP
+     
+     # 1. Create production database
+     sudo -u postgres createdb myproject_prod
+     sudo -u postgres createuser myproject_user
+     sudo -u postgres psql -c "ALTER USER myproject_user WITH PASSWORD 'secure_password';"
+     sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE myproject_prod TO myproject_user;"
+     
+     # 2. Set environment variables
+     export DATABASE_URL="postgresql://myproject_user:secure_password@localhost:5432/myproject_prod"
+     
+     # 3. Run migrations
+     python manage.py migrate --settings=myproject.settings.production
+     
+     # 4. Create superuser
+     python manage.py createsuperuser --settings=myproject.settings.production
+     
+     # 5. Load production data (if any)
+     python manage.py loaddata fixtures/production_data.json --settings=myproject.settings.production
+     ```
+
+105. **Database backup and restore** - Essential database management commands.
+
+     ```bash
+     # POSTGRESQL BACKUP AND RESTORE
+     
+     # Create backup
+     pg_dump myproject_prod > backup_$(date +%Y%m%d_%H%M%S).sql
+     
+     # Create compressed backup
+     pg_dump myproject_prod | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
+     
+     # Restore from backup
+     psql myproject_prod < backup_20231201_143000.sql
+     
+     # Restore from compressed backup
+     gunzip -c backup_20231201_143000.sql.gz | psql myproject_prod
+     
+     # Django fixtures (for small datasets)
+     # Export data
+     python manage.py dumpdata myapp.Model --indent 2 > fixtures/myapp_data.json
+     
+     # Import data
+     python manage.py loaddata fixtures/myapp_data.json
+     ```
+
+## Complete Deployment Workflows
+
+106. **Development workflow** - Daily development process.
+
+     ```bash
+     # DAILY DEVELOPMENT WORKFLOW
+     
+     # 1. Start development environment
+     source venv/bin/activate
+     
+     # 2. Pull latest changes
+     git pull origin main
+     
+     # 3. Install new dependencies (if requirements.txt changed)
+     pip install -r requirements.txt
+     
+     # 4. Run migrations (if models changed)
+     python manage.py migrate
+     
+     # 5. Start React development server (if using React)
+     cd frontend
+     npm start &
+     cd ..
+     
+     # 6. Start Django development server
+     python manage.py runserver
+     
+     # Development is ready at:
+     # Django API: http://localhost:8000
+     # React App: http://localhost:3000 (if separate)
+     # Or just: http://localhost:8000 (if Django serves React)
+     ```
+
+107. **Production deployment workflow** - Step-by-step production deployment.
+
+     ```bash
+     # PRODUCTION DEPLOYMENT WORKFLOW
+     
+     # 1. Prepare code
+     git clone https://github.com/yourusername/myproject.git /var/www/myproject
+     cd /var/www/myproject
+     
+     # 2. Set up Python environment
+     python3 -m venv venv
+     source venv/bin/activate
+     pip install -r requirements.txt
+     
+     # 3. Build React application (if using React)
+     cd frontend
+     npm install
+     npm run build
+     cd ..
+     
+     # 4. Set up environment variables
+     cp .env.example .env
+     # Edit .env with production values
+     nano .env
+     
+     # 5. Set up database
+     sudo -u postgres createdb myproject_prod
+     python manage.py migrate --settings=myproject.settings.production
+     
+     # 6. Collect static files
+     python manage.py collectstatic --noinput --settings=myproject.settings.production
+     
+     # 7. Create superuser
+     python manage.py createsuperuser --settings=myproject.settings.production
+     
+     # 8. Set up Gunicorn service
+     sudo cp deploy/myproject.service /etc/systemd/system/
+     sudo systemctl daemon-reload
+     sudo systemctl enable myproject
+     sudo systemctl start myproject
+     
+     # 9. Set up Nginx (reverse proxy)
+     sudo cp deploy/nginx.conf /etc/nginx/sites-available/myproject
+     sudo ln -s /etc/nginx/sites-available/myproject /etc/nginx/sites-enabled/
+     sudo nginx -t
+     sudo systemctl restart nginx
+     
+     # 10. Set up SSL (Let's Encrypt)
+     sudo certbot --nginx -d yourdomain.com
+     ```
+
+108. **Nginx configuration for Django** - Reverse proxy and static file serving.
+
+     ```nginx
+     # /etc/nginx/sites-available/myproject
+     server {
+         listen 80;
+         server_name yourdomain.com www.yourdomain.com;
+         
+         # Redirect HTTP to HTTPS
+         return 301 https://$server_name$request_uri;
+     }
+     
+     server {
+         listen 443 ssl http2;
+         server_name yourdomain.com www.yourdomain.com;
+         
+         # SSL configuration (managed by Certbot)
+         ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+         ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+         
+         # Security headers
+         add_header X-Frame-Options "SAMEORIGIN" always;
+         add_header X-XSS-Protection "1; mode=block" always;
+         add_header X-Content-Type-Options "nosniff" always;
+         add_header Referrer-Policy "no-referrer-when-downgrade" always;
+         add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline'" always;
+         
+         # Static files
+         location /static/ {
+             alias /var/www/myproject/staticfiles/;
+             expires 1y;
+             add_header Cache-Control "public, immutable";
+         }
+         
+         # Media files
+         location /media/ {
+             alias /var/www/myproject/media/;
+             expires 1y;
+             add_header Cache-Control "public";
+         }
+         
+         # Proxy to Gunicorn
+         location / {
+             proxy_pass http://127.0.0.1:8000;
+             proxy_set_header X-Real-IP $remote_addr;
+             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+             proxy_set_header X-Forwarded-Proto $scheme;
+             proxy_set_header Host $http_host;
+             proxy_redirect off;
+             
+             # Timeouts
+             proxy_connect_timeout 60s;
+             proxy_send_timeout 60s;
+             proxy_read_timeout 60s;
+         }
+     }
+     ```
+
+109. **Deployment automation script** - Automate the deployment process.
+
+     ```bash
+     #!/bin/bash
+     # deploy.sh - Production deployment script
+     
+     set -e  # Exit on any error
+     
+     PROJECT_NAME="myproject"
+     PROJECT_DIR="/var/www/$PROJECT_NAME"
+     SERVICE_NAME="$PROJECT_NAME"
+     
+     echo "🚀 Starting deployment of $PROJECT_NAME..."
+     
+     # 1. Pull latest code
+     echo "📥 Pulling latest code..."
+     cd $PROJECT_DIR
+     git pull origin main
+     
+     # 2. Activate virtual environment
+     echo "🐍 Activating virtual environment..."
+     source venv/bin/activate
+     
+     # 3. Install/update dependencies
+     echo "📦 Installing dependencies..."
+     pip install -r requirements.txt
+     
+     # 4. Build React app (if exists)
+     if [ -d "frontend" ]; then
+         echo "⚛️ Building React application..."
+         cd frontend
+         npm install
+         npm run build
+         cd ..
+     fi
+     
+     # 5. Run database migrations
+     echo "🗄️ Running database migrations..."
+     python manage.py migrate --settings=$PROJECT_NAME.settings.production
+     
+     # 6. Collect static files
+     echo "📁 Collecting static files..."
+     python manage.py collectstatic --noinput --settings=$PROJECT_NAME.settings.production
+     
+     # 7. Restart services
+     echo "🔄 Restarting services..."
+     sudo systemctl restart $SERVICE_NAME
+     sudo systemctl restart nginx
+     
+     # 8. Check service status
+     echo "✅ Checking service status..."
+     sudo systemctl is-active --quiet $SERVICE_NAME && echo "✅ $SERVICE_NAME is running" || echo "❌ $SERVICE_NAME failed to start"
+     sudo systemctl is-active --quiet nginx && echo "✅ Nginx is running" || echo "❌ Nginx failed to start"
+     
+     echo "🎉 Deployment completed successfully!"
+     ```
+
+110. **Environment-specific commands** - Quick reference for different environments.
+
+     ```bash
+     # DEVELOPMENT COMMANDS
+     
+     # Start development server
+     python manage.py runserver
+     
+     # Run with specific settings
+     python manage.py runserver --settings=myproject.settings.development
+     
+     # Database operations
+     python manage.py makemigrations
+     python manage.py migrate
+     python manage.py dbshell
+     
+     # Create test data
+     python manage.py loaddata fixtures/test_data.json
+     
+     # PRODUCTION COMMANDS
+     
+     # Run with production settings
+     python manage.py migrate --settings=myproject.settings.production
+     python manage.py collectstatic --settings=myproject.settings.production
+     python manage.py createsuperuser --settings=myproject.settings.production
+     
+     # Start with Gunicorn
+     gunicorn myproject.wsgi:application --settings=myproject.settings.production
+     
+     # Service management
+     sudo systemctl start myproject
+     sudo systemctl stop myproject
+     sudo systemctl restart myproject
+     sudo systemctl status myproject
+     
+     # View logs
+     sudo journalctl -u myproject -f
+     tail -f /var/log/gunicorn/error.log
+     ```
