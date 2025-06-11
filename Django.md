@@ -57,3 +57,470 @@ Notes:
 37. To send the file you use `FileResponse` object. It expects the file object opened with `rb` mode. Now set the headers `Content-Type` and `Content-Disposition`. Content-Type is `application\octet-stream` for this type and content disposition is to set whether file should download directly as attachment or displayed inline. Content Dispoisiton is set as `attachment;filename=`.
 
 38. `io` library provides varios kinds of streams. `io.BytesIO` you provide the `io.StringIO` uses streams to write things down. Use `BufferedReader` and `BufferedWriter` with file as `with` to write or read bytes. Buffered writer contrcutor accepts file object. 
+
+# Django REST Framework (DRF) Serializers - Complete Guide
+
+## What are Serializers?
+
+39. **Serializers** convert complex Python objects (like Django model instances) into Python native data types (dict, list, etc.) that can then be easily rendered into JSON, XML or other content types. They also work in reverse - converting JSON/form data back into Python objects.
+
+    ```python
+    # Without serializers - manual and error-prone
+    def user_to_json(user):
+        return {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'date_joined': user.date_joined.isoformat()
+        }
+    
+    # With serializers - automatic and robust
+    class UserSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = User
+            fields = ['id', 'username', 'email', 'date_joined']
+    ```
+
+## Basic Serializer Types
+
+40. **Serializer vs ModelSerializer** - Use `Serializer` for custom data structures, `ModelSerializer` for Django models. ModelSerializer automatically creates fields based on your model.
+
+    ```python
+    from rest_framework import serializers
+    from .models import User, Post
+    
+    # Basic Serializer - define fields manually
+    class CustomDataSerializer(serializers.Serializer):
+        name = serializers.CharField(max_length=100)
+        age = serializers.IntegerField()
+        is_active = serializers.BooleanField(default=True)
+        created_at = serializers.DateTimeField()
+    
+    # ModelSerializer - fields auto-generated from model
+    class UserSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = User                    # Which model to serialize
+            fields = '__all__'              # Include all model fields
+            # OR specify specific fields
+            # fields = ['id', 'username', 'email', 'first_name']
+            # OR exclude certain fields  
+            # exclude = ['password', 'last_login']
+    ```
+
+## Using Serializers - Serialization (Object to JSON)
+
+41. **Serializing single objects** - Pass the model instance to the serializer, then access `.data` to get the serialized dictionary.
+
+    ```python
+    # In your views.py
+    from django.http import JsonResponse
+    from .models import User
+    from .serializers import UserSerializer
+    
+    def get_user(request, user_id):
+        user = User.objects.get(id=user_id)         # Get the model instance
+        serializer = UserSerializer(user)          # Create serializer with instance
+        return JsonResponse(serializer.data)       # .data contains the serialized dict
+        
+    # serializer.data will be something like:
+    # {
+    #     'id': 1, 
+    #     'username': 'john_doe', 
+    #     'email': 'john@example.com',
+    #     'date_joined': '2023-01-15T10:30:00Z'
+    # }
+    ```
+
+42. **Serializing multiple objects (QuerySets)** - Use `many=True` parameter when serializing lists or QuerySets.
+
+    ```python
+    def get_all_users(request):
+        users = User.objects.all()                  # QuerySet of multiple users
+        serializer = UserSerializer(users, many=True)  # many=True for multiple objects
+        return JsonResponse(serializer.data, safe=False)  # safe=False for lists
+        
+    # serializer.data will be a list:
+    # [
+    #     {'id': 1, 'username': 'john_doe', 'email': 'john@example.com'},
+    #     {'id': 2, 'username': 'jane_doe', 'email': 'jane@example.com'},
+    # ]
+    ```
+
+## Using Serializers - Deserialization (JSON to Object)
+
+43. **Deserializing data** - Pass data via `data=` parameter, check if valid with `is_valid()`, then access `validated_data` or `save()`.
+
+    ```python
+    from rest_framework.decorators import api_view
+    from rest_framework.response import Response
+    from rest_framework import status
+    
+    @api_view(['POST'])
+    def create_user(request):
+        # request.data contains the JSON data sent by client
+        serializer = UserSerializer(data=request.data)  # Pass data to deserialize
+        
+        if serializer.is_valid():                        # Validate the data
+            user = serializer.save()                     # Create and save the model instance
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    ```
+
+44. **Updating existing objects** - Pass both the instance and data to update an existing model.
+
+    ```python
+    @api_view(['PUT'])
+    def update_user(request, user_id):
+        user = User.objects.get(id=user_id)              # Get existing instance
+        serializer = UserSerializer(user, data=request.data)  # Pass both instance and data
+        
+        if serializer.is_valid():
+            serializer.save()                            # Updates the existing instance
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    ```
+
+45. **Partial updates** - Use `partial=True` for PATCH requests where you only want to update some fields.
+
+    ```python
+    @api_view(['PATCH'])
+    def partial_update_user(request, user_id):
+        user = User.objects.get(id=user_id)
+        serializer = UserSerializer(user, data=request.data, partial=True)  # partial=True allows incomplete data
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    ```
+
+## Field Customization
+
+46. **Read-only and write-only fields** - Control which fields are included during serialization vs deserialization.
+
+    ```python
+    class UserSerializer(serializers.ModelSerializer):
+        password = serializers.CharField(write_only=True)    # Only used when creating/updating
+        full_name = serializers.CharField(read_only=True)    # Only included in output
+        
+        class Meta:
+            model = User
+            fields = ['id', 'username', 'password', 'email', 'full_name']
+            extra_kwargs = {
+                'password': {'write_only': True},            # Alternative way to set write_only
+            }
+    ```
+
+47. **Custom fields and SerializerMethodField** - Add computed fields that don't exist in your model.
+
+    ```python
+    class UserSerializer(serializers.ModelSerializer):
+        # SerializerMethodField calls get_<field_name> method
+        full_name = serializers.SerializerMethodField()
+        posts_count = serializers.SerializerMethodField()
+        
+        class Meta:
+            model = User
+            fields = ['id', 'username', 'email', 'full_name', 'posts_count']
+        
+        def get_full_name(self, obj):                        # Method for full_name field
+            return f"{obj.first_name} {obj.last_name}"
+            
+        def get_posts_count(self, obj):                      # Method for posts_count field
+            return obj.posts.count()                         # Access related objects
+    ```
+
+## Validation
+
+48. **Field-level validation** - Create `validate_<field_name>` methods to validate individual fields.
+
+    ```python
+    class UserSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = User
+            fields = ['username', 'email', 'age']
+        
+        def validate_username(self, value):                  # Validates username field
+            if len(value) < 3:
+                raise serializers.ValidationError("Username must be at least 3 characters")
+            if User.objects.filter(username=value).exists():
+                raise serializers.ValidationError("Username already exists")
+            return value                                     # Must return the value if valid
+        
+        def validate_age(self, value):                       # Validates age field
+            if value < 18:
+                raise serializers.ValidationError("Must be 18 or older")
+            return value
+    ```
+
+49. **Object-level validation** - Use `validate()` method to validate multiple fields together.
+
+    ```python
+    class EventSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = Event
+            fields = ['name', 'start_date', 'end_date', 'max_attendees']
+        
+        def validate(self, data):                            # Validates entire object
+            start_date = data.get('start_date')
+            end_date = data.get('end_date')
+            
+            if start_date and end_date and start_date >= end_date:
+                raise serializers.ValidationError("End date must be after start date")
+                
+            max_attendees = data.get('max_attendees')
+            if max_attendees and max_attendees < 1:
+                raise serializers.ValidationError("Must allow at least 1 attendee")
+                
+            return data                                      # Must return the validated data
+    ```
+
+## Handling Relationships
+
+50. **Foreign Key relationships** - By default, foreign keys are serialized as their primary key. You can customize this behavior.
+
+    ```python
+    # Models
+    class Author(models.Model):
+        name = models.CharField(max_length=100)
+        email = models.CharField(max_length=100)
+    
+    class Book(models.Model):
+        title = models.CharField(max_length=200)
+        author = models.ForeignKey(Author, on_delete=models.CASCADE)
+        published_date = models.DateField()
+    
+    # Default behavior - shows author ID only
+    class BookSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = Book
+            fields = ['id', 'title', 'author', 'published_date']
+        # Output: {'id': 1, 'title': 'Django Book', 'author': 5, 'published_date': '2023-01-01'}
+    ```
+
+51. **Nested serializers** - Include full related object data by using nested serializers.
+
+    ```python
+    class AuthorSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = Author
+            fields = ['id', 'name', 'email']
+    
+    class BookSerializer(serializers.ModelSerializer):
+        author = AuthorSerializer(read_only=True)           # Nest the full author object
+        
+        class Meta:
+            model = Book
+            fields = ['id', 'title', 'author', 'published_date']
+        
+        # Output: {
+        #     'id': 1, 
+        #     'title': 'Django Book', 
+        #     'author': {'id': 5, 'name': 'John Smith', 'email': 'john@example.com'},
+        #     'published_date': '2023-01-01'
+        # }
+    ```
+
+52. **Reverse relationships (One-to-Many)** - Access related objects from the "one" side of the relationship.
+
+    ```python
+    class AuthorSerializer(serializers.ModelSerializer):
+        books = BookSerializer(many=True, read_only=True)   # 'books' is the related_name
+        books_count = serializers.SerializerMethodField()
+        
+        class Meta:
+            model = Author
+            fields = ['id', 'name', 'email', 'books', 'books_count']
+        
+        def get_books_count(self, obj):
+            return obj.books.count()
+        
+        # Output: {
+        #     'id': 5,
+        #     'name': 'John Smith',
+        #     'email': 'john@example.com',
+        #     'books': [
+        #         {'id': 1, 'title': 'Django Book', 'published_date': '2023-01-01'},
+        #         {'id': 2, 'title': 'Python Guide', 'published_date': '2023-06-01'}
+        #     ],
+        #     'books_count': 2
+        # }
+    ```
+
+53. **Many-to-Many relationships** - Handle M2M relationships with proper serialization.
+
+    ```python
+    # Models
+    class Tag(models.Model):
+        name = models.CharField(max_length=50)
+    
+    class Article(models.Model):
+        title = models.CharField(max_length=200)
+        tags = models.ManyToManyField(Tag, blank=True)
+    
+    # Serializers
+    class TagSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = Tag
+            fields = ['id', 'name']
+    
+    class ArticleSerializer(serializers.ModelSerializer):
+        tags = TagSerializer(many=True, read_only=True)     # Full tag objects
+        tag_names = serializers.SerializerMethodField()    # Just tag names
+        
+        class Meta:
+            model = Article
+            fields = ['id', 'title', 'tags', 'tag_names']
+        
+        def get_tag_names(self, obj):
+            return [tag.name for tag in obj.tags.all()]
+    ```
+
+## Advanced Serializer Patterns
+
+54. **Different serializers for different actions** - Use different serializers for list vs detail views, or create vs update.
+
+    ```python
+    # List view - minimal data
+    class UserListSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = User
+            fields = ['id', 'username', 'email']
+    
+    # Detail view - full data  
+    class UserDetailSerializer(serializers.ModelSerializer):
+        posts = PostSerializer(many=True, read_only=True)
+        full_name = serializers.SerializerMethodField()
+        
+        class Meta:
+            model = User
+            fields = ['id', 'username', 'email', 'first_name', 'last_name', 'full_name', 'posts']
+        
+        def get_full_name(self, obj):
+            return f"{obj.first_name} {obj.last_name}"
+    
+    # In views
+    class UserViewSet(viewsets.ModelViewSet):
+        queryset = User.objects.all()
+        
+        def get_serializer_class(self):
+            if self.action == 'list':
+                return UserListSerializer
+            return UserDetailSerializer
+    ```
+
+55. **Dynamic fields** - Include/exclude fields based on query parameters or user permissions.
+
+    ```python
+    class DynamicFieldsModelSerializer(serializers.ModelSerializer):
+        def __init__(self, *args, **kwargs):
+            # Don't pass the 'fields' arg up to the superclass
+            fields = kwargs.pop('fields', None)
+            
+            super().__init__(*args, **kwargs)
+            
+            if fields is not None:
+                # Drop any fields that are not specified in the `fields` argument
+                allowed = set(fields)
+                existing = set(self.fields)
+                for field_name in existing - allowed:
+                    self.fields.pop(field_name)
+    
+    class UserSerializer(DynamicFieldsModelSerializer):
+        class Meta:
+            model = User
+            fields = ['id', 'username', 'email', 'first_name', 'last_name']
+    
+    # Usage in views
+    def get_user(request, user_id):
+        user = User.objects.get(id=user_id)
+        fields = request.GET.get('fields')                  # ?fields=id,username,email
+        if fields:
+            fields = fields.split(',')
+            serializer = UserSerializer(user, fields=fields)
+        else:
+            serializer = UserSerializer(user)
+        return Response(serializer.data)
+    ```
+
+56. **Custom create() and update() methods** - Override these methods for complex object creation/updating logic.
+
+    ```python
+    class UserSerializer(serializers.ModelSerializer):
+        password = serializers.CharField(write_only=True)
+        confirm_password = serializers.CharField(write_only=True)
+        
+        class Meta:
+            model = User
+            fields = ['username', 'email', 'password', 'confirm_password']
+        
+        def validate(self, data):
+            if data['password'] != data['confirm_password']:
+                raise serializers.ValidationError("Passwords don't match")
+            return data
+        
+        def create(self, validated_data):
+            # Remove confirm_password as it's not a model field
+            validated_data.pop('confirm_password')
+            
+            # Hash the password before saving
+            user = User(
+                username=validated_data['username'],
+                email=validated_data['email']
+            )
+            user.set_password(validated_data['password'])    # This hashes the password
+            user.save()
+            return user
+        
+        def update(self, instance, validated_data):
+            # Update regular fields
+            instance.username = validated_data.get('username', instance.username)
+            instance.email = validated_data.get('email', instance.email)
+            
+            # Handle password separately if provided
+            password = validated_data.get('password')
+            if password:
+                instance.set_password(password)
+                
+            instance.save()
+            return instance
+    ```
+
+## Best Practices
+
+57. **Optimize database queries** - Use `select_related()` and `prefetch_related()` to avoid N+1 query problems when using nested serializers.
+
+    ```python
+    # In your views - optimize queries before serializing
+    def get_books(request):
+        # Bad - causes N+1 queries (one query per book to get author)
+        books = Book.objects.all()
+        
+        # Good - single query with JOIN to get authors too
+        books = Book.objects.select_related('author').all()
+        
+        serializer = BookSerializer(books, many=True)
+        return Response(serializer.data)
+    
+    def get_authors(request):
+        # For reverse relationships, use prefetch_related
+        authors = Author.objects.prefetch_related('books').all()
+        serializer = AuthorSerializer(authors, many=True)
+        return Response(serializer.data)
+    ```
+
+58. **Use appropriate field types** - Choose the right serializer field for your data type for proper validation and serialization.
+
+    ```python
+    class ProductSerializer(serializers.ModelSerializer):
+        # Specific field types provide better validation
+        price = serializers.DecimalField(max_digits=10, decimal_places=2)
+        created_at = serializers.DateTimeField(format='%Y-%m-%d %H:%M:%S')
+        is_featured = serializers.BooleanField()
+        category_name = serializers.CharField(source='category.name', read_only=True)
+        
+        class Meta:
+            model = Product
+            fields = ['id', 'name', 'price', 'is_featured', 'created_at', 'category_name']
+    ```
