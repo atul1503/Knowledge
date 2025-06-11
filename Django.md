@@ -524,3 +524,1200 @@ Notes:
             model = Product
             fields = ['id', 'name', 'price', 'is_featured', 'created_at', 'category_name']
     ```
+
+# Django Caching - Complete Guide
+
+## Cache Configuration
+
+59. **Cache backends in Django** - Django supports multiple cache backends. Configure them in your `settings.py` file. The most common are Redis, Memcached, Database, and Local Memory.
+
+    ```python
+    # settings.py - Different cache backend configurations
+    
+    # REDIS CACHE (most popular for production)
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': 'redis://127.0.0.1:6379/1',        # Redis server location
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'PASSWORD': 'your-redis-password',          # If Redis has auth
+            },
+            'TIMEOUT': 300,                                 # Default timeout in seconds (5 minutes)
+            'KEY_PREFIX': 'myapp',                         # Prefix all cache keys
+        }
+    }
+    
+    # MEMCACHED CACHE
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.memcached.PyMemcacheCache',
+            'LOCATION': '127.0.0.1:11211',
+        }
+    }
+    
+    # DATABASE CACHE (slowest but always available)
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+            'LOCATION': 'my_cache_table',                   # Table name for cache
+        }
+    }
+    
+    # LOCAL MEMORY CACHE (for development only)
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+        }
+    }
+    ```
+
+60. **Installing Redis for Django** - To use Redis, you need to install Redis server and the Python client.
+
+    ```bash
+    # Install Redis server (Ubuntu/Debian)
+    sudo apt-get install redis-server
+    
+    # Install Redis server (macOS with Homebrew)
+    brew install redis
+    
+    # Install Python Redis client for Django
+    pip install django-redis
+    
+    # Start Redis server
+    redis-server
+    
+    # Test Redis connection
+    redis-cli ping  # Should return "PONG"
+    ```
+
+61. **Multiple cache configurations** - You can configure multiple cache backends for different purposes.
+
+    ```python
+    # settings.py - Multiple cache backends
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': 'redis://127.0.0.1:6379/1',
+            'TIMEOUT': 300,
+        },
+        'sessions': {                                       # Separate cache for sessions
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': 'redis://127.0.0.1:6379/2',        # Different Redis database
+            'TIMEOUT': 3600,                                # 1 hour timeout
+        },
+        'long_term': {                                      # For data that changes rarely
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': 'redis://127.0.0.1:6379/3',
+            'TIMEOUT': 86400,                               # 24 hours timeout
+        }
+    }
+    
+    # Configure sessions to use specific cache
+    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+    SESSION_CACHE_ALIAS = 'sessions'
+    ```
+
+## Using Cache in Views
+
+62. **Per-view caching** - Cache entire view responses using decorators. Best for views that don't change often.
+
+    ```python
+    from django.views.decorators.cache import cache_page
+    from django.shortcuts import render
+    from .models import Product
+    
+    @cache_page(60 * 15)  # Cache for 15 minutes
+    def product_list(request):
+        products = Product.objects.all()
+        return render(request, 'products/list.html', {'products': products})
+    
+    # For class-based views
+    from django.utils.decorators import method_decorator
+    from django.views.generic import ListView
+    
+    @method_decorator(cache_page(60 * 15), name='get')
+    class ProductListView(ListView):
+        model = Product
+        template_name = 'products/list.html'
+    ```
+
+63. **Cache with parameters** - Cache different versions based on URL parameters or user data.
+
+    ```python
+    from django.views.decorators.cache import cache_page
+    from django.views.decorators.vary import vary_on_headers
+    
+    @cache_page(60 * 15)
+    @vary_on_headers('User-Agent')  # Cache different versions for different browsers
+    def browser_specific_view(request):
+        return render(request, 'browser_specific.html')
+    
+    # Cache per user (be careful with memory usage)
+    from django.views.decorators.cache import cache_page
+    from django.contrib.auth.decorators import login_required
+    
+    @login_required
+    @cache_page(60 * 5, key_prefix='user_dashboard')
+    def user_dashboard(request):
+        # This will cache different versions for each user
+        user_data = request.user.get_dashboard_data()
+        return render(request, 'dashboard.html', {'data': user_data})
+    ```
+
+## Low-Level Cache API
+
+64. **Manual caching with cache API** - Use Django's cache API to cache specific data rather than entire views.
+
+    ```python
+    from django.core.cache import cache
+    from django.shortcuts import render
+    from .models import Product, Category
+    
+    def product_list(request):
+        # Try to get data from cache first
+        products = cache.get('all_products')
+        
+        if products is None:
+            # Data not in cache, fetch from database
+            products = list(Product.objects.select_related('category').all())
+            
+            # Store in cache for 15 minutes
+            cache.set('all_products', products, 60 * 15)
+            print("Fetched from database")  # Debug info
+        else:
+            print("Fetched from cache")     # Debug info
+        
+        return render(request, 'products/list.html', {'products': products})
+    ```
+
+65. **Cache with complex keys** - Create dynamic cache keys based on multiple parameters.
+
+    ```python
+    from django.core.cache import cache
+    from django.core.cache.utils import make_template_fragment_key
+    
+    def get_user_products(request, category_id=None):
+        # Create a unique cache key based on user and category
+        cache_key = f'user_products_{request.user.id}'
+        if category_id:
+            cache_key += f'_category_{category_id}'
+        
+        # Try cache first
+        products = cache.get(cache_key)
+        
+        if products is None:
+            # Build query based on parameters
+            queryset = Product.objects.filter(user=request.user)
+            if category_id:
+                queryset = queryset.filter(category_id=category_id)
+            
+            products = list(queryset.select_related('category'))
+            
+            # Cache for 10 minutes
+            cache.set(cache_key, products, 60 * 10)
+        
+        return render(request, 'products/user_list.html', {'products': products})
+    ```
+
+66. **Cache operations - get, set, delete, get_or_set** - Different ways to interact with cache.
+
+    ```python
+    from django.core.cache import cache
+    
+    def cache_operations_example():
+        # Basic set and get
+        cache.set('my_key', 'my_value', 300)    # Store for 5 minutes
+        value = cache.get('my_key')             # Retrieve value
+        
+        # Get with default value
+        value = cache.get('my_key', 'default_value')  # Returns default if key doesn't exist
+        
+        # Get or set - atomic operation
+        def expensive_calculation():
+            import time
+            time.sleep(2)  # Simulate expensive operation
+            return "calculated_result"
+        
+        # This will either get from cache or calculate and store
+        result = cache.get_or_set('expensive_key', expensive_calculation, 300)
+        
+        # Set multiple values at once
+        cache.set_many({
+            'key1': 'value1',
+            'key2': 'value2',
+            'key3': 'value3'
+        }, 300)
+        
+        # Get multiple values at once
+        values = cache.get_many(['key1', 'key2', 'key3'])
+        # Returns: {'key1': 'value1', 'key2': 'value2', 'key3': 'value3'}
+        
+        # Delete from cache
+        cache.delete('my_key')
+        
+        # Delete multiple keys
+        cache.delete_many(['key1', 'key2', 'key3'])
+        
+        # Clear entire cache (use with caution!)
+        cache.clear()
+    ```
+
+## Template Fragment Caching
+
+67. **Template fragment caching** - Cache parts of templates that are expensive to render.
+
+    ```html
+    <!-- products/list.html -->
+    {% load cache %}
+    
+    <h1>Products</h1>
+    
+    <!-- Cache expensive product list for 15 minutes -->
+    {% cache 900 product_list %}
+        {% for product in products %}
+            <div class="product">
+                <h3>{{ product.name }}</h3>
+                <p>{{ product.description }}</p>
+                <p>Price: ${{ product.price }}</p>
+            </div>
+        {% endfor %}
+    {% endcache %}
+    
+    <!-- Cache per category -->
+    {% cache 600 product_list_by_category category.id %}
+        <h2>{{ category.name }} Products</h2>
+        {% for product in category.products.all %}
+            <div class="product">{{ product.name }}</div>
+        {% endfor %}
+    {% endcache %}
+    
+    <!-- Cache per user (be careful with memory) -->
+    {% cache 300 user_specific_content user.id %}
+        <p>Welcome, {{ user.first_name }}!</p>
+        <p>Your last login: {{ user.last_login }}</p>
+    {% endcache %}
+    ```
+
+## Cache Invalidation
+
+68. **Cache invalidation strategies** - Remove or update cached data when the underlying data changes.
+
+    ```python
+    from django.core.cache import cache
+    from django.db.models.signals import post_save, post_delete
+    from django.dispatch import receiver
+    from .models import Product
+    
+    @receiver(post_save, sender=Product)
+    def invalidate_product_cache(sender, instance, **kwargs):
+        # Clear cache when product is created or updated
+        cache.delete('all_products')
+        cache.delete(f'product_{instance.id}')
+        cache.delete(f'category_products_{instance.category_id}')
+        
+        # Clear user-specific caches if needed
+        cache.delete(f'user_products_{instance.user_id}')
+    
+    @receiver(post_delete, sender=Product)
+    def invalidate_product_cache_on_delete(sender, instance, **kwargs):
+        # Clear cache when product is deleted
+        cache.delete('all_products')
+        cache.delete(f'category_products_{instance.category_id}')
+        cache.delete(f'user_products_{instance.user_id}')
+    
+    # Manual cache invalidation in views
+    from django.shortcuts import redirect
+    from django.contrib import messages
+    
+    def update_product(request, product_id):
+        product = Product.objects.get(id=product_id)
+        
+        if request.method == 'POST':
+            # Update product logic here
+            product.name = request.POST.get('name')
+            product.save()
+            
+            # Manually invalidate related caches
+            cache.delete('all_products')
+            cache.delete(f'product_{product_id}')
+            cache.delete(f'category_products_{product.category_id}')
+            
+            messages.success(request, 'Product updated successfully!')
+            return redirect('product_detail', product_id)
+        
+        return render(request, 'products/edit.html', {'product': product})
+    ```
+
+## What to Cache - Best Practices
+
+69. **Good candidates for caching** - Cache data that is expensive to compute and doesn't change frequently.
+
+    ```python
+    # ✅ GOOD CACHING EXAMPLES
+    
+    # 1. Database queries that are expensive
+    def get_popular_products():
+        cache_key = 'popular_products'
+        products = cache.get(cache_key)
+        
+        if products is None:
+            # Complex query with joins and aggregations
+            products = Product.objects.select_related('category') \
+                .annotate(avg_rating=Avg('reviews__rating')) \
+                .filter(avg_rating__gte=4.0) \
+                .order_by('-avg_rating')[:10]
+            
+            products = list(products)  # Convert QuerySet to list for caching
+            cache.set(cache_key, products, 60 * 30)  # Cache for 30 minutes
+        
+        return products
+    
+    # 2. API responses from external services
+    def get_weather_data(city):
+        cache_key = f'weather_{city}'
+        weather = cache.get(cache_key)
+        
+        if weather is None:
+            # Expensive API call
+            response = requests.get(f'https://api.weather.com/v1/current?city={city}')
+            weather = response.json()
+            
+            cache.set(cache_key, weather, 60 * 15)  # Cache for 15 minutes
+        
+        return weather
+    
+    # 3. Computed/aggregated data
+    def get_site_statistics():
+        cache_key = 'site_stats'
+        stats = cache.get(cache_key)
+        
+        if stats is None:
+            stats = {
+                'total_users': User.objects.count(),
+                'total_products': Product.objects.count(),
+                'total_orders': Order.objects.count(),
+                'revenue_this_month': Order.objects.filter(
+                    created_at__month=datetime.now().month
+                ).aggregate(total=Sum('total_amount'))['total']
+            }
+            
+            cache.set(cache_key, stats, 60 * 60)  # Cache for 1 hour
+        
+        return stats
+    
+    # 4. Template fragments that are complex to render
+    def get_navigation_menu():
+        cache_key = 'navigation_menu'
+        menu_html = cache.get(cache_key)
+        
+        if menu_html is None:
+            categories = Category.objects.prefetch_related('subcategories').all()
+            # Complex template rendering
+            menu_html = render_to_string('includes/navigation.html', {'categories': categories})
+            
+            cache.set(cache_key, menu_html, 60 * 60 * 24)  # Cache for 24 hours
+        
+        return menu_html
+    ```
+
+70. **What NOT to cache** - Avoid caching data that changes frequently or is user-specific with high memory impact.
+
+    ```python
+    # ❌ BAD CACHING EXAMPLES
+    
+    # 1. DON'T cache frequently changing data
+    def get_live_stock_prices():
+        # Stock prices change every second - caching doesn't make sense
+        cache_key = 'stock_prices'
+        prices = cache.get(cache_key)
+        if prices is None:
+            prices = fetch_live_stock_prices()
+            cache.set(cache_key, prices, 1)  # Even 1 second is too long for live data
+        return prices
+    
+    # 2. DON'T cache user-specific data if you have many users
+    def get_user_recent_activity(user_id):
+        # This creates one cache entry per user - memory intensive
+        cache_key = f'user_activity_{user_id}'
+        activity = cache.get(cache_key)
+        if activity is None:
+            activity = UserActivity.objects.filter(user_id=user_id)[:10]
+            cache.set(cache_key, activity, 300)  # Creates cache entry for each user
+        return activity
+    
+    # 3. DON'T cache small, simple operations
+    def get_user_full_name(user):
+        # This operation is already fast - caching adds overhead
+        cache_key = f'user_full_name_{user.id}'
+        full_name = cache.get(cache_key)
+        if full_name is None:
+            full_name = f"{user.first_name} {user.last_name}"  # Simple string concatenation
+            cache.set(cache_key, full_name, 300)
+        return full_name
+    
+    # 4. DON'T cache sensitive data
+    def get_user_payment_info(user_id):
+        # Sensitive financial data shouldn't be cached
+        cache_key = f'payment_info_{user_id}'
+        payment_info = cache.get(cache_key)
+        if payment_info is None:
+            payment_info = PaymentMethod.objects.filter(user_id=user_id).first()
+            cache.set(cache_key, payment_info, 1800)  # Security risk
+        return payment_info
+    ```
+
+71. **Cache versioning and namespacing** - Use versions and prefixes to manage cache effectively.
+
+    ```python
+    from django.core.cache import cache
+    from django.conf import settings
+    
+    # Cache with versioning
+    def get_product_data(product_id, version='v1'):
+        cache_key = f'product_{product_id}'
+        product_data = cache.get(cache_key, version=version)
+        
+        if product_data is None:
+            product = Product.objects.get(id=product_id)
+            product_data = {
+                'name': product.name,
+                'price': str(product.price),
+                'description': product.description
+            }
+            
+            # Cache with version - allows easy invalidation of all v1 caches
+            cache.set(cache_key, product_data, 1800, version=version)
+        
+        return product_data
+    
+    # Namespace caching by feature/app
+    class CacheManager:
+        def __init__(self, namespace):
+            self.namespace = namespace
+        
+        def make_key(self, key):
+            return f"{self.namespace}:{key}"
+        
+        def get(self, key, default=None):
+            return cache.get(self.make_key(key), default)
+        
+        def set(self, key, value, timeout=300):
+            return cache.set(self.make_key(key), value, timeout)
+        
+        def delete(self, key):
+            return cache.delete(self.make_key(key))
+    
+    # Usage
+    product_cache = CacheManager('products')
+    user_cache = CacheManager('users')
+    
+    product_cache.set('bestsellers', bestseller_list, 1800)
+    user_cache.set('online_count', online_users_count, 300)
+    ```
+
+72. **Cache monitoring and debugging** - Tools and techniques to monitor cache effectiveness.
+
+    ```python
+    from django.core.cache import cache
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    def cache_with_logging(cache_key, fetch_function, timeout=300):
+        """Cache wrapper with hit/miss logging"""
+        data = cache.get(cache_key)
+        
+        if data is None:
+            logger.info(f"Cache MISS for key: {cache_key}")
+            data = fetch_function()
+            cache.set(cache_key, data, timeout)
+            logger.info(f"Cache SET for key: {cache_key}")
+        else:
+            logger.info(f"Cache HIT for key: {cache_key}")
+        
+        return data
+    
+    # Usage
+    def get_expensive_data():
+        def fetch_data():
+            # Expensive operation
+            return expensive_database_query()
+        
+        return cache_with_logging(
+            'expensive_data',
+            fetch_data,
+            timeout=1800
+        )
+    
+    # Cache statistics view (for debugging)
+    from django.http import JsonResponse
+    from django.contrib.admin.views.decorators import staff_member_required
+    
+    @staff_member_required
+    def cache_stats(request):
+        """View to check cache statistics (Redis only)"""
+        try:
+            from django_redis import get_redis_connection
+            redis_conn = get_redis_connection("default")
+            
+            info = redis_conn.info()
+            stats = {
+                'redis_version': info.get('redis_version'),
+                'used_memory_human': info.get('used_memory_human'),
+                'keyspace_hits': info.get('keyspace_hits'),
+                'keyspace_misses': info.get('keyspace_misses'),
+                'connected_clients': info.get('connected_clients'),
+            }
+            
+            # Calculate hit ratio
+            hits = stats.get('keyspace_hits', 0)
+            misses = stats.get('keyspace_misses', 0)
+            total = hits + misses
+            hit_ratio = (hits / total * 100) if total > 0 else 0
+            stats['hit_ratio'] = f"{hit_ratio:.2f}%"
+            
+            return JsonResponse(stats)
+        except Exception as e:
+            return JsonResponse({'error': str(e)})
+    ```
+
+# Django + React Integration - Complete Guide
+
+## Overview of Django + React Architecture
+
+73. **Django + React integration patterns** - There are several ways to integrate React with Django. Choose based on your project needs.
+
+    ```python
+    # PATTERN 1: Django serves React build (most common)
+    # - Django handles backend API + serves React static files
+    # - React handles all frontend routing and UI
+    # - Single domain deployment
+    
+    # PATTERN 2: Separate servers (development friendly)
+    # - Django runs on localhost:8000 (API only)
+    # - React runs on localhost:3000 (frontend only)
+    # - CORS configured for cross-origin requests
+    
+    # PATTERN 3: Django templates + React components (hybrid)
+    # - Django renders templates with React components embedded
+    # - Good for gradually migrating from Django templates to React
+    ```
+
+## Setting Up React Build for Django
+
+74. **React project structure** - Organize your React app within or alongside your Django project.
+
+    ```bash
+    # PROJECT STRUCTURE OPTION 1: React inside Django
+    myproject/
+    ├── myproject/          # Django project
+    │   ├── settings.py
+    │   ├── urls.py
+    │   └── wsgi.py
+    ├── myapp/              # Django app
+    │   ├── models.py
+    │   ├── views.py
+    │   └── urls.py
+    ├── frontend/           # React app directory
+    │   ├── public/
+    │   ├── src/
+    │   ├── package.json
+    │   └── build/          # React production build
+    ├── static/             # Django static files
+    ├── templates/          # Django templates
+    └── manage.py
+    
+    # PROJECT STRUCTURE OPTION 2: Separate directories
+    my-fullstack-app/
+    ├── backend/            # Django project
+    │   ├── myproject/
+    │   ├── myapp/
+    │   └── manage.py
+    └── frontend/           # React app
+        ├── public/
+        ├── src/
+        └── package.json
+    ```
+
+75. **Building React for production** - Create production-ready React build that Django can serve.
+
+    ```bash
+    # Navigate to your React app directory
+    cd frontend
+    
+    # Install dependencies
+    npm install
+    
+    # Create production build
+    npm run build
+    
+    # This creates a 'build' directory with:
+    # build/
+    # ├── static/
+    # │   ├── css/
+    # │   ├── js/
+    # │   └── media/
+    # ├── index.html
+    # └── other static files
+    ```
+
+76. **Configure Django to serve React build** - Set up Django settings to serve React static files and handle routing.
+
+    ```python
+    # settings.py
+    import os
+    from pathlib import Path
+    
+    BASE_DIR = Path(__file__).resolve().parent.parent
+    
+    # Static files configuration
+    STATIC_URL = '/static/'
+    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # For production
+    
+    STATICFILES_DIRS = [
+        os.path.join(BASE_DIR, 'frontend/build/static'),  # React build static files
+    ]
+    
+    # Template configuration to serve React's index.html
+    TEMPLATES = [
+        {
+            'BACKEND': 'django.template.backends.django.DjangoTemplates',
+            'DIRS': [
+                os.path.join(BASE_DIR, 'frontend/build'),  # React build directory
+                os.path.join(BASE_DIR, 'templates'),       # Django templates
+            ],
+            'APP_DIRS': True,
+            'OPTIONS': {
+                'context_processors': [
+                    'django.template.context_processors.debug',
+                    'django.template.context_processors.request',
+                    'django.contrib.auth.context_processors.auth',
+                    'django.contrib.messages.context_processors.messages',
+                ],
+            },
+        },
+    ]
+    
+    # For development - serve media files
+    if DEBUG:
+        STATICFILES_DIRS.append(os.path.join(BASE_DIR, 'static'))
+    ```
+
+## URL Configuration and Routing
+
+77. **Django URLs for React routing** - Configure Django to handle API routes and let React handle frontend routing.
+
+    ```python
+    # myproject/urls.py (main URLs)
+    from django.contrib import admin
+    from django.urls import path, include, re_path
+    from django.views.generic import TemplateView
+    from django.conf import settings
+    from django.conf.urls.static import static
+    
+    urlpatterns = [
+        path('admin/', admin.site.urls),
+        path('api/', include('myapp.urls')),  # API routes
+        path('auth/', include('dj_rest_auth.urls')),  # Authentication API
+        
+        # Serve React app for all other routes
+        re_path(r'^.*$', TemplateView.as_view(template_name='index.html')),
+    ]
+    
+    # Serve static files in development
+    if settings.DEBUG:
+        urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+        urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    ```
+
+78. **API URLs configuration** - Separate API endpoints from frontend routes.
+
+    ```python
+    # myapp/urls.py (API URLs)
+    from django.urls import path
+    from rest_framework.routers import DefaultRouter
+    from . import views
+    
+    # API endpoints with 'api/' prefix
+    urlpatterns = [
+        path('products/', views.ProductListCreateView.as_view(), name='product-list'),
+        path('products/<int:pk>/', views.ProductDetailView.as_view(), name='product-detail'),
+        path('categories/', views.CategoryListView.as_view(), name='category-list'),
+        path('users/profile/', views.UserProfileView.as_view(), name='user-profile'),
+    ]
+    
+    # Or using DRF ViewSets and Router
+    router = DefaultRouter()
+    router.register(r'products', views.ProductViewSet)
+    router.register(r'categories', views.CategoryViewSet)
+    urlpatterns += router.urls
+    ```
+
+## React Configuration for Django Integration
+
+79. **React package.json configuration** - Configure React build to work with Django static files.
+
+    ```json
+    {
+      "name": "frontend",
+      "version": "0.1.0",
+      "private": true,
+      "homepage": "/",
+      "dependencies": {
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "react-router-dom": "^6.8.0",
+        "axios": "^1.3.0"
+      },
+      "scripts": {
+        "start": "react-scripts start",
+        "build": "react-scripts build",
+        "build:production": "CI=false && react-scripts build",
+        "eject": "react-scripts eject"
+      },
+      "proxy": "http://localhost:8000",
+      "browserslist": {
+        "production": [
+          ">0.2%",
+          "not dead",
+          "not op_mini all"
+        ],
+        "development": [
+          "last 1 chrome version",
+          "last 1 firefox version",
+          "last 1 safari version"
+        ]
+      }
+    }
+    ```
+
+80. **React API configuration** - Set up Axios or fetch to communicate with Django API.
+
+    ```javascript
+    // src/api/config.js
+    import axios from 'axios';
+    
+    // API base configuration
+    const API_BASE_URL = process.env.NODE_ENV === 'production' 
+        ? '/api'  // Same domain in production
+        : 'http://localhost:8000/api';  // Django dev server
+    
+    // Create axios instance with default config
+    const apiClient = axios.create({
+        baseURL: API_BASE_URL,
+        timeout: 10000,
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    });
+    
+    // Add request interceptor for authentication
+    apiClient.interceptors.request.use(
+        (config) => {
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+            return config;
+        },
+        (error) => Promise.reject(error)
+    );
+    
+    // Add response interceptor for error handling
+    apiClient.interceptors.response.use(
+        (response) => response,
+        (error) => {
+            if (error.response?.status === 401) {
+                // Handle unauthorized access
+                localStorage.removeItem('authToken');
+                window.location.href = '/login';
+            }
+            return Promise.reject(error);
+        }
+    );
+    
+    export default apiClient;
+    ```
+
+## React Components Integration
+
+81. **React Router setup for Django** - Configure React Router to work with Django URL handling.
+
+    ```javascript
+    // src/App.js
+    import React from 'react';
+    import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+    import Header from './components/Header';
+    import Home from './pages/Home';
+    import Products from './pages/Products';
+    import ProductDetail from './pages/ProductDetail';
+    import Login from './pages/Login';
+    import Dashboard from './pages/Dashboard';
+    import NotFound from './pages/NotFound';
+    import PrivateRoute from './components/PrivateRoute';
+    
+    function App() {
+        return (
+            <Router>
+                <div className="App">
+                    <Header />
+                    <main>
+                        <Routes>
+                            <Route path="/" element={<Home />} />
+                            <Route path="/products" element={<Products />} />
+                            <Route path="/products/:id" element={<ProductDetail />} />
+                            <Route path="/login" element={<Login />} />
+                            
+                            {/* Protected routes */}
+                            <Route path="/dashboard" element={
+                                <PrivateRoute>
+                                    <Dashboard />
+                                </PrivateRoute>
+                            } />
+                            
+                            {/* 404 page */}
+                            <Route path="*" element={<NotFound />} />
+                        </Routes>
+                    </main>
+                </div>
+            </Router>
+        );
+    }
+    
+    export default App;
+    ```
+
+82. **React component with Django API integration** - Example component that fetches data from Django.
+
+    ```javascript
+    // src/pages/Products.js
+    import React, { useState, useEffect } from 'react';
+    import { productService } from '../api/services';
+    
+    const Products = () => {
+        const [products, setProducts] = useState([]);
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState(null);
+        const [page, setPage] = useState(1);
+        const [hasNext, setHasNext] = useState(false);
+    
+        useEffect(() => {
+            fetchProducts();
+        }, [page]);
+    
+        const fetchProducts = async () => {
+            try {
+                setLoading(true);
+                const data = await productService.getProducts({ page });
+                
+                if (page === 1) {
+                    setProducts(data.results);
+                } else {
+                    setProducts(prev => [...prev, ...data.results]);
+                }
+                
+                setHasNext(!!data.next);
+                setError(null);
+            } catch (err) {
+                setError('Failed to fetch products');
+                console.error('Error fetching products:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+    
+        const handleLoadMore = () => {
+            if (hasNext && !loading) {
+                setPage(prev => prev + 1);
+            }
+        };
+    
+        if (loading && page === 1) {
+            return <div className="loading">Loading products...</div>;
+        }
+    
+        if (error) {
+            return <div className="error">Error: {error}</div>;
+        }
+    
+        return (
+            <div className="products-page">
+                <h1>Products</h1>
+                
+                <div className="products-grid">
+                    {products.map(product => (
+                        <div key={product.id} className="product-card">
+                            <h3>{product.name}</h3>
+                            <p>{product.description}</p>
+                            <p className="price">${product.price}</p>
+                            <button onClick={() => window.location.href = `/products/${product.id}`}>
+                                View Details
+                            </button>
+                        </div>
+                    ))}
+                </div>
+                
+                {hasNext && (
+                    <button 
+                        onClick={handleLoadMore} 
+                        disabled={loading}
+                        className="load-more-btn"
+                    >
+                        {loading ? 'Loading...' : 'Load More'}
+                    </button>
+                )}
+            </div>
+        );
+    };
+    
+    export default Products;
+    ```
+
+## Development Workflow
+
+83. **Development setup - separate servers** - Run Django and React development servers simultaneously.
+
+    ```bash
+    # Terminal 1: Start Django development server
+    cd backend  # or your Django project root
+    python manage.py runserver 8000
+    
+    # Terminal 2: Start React development server
+    cd frontend
+    npm start  # Runs on localhost:3000
+    
+    # React will proxy API requests to Django server
+    # Frontend: http://localhost:3000
+    # API: http://localhost:8000/api/
+    ```
+
+84. **Production deployment setup** - Build and deploy both Django and React together.
+
+    ```bash
+    # BUILD SCRIPT (build.sh)
+    #!/bin/bash
+    
+    echo "Building React application..."
+    cd frontend
+    npm install
+    npm run build
+    
+    echo "Collecting Django static files..."
+    cd ..
+    python manage.py collectstatic --noinput
+    
+    echo "Running Django migrations..."
+    python manage.py migrate
+    
+    echo "Build complete!"
+    ```
+
+85. **Django settings for production** - Configure Django settings for serving React in production.
+
+    ```python
+    # settings/production.py
+    from .base import *
+    
+    DEBUG = False
+    ALLOWED_HOSTS = ['yourdomain.com', 'www.yourdomain.com']
+    
+    # Static files for production
+    STATIC_URL = '/static/'
+    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+    
+    # React build files
+    STATICFILES_DIRS = [
+        os.path.join(BASE_DIR, 'frontend/build/static'),
+    ]
+    
+    # Whitenoise for serving static files (if not using nginx)
+    MIDDLEWARE = [
+        'django.middleware.security.SecurityMiddleware',
+        'whitenoise.middleware.WhiteNoiseMiddleware',  # Add this
+        'django.contrib.sessions.middleware.SessionMiddleware',
+        'corsheaders.middleware.CorsMiddleware',
+        'django.middleware.common.CommonMiddleware',
+        'django.middleware.csrf.CsrfViewMiddleware',
+        'django.contrib.auth.middleware.AuthenticationMiddleware',
+        'django.contrib.messages.middleware.MessageMiddleware',
+        'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    ]
+    
+    # Whitenoise settings
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    
+    # CORS settings for production
+    CORS_ALLOWED_ORIGINS = [
+        "https://yourdomain.com",
+        "https://www.yourdomain.com",
+    ]
+    ```
+
+## CORS Configuration for Development
+
+86. **CORS setup for development** - Configure Cross-Origin Resource Sharing when running separate servers.
+
+    ```python
+    # settings.py - Add CORS configuration
+    
+    # Install: pip install django-cors-headers
+    
+    INSTALLED_APPS = [
+        'django.contrib.admin',
+        'django.contrib.auth',
+        'django.contrib.contenttypes',
+        'django.contrib.sessions',
+        'django.contrib.messages',
+        'django.contrib.staticfiles',
+        'corsheaders',  # Add this
+        'rest_framework',
+        'myapp',
+    ]
+    
+    MIDDLEWARE = [
+        'corsheaders.middleware.CorsMiddleware',  # Add this first
+        'django.middleware.security.SecurityMiddleware',
+        'django.contrib.sessions.middleware.SessionMiddleware',
+        'django.middleware.common.CommonMiddleware',
+        'django.middleware.csrf.CsrfViewMiddleware',
+        'django.contrib.auth.middleware.AuthenticationMiddleware',
+        'django.contrib.messages.middleware.MessageMiddleware',
+        'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    ]
+    
+    # CORS settings for development
+    if DEBUG:
+        CORS_ALLOWED_ORIGINS = [
+            "http://localhost:3000",  # React development server
+            "http://127.0.0.1:3000",
+        ]
+        CORS_ALLOW_CREDENTIALS = True
+    ```
+
+## Complete Example: Django View + React Component
+
+87. **Complete integration example** - A working example showing Django API and React frontend communication.
+
+    ```python
+    # Django side - views.py
+    from rest_framework import generics, status
+    from rest_framework.response import Response
+    from rest_framework.permissions import IsAuthenticated
+    from django.contrib.auth.models import User
+    from .models import Product
+    from .serializers import ProductSerializer
+    
+    class ProductListCreateView(generics.ListCreateAPIView):
+        queryset = Product.objects.all()
+        serializer_class = ProductSerializer
+        
+        def get_queryset(self):
+            queryset = Product.objects.all()
+            category = self.request.query_params.get('category')
+            search = self.request.query_params.get('search')
+            
+            if category:
+                queryset = queryset.filter(category__name=category)
+            if search:
+                queryset = queryset.filter(name__icontains=search)
+                
+            return queryset.order_by('-created_at')
+        
+        def perform_create(self, serializer):
+            serializer.save(created_by=self.request.user)
+    ```
+
+    ```javascript
+    // React side - ProductForm.js
+    import React, { useState } from 'react';
+    import { productService } from '../api/services';
+    
+    const ProductForm = ({ onProductCreated }) => {
+        const [formData, setFormData] = useState({
+            name: '',
+            description: '',
+            price: '',
+            category: ''
+        });
+        const [loading, setLoading] = useState(false);
+        const [error, setError] = useState(null);
+    
+        const handleSubmit = async (e) => {
+            e.preventDefault();
+            setLoading(true);
+            setError(null);
+    
+            try {
+                const newProduct = await productService.createProduct(formData);
+                setFormData({ name: '', description: '', price: '', category: '' });
+                onProductCreated(newProduct);
+                alert('Product created successfully!');
+            } catch (err) {
+                setError(err.response?.data?.message || 'Failed to create product');
+            } finally {
+                setLoading(false);
+            }
+        };
+    
+        const handleChange = (e) => {
+            setFormData({
+                ...formData,
+                [e.target.name]: e.target.value
+            });
+        };
+    
+        return (
+            <form onSubmit={handleSubmit} className="product-form">
+                <h2>Create New Product</h2>
+                
+                {error && <div className="error">{error}</div>}
+                
+                <input
+                    type="text"
+                    name="name"
+                    placeholder="Product Name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    required
+                />
+                
+                <textarea
+                    name="description"
+                    placeholder="Description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    required
+                />
+                
+                <input
+                    type="number"
+                    name="price"
+                    placeholder="Price"
+                    value={formData.price}
+                    onChange={handleChange}
+                    required
+                />
+                
+                <select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                    required
+                >
+                    <option value="">Select Category</option>
+                    <option value="electronics">Electronics</option>
+                    <option value="clothing">Clothing</option>
+                    <option value="books">Books</option>
+                </select>
+                
+                <button type="submit" disabled={loading}>
+                    {loading ? 'Creating...' : 'Create Product'}
+                </button>
+            </form>
+        );
+    };
+    
+    export default ProductForm;
+    ```
