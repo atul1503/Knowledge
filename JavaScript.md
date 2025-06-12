@@ -1409,4 +1409,602 @@
     }
     ```
 
+## JavaScript Event Loop and Asynchronous Behavior
+
+### Understanding JavaScript's Single-Threaded Nature
+
+21. **JavaScript is single-threaded but non-blocking** - How the event loop makes this possible.
+
+    ```javascript
+    // MISCONCEPTION: Many think this means JavaScript can't handle multiple things at once
+    // REALITY: JavaScript has ONE main thread, but uses an event loop for concurrency
+    
+    // This is the main thread - it can only do one thing at a time
+    console.log("1. Start");
+    console.log("2. Middle");
+    console.log("3. End");
+    // Output: 1. Start, 2. Middle, 3. End (in order, blocking)
+    
+    // But with async operations, things get interesting...
+    console.log("1. Start");
+    setTimeout(() => console.log("2. Timeout"), 0);  // Even with 0ms delay!
+    console.log("3. End");
+    // Output: 1. Start, 3. End, 2. Timeout (non-blocking!)
+    
+    // WHY? Because setTimeout is handled by the browser/Node.js runtime,
+    // not the JavaScript engine itself
+    ```
+
+### The Event Loop Architecture
+
+22. **Event loop components** - Understanding the machinery behind asynchronous JavaScript.
+
+    ```javascript
+    // THE EVENT LOOP HAS SEVERAL COMPONENTS:
+    
+    // 1. CALL STACK - Where your code executes (LIFO - Last In, First Out)
+    function first() {
+        console.log("First function");
+        second();
+    }
+    
+    function second() {
+        console.log("Second function");
+        third();
+    }
+    
+    function third() {
+        console.log("Third function");
+    }
+    
+    first();
+    // Call stack execution:
+    // [third] <- executed first (top of stack)
+    // [second, third] 
+    // [first, second, third] <- first() was called first (bottom of stack)
+    
+    // 2. WEB APIs / NODE.js APIs - Where async operations happen
+    // - setTimeout/setInterval
+    // - DOM events
+    // - HTTP requests (fetch)
+    // - File system operations (Node.js)
+    // - Timers, I/O operations
+    
+    // 3. CALLBACK QUEUE (Task Queue) - Where completed async operations wait
+    console.log("A");
+    setTimeout(() => console.log("B"), 1000);
+    setTimeout(() => console.log("C"), 500);
+    console.log("D");
+    // Output: A, D, C, B
+    // B and C go to callback queue when their timers complete
+    
+    // 4. MICROTASK QUEUE - Higher priority than callback queue
+    console.log("1");
+    setTimeout(() => console.log("2"), 0);           // Callback queue
+    Promise.resolve().then(() => console.log("3"));  // Microtask queue
+    console.log("4");
+    // Output: 1, 4, 3, 2
+    // Microtasks (Promise) execute before callbacks (setTimeout)
+    ```
+
+### How the Event Loop Works
+
+23. **Event loop execution order** - The exact mechanism of non-blocking behavior.
+
+    ```javascript
+    // THE EVENT LOOP ALGORITHM (simplified):
+    // 1. Execute all synchronous code (populate call stack)
+    // 2. When call stack is empty, check microtask queue
+    // 3. Execute ALL microtasks
+    // 4. Check callback queue, execute ONE callback
+    // 5. Repeat from step 2
+    
+    // DETAILED EXAMPLE:
+    console.log("=== Event Loop Demo ===");
+    
+    // Synchronous code - executes immediately
+    console.log("1. Sync start");
+    
+    // setTimeout - goes to Web API, callback goes to callback queue when timer expires
+    setTimeout(() => {
+        console.log("2. setTimeout 1");
+    }, 0);
+    
+    // Promise - .then() goes to microtask queue
+    Promise.resolve().then(() => {
+        console.log("3. Promise 1");
+    });
+    
+    // Another setTimeout
+    setTimeout(() => {
+        console.log("4. setTimeout 2");
+    }, 0);
+    
+    // Another Promise
+    Promise.resolve().then(() => {
+        console.log("5. Promise 2");
+    });
+    
+    // More synchronous code
+    console.log("6. Sync end");
+    
+    /* OUTPUT ORDER:
+    === Event Loop Demo ===
+    1. Sync start
+    6. Sync end
+    3. Promise 1
+    5. Promise 2
+    2. setTimeout 1
+    4. setTimeout 2
+    
+    EXPLANATION:
+    1. All sync code runs first (1, 6)
+    2. Call stack empty, check microtask queue
+    3. All Promises run (3, 5)
+    4. Microtask queue empty, check callback queue
+    5. setTimeout callbacks run one by one (2, 4)
+    */
+    ```
+
+### Asynchronous Operations in Detail
+
+24. **setTimeout and setInterval** - Timer-based asynchronous operations.
+
+    ```javascript
+    // setTimeout - runs once after delay
+    console.log("Before timeout");
+    setTimeout(() => {
+        console.log("Timeout executed");
+    }, 1000); // 1000ms = 1 second
+    console.log("After timeout setup");
+    
+    // The delay is MINIMUM delay, not exact
+    console.log("Start:", Date.now());
+    setTimeout(() => {
+        console.log("End:", Date.now());
+    }, 100);
+    
+    // If main thread is busy, timeout will be delayed
+    console.log("Blocking start");
+    setTimeout(() => console.log("This will be delayed"), 0);
+    
+    // Block main thread for 2 seconds
+    const start = Date.now();
+    while (Date.now() - start < 2000) {
+        // Busy wait - blocks everything
+    }
+    console.log("Blocking end");
+    // The setTimeout callback will run AFTER the blocking code finishes
+    
+    // setInterval - runs repeatedly
+    let count = 0;
+    const intervalId = setInterval(() => {
+        count++;
+        console.log(`Interval execution ${count}`);
+        
+        if (count >= 3) {
+            clearInterval(intervalId); // Stop the interval
+        }
+    }, 500);
+    
+    // IMPORTANT: setInterval doesn't wait for previous execution to finish
+    // If the callback takes longer than the interval, they can overlap in the queue
+    ```
+
+### Promises and the Microtask Queue
+
+25. **Promises and microtasks** - Higher priority asynchronous operations.
+
+    ```javascript
+    // Promises create microtasks, which have higher priority than callbacks
+    
+    console.log("=== Promise vs setTimeout ===");
+    
+    setTimeout(() => console.log("setTimeout"), 0);
+    
+    Promise.resolve()
+        .then(() => console.log("Promise 1"))
+        .then(() => console.log("Promise 2"));
+        
+    setTimeout(() => console.log("setTimeout 2"), 0);
+    
+    Promise.resolve().then(() => console.log("Promise 3"));
+    
+    /* OUTPUT:
+    === Promise vs setTimeout ===
+    Promise 1
+    Promise 2
+    Promise 3
+    setTimeout
+    setTimeout 2
+    
+    ALL Promises run before ANY setTimeout callbacks!
+    */
+    
+    // Chained promises create new microtasks
+    Promise.resolve()
+        .then(() => {
+            console.log("First then");
+            return Promise.resolve();
+        })
+        .then(() => {
+            console.log("Second then");
+        });
+    
+    Promise.resolve().then(() => {
+        console.log("Another promise");
+    });
+    
+    // Promise constructor executes immediately (synchronous)
+    console.log("Before Promise constructor");
+    new Promise((resolve) => {
+        console.log("Inside Promise constructor"); // Runs immediately!
+        resolve();
+    }).then(() => {
+        console.log("Promise resolved"); // Goes to microtask queue
+    });
+    console.log("After Promise constructor");
+    
+    /* OUTPUT:
+    Before Promise constructor
+    Inside Promise constructor
+    After Promise constructor
+    Promise resolved
+    */
+    ```
+
+### Async/Await and the Event Loop
+
+26. **Async/await behavior** - Syntactic sugar over Promises with event loop implications.
+
+    ```javascript
+    // async/await is syntactic sugar over Promises
+    // But it has specific event loop behavior
+    
+    async function asyncExample() {
+        console.log("1. Start of async function");
+        
+        // await creates a microtask
+        await Promise.resolve();
+        console.log("2. After await");
+        
+        // This is equivalent to:
+        // Promise.resolve().then(() => {
+        //     console.log("2. After await");
+        // });
+    }
+    
+    console.log("0. Before calling async function");
+    asyncExample();
+    console.log("3. After calling async function");
+    
+    /* OUTPUT:
+    0. Before calling async function
+    1. Start of async function
+    3. After calling async function
+    2. After await
+    */
+    
+    // Multiple awaits create multiple microtasks
+    async function multipleAwaits() {
+        console.log("A");
+        await Promise.resolve();
+        console.log("B");
+        await Promise.resolve();
+        console.log("C");
+    }
+    
+    console.log("Before");
+    multipleAwaits();
+    console.log("After");
+    
+    /* OUTPUT:
+    Before
+    A
+    After
+    B
+    C
+    */
+    
+    // async/await with setTimeout
+    async function mixedAsync() {
+        console.log("1. Start");
+        
+        // This goes to callback queue
+        setTimeout(() => console.log("2. setTimeout"), 0);
+        
+        // This goes to microtask queue
+        await Promise.resolve();
+        console.log("3. After await");
+        
+        // Another microtask
+        await Promise.resolve();
+        console.log("4. After second await");
+    }
+    
+    mixedAsync();
+    console.log("5. Sync end");
+    
+    /* OUTPUT:
+    1. Start
+    5. Sync end
+    3. After await
+    4. After second await
+    2. setTimeout
+    */
+    ```
+
+### Real-World Async Examples
+
+27. **Practical async patterns** - How async operations work in real applications.
+
+    ```javascript
+    // HTTP Requests (non-blocking I/O)
+    console.log("Starting HTTP request");
+    
+    fetch('https://api.example.com/data')
+        .then(response => response.json())
+        .then(data => {
+            console.log("Data received:", data);
+            // This runs when the HTTP request completes
+            // Could be 100ms or 5 seconds later - doesn't block other code
+        })
+        .catch(error => {
+            console.error("Request failed:", error);
+        });
+    
+    console.log("HTTP request initiated, continuing execution");
+    
+    // File operations (Node.js example)
+    const fs = require('fs'); // Only in Node.js
+    
+    console.log("Reading file...");
+    fs.readFile('largefile.txt', 'utf8', (err, data) => {
+        if (err) {
+            console.error("Error reading file:", err);
+        } else {
+            console.log("File content length:", data.length);
+        }
+    });
+    console.log("File read initiated, continuing...");
+    
+    // Multiple concurrent operations
+    async function concurrentOperations() {
+        console.log("Starting concurrent operations");
+        
+        // These ALL start at the same time (concurrent, not sequential)
+        const promise1 = new Promise(resolve => 
+            setTimeout(() => resolve("Operation 1"), 1000)
+        );
+        const promise2 = new Promise(resolve => 
+            setTimeout(() => resolve("Operation 2"), 500)
+        );
+        const promise3 = new Promise(resolve => 
+            setTimeout(() => resolve("Operation 3"), 750)
+        );
+        
+        // Wait for all to complete
+        const results = await Promise.all([promise1, promise2, promise3]);
+        console.log("All operations completed:", results);
+        // Takes ~1000ms total (not 1000+500+750 = 2250ms)
+    }
+    
+    // Sequential vs Concurrent
+    async function sequentialVsConcurrent() {
+        console.log("=== Sequential (slow) ===");
+        const start1 = Date.now();
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        console.log("Sequential time:", Date.now() - start1); // ~3000ms
+        
+        console.log("=== Concurrent (fast) ===");
+        const start2 = Date.now();
+        
+        await Promise.all([
+            new Promise(resolve => setTimeout(resolve, 1000)),
+            new Promise(resolve => setTimeout(resolve, 1000)),
+            new Promise(resolve => setTimeout(resolve, 1000))
+        ]);
+        
+        console.log("Concurrent time:", Date.now() - start2); // ~1000ms
+    }
+    ```
+
+### Common Event Loop Gotchas
+
+28. **Event loop pitfalls and misconceptions** - Common mistakes and how to avoid them.
+
+    ```javascript
+    // GOTCHA 1: setTimeout(0) doesn't mean immediate execution
+    console.log("1");
+    setTimeout(() => console.log("2"), 0); // Still goes to callback queue!
+    console.log("3");
+    // Output: 1, 3, 2
+    
+    // GOTCHA 2: Promises in loops
+    console.log("=== Promise Loop Gotcha ===");
+    
+    // This creates all promises immediately
+    for (let i = 0; i < 3; i++) {
+        Promise.resolve().then(() => console.log("Promise", i));
+    }
+    // Output: Promise 3, Promise 3, Promise 3 (var) or Promise 0, Promise 1, Promise 2 (let)
+    
+    // GOTCHA 3: Mixed microtasks and callbacks
+    setTimeout(() => console.log("setTimeout 1"), 0);
+    Promise.resolve().then(() => {
+        console.log("Promise 1");
+        setTimeout(() => console.log("setTimeout 2"), 0);
+    });
+    Promise.resolve().then(() => console.log("Promise 2"));
+    setTimeout(() => console.log("setTimeout 3"), 0);
+    
+    /* OUTPUT:
+    Promise 1
+    Promise 2
+    setTimeout 1
+    setTimeout 3
+    setTimeout 2
+    */
+    
+    // GOTCHA 4: Blocking the event loop
+    // BAD: This blocks everything
+    function badBlockingCode() {
+        const start = Date.now();
+        while (Date.now() - start < 5000) {
+            // Blocks for 5 seconds - nothing else can run!
+        }
+    }
+    
+    // GOOD: Break up work into chunks
+    function goodNonBlockingCode(iterations, callback) {
+        let i = 0;
+        
+        function doChunk() {
+            let count = 0;
+            while (count < 1000 && i < iterations) {
+                // Do some work
+                i++;
+                count++;
+            }
+            
+            if (i < iterations) {
+                setTimeout(doChunk, 0); // Let other code run
+            } else {
+                callback();
+            }
+        }
+        
+        doChunk();
+    }
+    
+    // GOTCHA 5: Error handling in async code
+    // Errors in callbacks don't bubble up
+    try {
+        setTimeout(() => {
+            throw new Error("This won't be caught!");
+        }, 0);
+    } catch (e) {
+        console.log("This won't run");
+    }
+    
+    // Use Promises for proper error handling
+    async function properErrorHandling() {
+        try {
+            await new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    reject(new Error("This WILL be caught!"));
+                }, 0);
+            });
+        } catch (e) {
+            console.log("Caught error:", e.message);
+        }
+    }
+    ```
+
+### Event Loop Visualization
+
+29. **Mental model for the event loop** - How to think about JavaScript's concurrency.
+
+    ```javascript
+    // VISUAL REPRESENTATION OF EVENT LOOP EXECUTION:
+    
+    /*
+    
+    ┌─────────────────────────┐
+    │        Call Stack       │ ← JavaScript executes here (single-threaded)
+    │  [currently executing]  │
+    │  [function calls...]    │
+    └─────────────────────────┘
+                 │
+                 ▼
+    ┌─────────────────────────┐    ┌─────────────────────────┐
+    │     Microtask Queue     │    │      Callback Queue     │
+    │  [Promise.then]         │    │  [setTimeout]           │
+    │  [queueMicrotask]       │ ◄──│  [setInterval]          │
+    │  [async/await]          │    │  [DOM events]           │
+    └─────────────────────────┘    │  [HTTP callbacks]       │
+                 │                 └─────────────────────────┘
+                 │                              │
+                 ▼                              │
+    ┌─────────────────────────┐                 │
+    │      Event Loop         │                 │
+    │                         │                 │
+    │  1. Execute sync code   │                 │
+    │  2. Process ALL         │ ◄───────────────│
+    │     microtasks          │                 │
+    │  3. Process ONE         │                 │
+    │     callback            │ ◄───────────────┘
+    │  4. Repeat              │
+    └─────────────────────────┘
+                 │
+                 ▼
+         ┌─────────────┐
+         │  Web APIs   │ ← Browser/Node.js handles these
+         │             │
+         │ setTimeout  │
+         │ fetch       │
+         │ DOM events  │
+         │ File I/O    │
+         └─────────────┘
+    
+    */
+    
+    // STEP-BY-STEP EXECUTION EXAMPLE:
+    function eventLoopDemo() {
+        console.log("1. Sync"); // Call stack
+        
+        setTimeout(() => console.log("2. Callback"), 0); // → Web API → Callback Queue
+        
+        Promise.resolve().then(() => console.log("3. Microtask")); // → Microtask Queue
+        
+        console.log("4. Sync"); // Call stack
+        
+        // Event loop checks:
+        // 1. Call stack empty? ✓
+        // 2. Microtasks? ✓ Execute "3. Microtask"
+        // 3. Microtasks empty? ✓
+        // 4. Callbacks? ✓ Execute "2. Callback"
+    }
+    
+    // WHY THIS MATTERS FOR PERFORMANCE:
+    
+    // Don't do this - blocks everything
+    function blockingOperation() {
+        for (let i = 0; i < 1000000000; i++) {
+            // Synchronous work that blocks the thread
+        }
+    }
+    
+    // Do this instead - allows other code to run
+    async function nonBlockingOperation() {
+        for (let i = 0; i < 1000000000; i++) {
+            if (i % 100000 === 0) {
+                await new Promise(resolve => setTimeout(resolve, 0));
+                // Yield control back to event loop every 100k iterations
+            }
+        }
+    }
+    
+    // The key insight: JavaScript can handle thousands of async operations
+    // because they don't block the main thread - they're handled by the runtime
+    const promises = [];
+    for (let i = 0; i < 10000; i++) {
+        promises.push(
+            new Promise(resolve => setTimeout(() => resolve(i), Math.random() * 1000))
+        );
+    }
+    
+    Promise.all(promises).then(results => {
+        console.log(`Handled ${results.length} async operations!`);
+        // This is possible because setTimeout is handled by Web APIs,
+        // not the JavaScript engine itself
+    });
+    ```
+
+This section explains exactly how JavaScript achieves non-blocking behavior despite being single-threaded. The event loop is the "magic" that makes it possible to handle thousands of concurrent operations without blocking the main execution thread. Understanding this is crucial for writing efficient JavaScript code and avoiding common pitfalls.
+
 This comprehensive JavaScript guide covers all the major gotchas that trip up developers from Python and other languages, plus provides a solid foundation for data structures and algorithms in JavaScript. The examples show both common mistakes and correct approaches, making it practical for real-world use. 
