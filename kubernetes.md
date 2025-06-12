@@ -402,4 +402,330 @@ Notes:
     - Resource requests are what the scheduler uses to place pods. Limits are what actually gets enforced.
     - If you don't set resource requests, your pods might get scheduled on overloaded nodes.
     - Always set `imagePullPolicy: Always` if you're using mutable tags like `latest`.
-    - Services only route to pods that are ready (pass readiness checks). 
+    - Services only route to pods that are ready (pass readiness checks).
+
+## How to expose your application to the outside world
+
+27. **NodePort is the simplest way but not great for production.** It opens a specific port on every node in your cluster. Anyone can access your app by hitting any node's IP address plus that port.
+    ```yaml
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: my-app-nodeport
+    spec:
+      type: NodePort
+      selector:
+        app: my-app
+      ports:
+      - port: 80          # Internal cluster port
+        targetPort: 8080  # Port on your pod
+        nodePort: 30080   # Port exposed on each node (30000-32767 range)
+    ```
+    ```bash
+    # Access your app at any node's IP
+    curl http://node-ip:30080
+    # If on AWS, use EC2 instance public IP
+    curl http://ec2-instance-ip:30080
+    ```
+    **Problems with NodePort:** Users need to remember weird ports, no load balancing between nodes, security groups need to allow these ports.
+
+28. **LoadBalancer service creates a cloud load balancer automatically.** This is the easiest way for production if you're on a cloud provider like AWS.
+    ```yaml
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: my-app-loadbalancer
+    spec:
+      type: LoadBalancer
+      selector:
+        app: my-app
+      ports:
+      - port: 80          # Port on the load balancer
+        targetPort: 8080  # Port on your pod
+    ```
+    
+    **On AWS EKS:** Creates a Classic Load Balancer (CLB) automatically. You get a public DNS name like `a1b2c3d4e5f6g7h8-1234567890.us-west-2.elb.amazonaws.com`
+    
+    **On-premises:** LoadBalancer type doesn't work unless you have something like MetalLB installed. It will stay in "Pending" state forever.
+    
+    ```bash
+    # Check if your LoadBalancer got an external IP
+    kubectl get svc my-app-loadbalancer
+    # On AWS, EXTERNAL-IP shows the ELB DNS name
+    ```
+
+29. **Ingress is the smart way for HTTP/HTTPS traffic.** It acts like a reverse proxy that can route different domains/paths to different services. Much better than LoadBalancer for web apps.
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: my-app-ingress
+      annotations:
+        kubernetes.io/ingress.class: "nginx"    # Which ingress controller to use
+    spec:
+      rules:
+      - host: myapp.example.com     # Domain name for your app
+        http:
+          paths:
+          - path: /                 # Route all traffic under this domain
+            pathType: Prefix        # How to match paths (Prefix, Exact)
+            backend:
+              service:
+                name: my-app-service    # Which service to route to
+                port:
+                  number: 80           # Which port on that service
+      - host: api.example.com       # Different domain for API
+        http:
+          paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-api-service
+                port:
+                  number: 80
+    ```
+    
+    **You need an Ingress Controller** to make Ingress work. Popular options:
+    - **NGINX Ingress Controller** (works everywhere)
+    - **AWS Load Balancer Controller** (AWS-specific, creates ALB/NLB)
+    - **Traefik** (good for simple setups)
+
+30. **NGINX Ingress Controller is the most common choice.** Works on-premises and in cloud. Creates a LoadBalancer service that routes to your apps based on domains/paths.
+    ```bash
+    # Install NGINX Ingress Controller
+    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.1/deploy/static/provider/cloud/deploy.yaml
+    
+    # On AWS, this creates a Classic Load Balancer
+    # On-premises, you need to expose it somehow (NodePort, external LB, etc.)
+    ```
+    
+    **HTTPS/TLS with cert-manager:**
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: my-app-https
+      annotations:
+        kubernetes.io/ingress.class: "nginx"
+        cert-manager.io/cluster-issuer: "letsencrypt-prod"    # Automatic SSL certificates
+    spec:
+      tls:                          # Enable HTTPS
+      - hosts:
+        - myapp.example.com
+        secretName: myapp-tls       # Where to store the SSL certificate
+      rules:
+      - host: myapp.example.com
+        http:
+          paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-app-service
+                port:
+                  number: 80
+    ```
+
+31. **AWS Load Balancer Controller is better if you're on AWS.** It creates Application Load Balancers (ALB) or Network Load Balancers (NLB) instead of the old Classic Load Balancers.
+    ```bash
+    # Install AWS Load Balancer Controller (requires IRSA setup)
+    helm repo add eks https://aws.github.io/eks-charts
+    helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+      -n kube-system \
+      --set clusterName=my-cluster \
+      --set serviceAccount.create=false \
+      --set serviceAccount.name=aws-load-balancer-controller
+    ```
+    
+    **Create an ALB with Ingress:**
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: my-app-alb
+      annotations:
+        kubernetes.io/ingress.class: alb
+        alb.ingress.kubernetes.io/scheme: internet-facing    # Public ALB
+        alb.ingress.kubernetes.io/target-type: ip           # Route to pod IPs directly
+        alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-west-2:123456789:certificate/12345678-1234-1234-1234-123456789012    # SSL cert from ACM
+    spec:
+      tls:
+      - hosts:
+        - myapp.example.com
+      rules:
+      - host: myapp.example.com
+        http:
+          paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-app-service
+                port:
+                  number: 80
+    ```
+    
+    **Create an NLB with LoadBalancer service:**
+    ```yaml
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: my-app-nlb
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: "nlb"    # Create NLB instead of CLB
+        service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"    # Public NLB
+    spec:
+      type: LoadBalancer
+      selector:
+        app: my-app
+      ports:
+      - port: 80
+        targetPort: 8080
+    ```
+
+32. **Choose the right approach based on your setup:**
+
+    **On-premises cluster:**
+    - Use **NodePort** for development/testing
+    - Use **Ingress with NGINX controller** + external load balancer for production
+    - Use **MetalLB** if you want LoadBalancer services to work
+    
+    **AWS EKS cluster:**
+    - Use **ALB Ingress** for web applications (HTTP/HTTPS)
+    - Use **NLB LoadBalancer** for non-HTTP traffic or when you need static IPs
+    - Use **CLB LoadBalancer** (default) for simple cases
+    
+    **Cost considerations on AWS:**
+    - **NodePort:** Free (just uses EC2 instances)
+    - **Classic Load Balancer:** ~$18/month + data transfer
+    - **Application Load Balancer:** ~$16/month + LCU usage + data transfer
+    - **Network Load Balancer:** ~$16/month + NLCU usage + data transfer
+
+33. **Multiple apps on one load balancer with Ingress.** Save money by routing multiple applications through one ALB/NLB instead of creating separate LoadBalancer services.
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: multi-app-ingress
+      annotations:
+        kubernetes.io/ingress.class: alb
+        alb.ingress.kubernetes.io/scheme: internet-facing
+    spec:
+      rules:
+      - host: app1.example.com      # First app
+        http:
+          paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app1-service
+                port:
+                  number: 80
+      - host: app2.example.com      # Second app
+        http:
+          paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app2-service
+                port:
+                  number: 80
+      - host: api.example.com       # API on same ALB
+        http:
+          paths:
+          - path: /v1               # API v1
+            pathType: Prefix
+            backend:
+              service:
+                name: api-v1-service
+                port:
+                  number: 80
+          - path: /v2               # API v2
+            pathType: Prefix
+            backend:
+              service:
+                name: api-v2-service
+                port:
+                  number: 80
+    ```
+
+34. **Security considerations for external access:**
+    ```yaml
+    # Restrict ALB to specific IP ranges
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: restricted-app
+      annotations:
+        kubernetes.io/ingress.class: alb
+        alb.ingress.kubernetes.io/scheme: internet-facing
+        alb.ingress.kubernetes.io/inbound-cidrs: "10.0.0.0/8,192.168.0.0/16"    # Only allow private networks
+    spec:
+      rules:
+      - host: internal.example.com
+        http:
+          paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: internal-service
+                port:
+                  number: 80
+    ```
+    
+    **Use AWS Security Groups:**
+    ```yaml
+    # Control which security groups can access your NLB
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: secure-app
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: nlb
+        service.beta.kubernetes.io/aws-load-balancer-security-groups: "sg-12345678"    # Specific security group
+    spec:
+      type: LoadBalancer
+      selector:
+        app: secure-app
+      ports:
+      - port: 443
+        targetPort: 8080
+    ```
+
+35. **Quick decision guide for exposing apps:**
+
+    **Use NodePort when:**
+    - Testing/development
+    - On-premises with existing external load balancer
+    - Need non-HTTP protocols and don't want cloud load balancer costs
+    
+    **Use LoadBalancer service when:**
+    - Simple app, just need basic load balancing
+    - Non-HTTP traffic (TCP/UDP)
+    - Don't need fancy routing rules
+    
+    **Use Ingress when:**
+    - HTTP/HTTPS traffic
+    - Multiple apps/domains
+    - Need path-based routing
+    - Want SSL termination
+    - Want to save money (one load balancer for multiple apps)
+    
+    **Example commands to check what you have:**
+    ```bash
+    # See all services and their external access
+    kubectl get svc -A
+    
+    # See all ingresses
+    kubectl get ingress -A
+    
+    # Check ingress controller pods
+    kubectl get pods -n ingress-nginx
+    
+    # Check AWS Load Balancer Controller
+    kubectl get pods -n kube-system | grep aws-load-balancer
+    ``` 
