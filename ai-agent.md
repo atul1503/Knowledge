@@ -16,3 +16,11 @@ Look at this folder how I document tech concepts. Analyze this language simplici
 
 Don't use the same chat for more than 4 times. Start a new chat after 4 prompts.
 Give small tasks for each prompt.
+
+To modify or add something(another and more simpler way):
+
+Go the file click on an empty line where you want it to add something and click [command+k] and enter the prompt in agent mode. Prompt should have "document" word in it instead of "explain:
+
+```
+Document why is this required.
+```
