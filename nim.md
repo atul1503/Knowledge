@@ -309,3 +309,54 @@ echo "Python version: ", sys.version
 ```
 
 Remember: Nim's philosophy is "efficiency, expressiveness, elegance". It tries to be as fast as C while being as pleasant to write as Python. The learning curve is gentle if you know Python, but you get the performance benefits of a systems language. 
+
+
+## 2025 Additions
+
+1. **Improved Memory Model**: Nim 2.0 introduced a new memory model called "ARC+" that combines Automatic Reference Counting with cycle collection.
+   ```nim
+   type Node = ref object
+     next: Node  # ARC+ automatically handles circular references
+   
+   proc example() =
+     var head = Node()
+     head.next = head  # No memory leak despite circular reference
+   ```
+
+2. **Pattern Matching**: Added first-class pattern matching similar to Rust:
+   ```nim
+   type Shape = object
+     case kind: ShapeKind
+     of Circle: radius: float
+     of Rectangle: width, height: float
+   
+   let shape = Shape(kind: Circle, radius: 5.0)
+   match shape:
+     Circle(r): echo "Circle with radius ", r
+     Rectangle(w, h): echo "Rectangle ", w, " x ", h
+   ```
+
+3. **Enhanced Metaprogramming**: New macro capabilities for zero-cost abstractions:
+   ```nim
+   macro autoDelegate(T: typedesc, field: untyped): untyped =
+     # Automatically generates delegation methods
+     # Added in 2025 to reduce boilerplate
+   ```
+
+4. **WebAssembly First-Class Support**: Direct WASM compilation target:
+   ```nim
+   # Compile directly to WASM with new backend
+   nim c -d:wasm file.nim
+   ```
+
+5. **Improved Error Messages**: More helpful compiler errors with suggestions:
+   ```nim
+   let x: int = "hello"  # Now suggests: 
+   # Error: type mismatch
+   # Got: string
+   # Expected: int
+   # Did you mean to use: parseInt("hello")?
+   ```
+
+These features were added to make Nim more robust for large-scale development while maintaining its performance characteristics.
+
