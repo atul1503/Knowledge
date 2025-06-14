@@ -17,6 +17,37 @@
    
    If we used `npm`, we would need to first install create-expo-app globally (`npm install -g create-expo-app`) and then run it. This could lead to using outdated versions if we don't regularly update the global package.
 
+   # Install packages using npm
+   ```bash
+   npm install package-name    # Install a package and save to package.json
+   npm install --save-dev package-name  # Install dev dependency
+   ```
+   We use `npm` (not `npx`) to install packages because:
+   - `npm install` adds the package as a project dependency in package.json
+   - It downloads the package files into node_modules
+   - Allows version control through package.json
+   - Enables other developers to install all dependencies with `npm install`
+
+   Common packages you'll need:
+   ```bash
+   npm install @react-navigation/native  # Navigation between screens
+   npm install @react-native-async-storage/async-storage  # Local storage
+   npm install axios  # Making HTTP requests
+   ```
+
+   For Expo-specific packages, use the `expo install` command:
+   ```bash 
+   expo install expo-camera  # Camera access
+   expo install expo-location  # GPS/location
+   ```
+   `expo install` ensures you get versions compatible with your Expo SDK version.
+
+   Remember to restart your development server after installing new packages:
+   ```bash
+   # Stop current server with Ctrl+C, then
+   npx expo start --clear
+   ```
+
 2. Your main entry point is `App.js`. This is where your entire app starts running.
    ```javascript
    import { StatusBar } from 'expo-status-bar';
@@ -1491,6 +1522,135 @@ Background services are powerful but come with platform restrictions and user pr
 
 This covers the fundamentals you'll need for most React Native apps. The key is to start simple and gradually add complexity as you get comfortable with these basics. 
 
+
+## File Handling Across Platforms
+
+Here's how to handle files in React Native for all platforms including web:
+
+1. **Basic file picker using `expo-document-picker`**:
+   ```javascript
+   import * as DocumentPicker from 'expo-document-picker';
+
+   const pickDocument = async () => {
+     try {
+       const result = await DocumentPicker.getDocumentAsync({
+         // type can be "image/*", "application/pdf", etc
+         type: "*/*",  // allows all file types
+         multiple: false  // set to true to allow multiple files
+       });
+       
+       if (result.type === 'success') {
+         console.log('File URI:', result.uri);
+         console.log('File name:', result.name);
+         console.log('File size:', result.size);
+       }
+     } catch (err) {
+       console.error('Error picking document:', err);
+     }
+   };
+   ```
+   - `type` specifies allowed file types using MIME types
+   - `multiple` controls whether user can select multiple files
+   - `result.uri` gives you the file location you can use for uploads
+
+2. **Image picker with preview (works on all platforms)**:
+   ```javascript
+   import * as ImagePicker from 'expo-image-picker';
+   import { Platform } from 'react-native';
+
+   const pickImage = async () => {
+     // Request permissions first on iOS
+     if (Platform.OS !== 'web') {
+       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+       if (status !== 'granted') {
+         alert('Sorry, we need camera roll permissions!');
+         return;
+       }
+     }
+
+     const result = await ImagePicker.launchImageLibraryAsync({
+       mediaTypes: ImagePicker.MediaTypeOptions.Images,
+       allowsEditing: true,
+       aspect: [4, 3],
+       quality: 1,
+     });
+
+     if (!result.canceled) {
+       // Handle the image
+       const imageUri = result.assets[0].uri;
+       setImage(imageUri);  // Update state with image URI
+     }
+   };
+   ```
+
+3. **Web-specific file input (for better web support)**:
+   ```javascript
+   import { Platform } from 'react-native';
+
+   const FileInput = () => {
+     if (Platform.OS === 'web') {
+       return (
+         <input
+           type="file"
+           onChange={(e) => {
+             const file = e.target.files[0];
+             console.log('Selected file:', file);
+           }}
+           accept="image/*,application/pdf"  // specify accepted file types
+         />
+       );
+     }
+     
+     // Use DocumentPicker for mobile platforms
+     return (
+       <Button 
+         title="Pick File" 
+         onPress={pickDocument}  // from example 1
+       />
+     );
+   };
+   ```
+
+4. **Handle file uploads consistently**:
+   ```javascript
+   const uploadFile = async (fileUri) => {
+     const formData = new FormData();
+     
+     // Handle both web and mobile file paths
+     if (Platform.OS === 'web') {
+       // Web files are already in the right format
+       formData.append('file', fileUri);
+     } else {
+       // Mobile needs more metadata
+       formData.append('file', {
+         uri: fileUri,
+         type: 'application/octet-stream',  // or appropriate MIME type
+         name: 'filename.ext'
+       });
+     }
+
+     try {
+       const response = await fetch('YOUR_UPLOAD_URL', {
+         method: 'POST',
+         body: formData,
+         headers: {
+           'Content-Type': 'multipart/form-data',
+         },
+       });
+       const data = await response.json();
+       console.log('Upload successful:', data);
+     } catch (error) {
+       console.error('Upload failed:', error);
+     }
+   };
+   ```
+
+Remember to:
+- Add necessary permissions in `app.json` for Expo apps
+- Handle different file types appropriately
+- Consider file size limits on different platforms
+- Test thoroughly on all target platforms
+- Provide fallback options for unsupported features
 
 
 
