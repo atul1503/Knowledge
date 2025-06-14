@@ -5,6 +5,8 @@ Look at this folder how I document concepts of different tech, analyze it and cr
 Use similar language simplicity and style. Explain each new property or field the very first time you use in any example.
 For eg, look at dart, kotlin and swift docs here.
 ```
+Copy this into agent mode chat and say "here [your tech] is react native" etc.
+
 
 To modify or add something use this prompt:
 
