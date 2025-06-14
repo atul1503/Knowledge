@@ -61,6 +61,71 @@
    ```
    This opens a QR code you can scan with the Expo Go app on your phone, or you can press 'i' for iOS simulator or 'a' for Android emulator.
 
+   # Run in web browser
+   npx expo start --web        # Opens in your default browser
+   ```
+   - This requires the `@expo/webpack-config` package which is included by default in new Expo projects
+   - Web support lets you develop and test your app in a browser which can be faster than using simulators
+   - Not all React Native components work on web - you may need web-specific alternatives
+   - Common web limitations:
+     ```javascript
+     // These work differently or not at all on web:
+     - StatusBar component
+     - Some touch gestures
+     - Platform-specific APIs
+     ```
+   - Use Platform.select() for web-specific code:
+     ```javascript
+     import { Platform } from 'react-native';
+     
+     const styles = StyleSheet.create({
+       container: {
+         ...Platform.select({
+           web: {
+             // Web-specific styles
+             cursor: 'pointer',
+           },
+           default: {
+             // Native styles
+           }
+         })
+       }
+     });
+     ```
+
+   # Install web dependencies
+   ```bash
+   npx expo install react-dom react-native-web @expo/metro-runtime
+   ```
+   - `react-dom` is needed to render React components in the browser
+   - `react-native-web` translates React Native components to web equivalents
+   - `@expo/metro-runtime` provides the development runtime for web support
+   
+   If you don't plan to use web support, you can remove "web" from your project config:
+   ```javascript
+   // app.json or app.config.js
+   {
+     "expo": {
+       "platforms": ["ios", "android"] // Remove "web" if not using
+     }
+   }
+   ```
+   # Web packages in Android builds
+   When you build your app for Android, the web-specific packages (`react-dom`, `react-native-web`, `@expo/metro-runtime`) are not included in the final APK/AAB bundle. This is because:
+
+   1. Metro bundler (React Native's bundler) only includes the code paths that are actually used
+   2. Platform-specific code is eliminated during build time using:
+      ```javascript
+      Platform.select({
+        android: { /* android code */ },
+        ios: { /* ios code */ },
+        web: { /* web code - excluded in native builds */ }
+      })
+      ```
+   3. Tree shaking removes unused dependencies
+   
+   So having web packages installed won't increase your Android app size. They're only used when running in web mode.
+
 ## Core Components You'll Use Daily
 
 ### View - The Basic Container
@@ -310,6 +375,21 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 const Stack = createNativeStackNavigator();
+// createNativeStackNavigator() creates a stack navigator object that manages screen transitions
+// Stack.Navigator and Stack.Screen are components from this object
+// This pattern is used because:
+// 1. It creates a navigation stack that mimics how users expect mobile apps to work
+// 2. Each screen is pushed/popped from the stack, maintaining navigation history
+// 3. Provides built-in back button and swipe gestures on iOS
+// 4. Handles screen transitions and animations automatically
+// 5. Manages the navigation state internally
+
+// Example of what happens in a stack:
+// Initial: [Home]
+// Navigate to Details: [Home, Details] 
+// Go back: [Home]
+// The last screen in the array is what the user sees
+
 
 // Your screens
 function HomeScreen({ navigation }) {
@@ -356,6 +436,7 @@ export default function App() {
 - `navigation.navigate('ScreenName', {data})` moves to another screen and passes data.
 - `route.params` contains data passed from the previous screen.
 - `navigation.goBack()` returns to the previous screen.
+
 
 ### Tab Navigation
 For bottom tab navigation like Instagram or Twitter:
