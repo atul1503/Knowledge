@@ -2008,3 +2008,63 @@
 This section explains exactly how JavaScript achieves non-blocking behavior despite being single-threaded. The event loop is the "magic" that makes it possible to handle thousands of concurrent operations without blocking the main execution thread. Understanding this is crucial for writing efficient JavaScript code and avoiding common pitfalls.
 
 This comprehensive JavaScript guide covers all the major gotchas that trip up developers from Python and other languages, plus provides a solid foundation for data structures and algorithms in JavaScript. The examples show both common mistakes and correct approaches, making it practical for real-world use. 
+
+
+### TypeScript in NPM Package Documentation
+
+25. **Why Many NPM Packages Don't Use TypeScript in Docs**
+
+    ```javascript
+    // Traditional JSDoc comments are widely used instead of TypeScript
+    /**
+     * Greets a user with a custom message
+     * @param {string} name - The name of the user
+     * @param {number} [age] - Optional age of the user
+     * @returns {string} The greeting message
+     */
+    function greet(name, age) {
+        return age ? `Hello ${name}, you are ${age}!` : `Hello ${name}!`;
+    }
+    
+    // JSDoc can even specify complex types
+    /**
+     * @typedef {Object} UserConfig
+     * @property {string} username - The user's name
+     * @property {number} [age] - Optional age
+     * @property {'admin' | 'user'} role - User's role
+     */
+    
+    /**
+     * @param {UserConfig} config - User configuration object
+     */
+    function createUser(config) {
+        // Function implementation
+    }
+    ```
+
+**Key reasons packages often skip TypeScript in docs:**
+
+1. **Backwards Compatibility:**
+   - Many packages support older JavaScript environments
+   - TypeScript is not available in all environments
+   - JSDoc works with plain JavaScript and provides type hints
+
+2. **Simplicity:**
+   - JavaScript is the common denominator
+   - No need for users to understand TypeScript
+   - Simpler onboarding for new developers
+
+3. **No Build Step Required:**
+   - Documentation can be read directly from source
+   - No need to compile TypeScript to see types
+   - Works in any JavaScript environment
+
+4. **IDE Support:**
+   - Modern IDEs understand JSDoc comments
+   - Provides autocomplete and type checking
+   - Works even in JavaScript-only projects
+
+**Best Practices for Non-TypeScript Documentation:**
+
+
+

@@ -1652,5 +1652,146 @@ Remember to:
 - Test thoroughly on all target platforms
 - Provide fallback options for unsupported features
 
+5. **Playing audio files using `expo-av`**:
+   ```javascript
+   import { Audio } from 'expo-av';
+
+   const playAudio = async (fileUri) => {
+     try {
+       // Create a new Sound object
+       const { sound } = await Audio.Sound.createAsync(
+         // Can be a require('./path/to/file.mp3') for local files
+         // Or { uri: fileUri } for remote/picked files
+         { uri: fileUri },
+         // Initial playback status
+         { 
+           shouldPlay: true,     // Start playing immediately
+           volume: 1.0,          // Full volume
+           isLooping: false      // Don't loop the audio
+         }
+       );
+
+       // Play the sound
+       await sound.playAsync();
+
+       // Don't forget to unload when done
+       return () => {
+         sound.unloadAsync();
+       };
+     } catch (error) {
+       console.error('Error playing audio:', error);
+     }
+   };
+
+   // Usage example:
+   const AudioPlayer = () => {
+     const [sound, setSound] = useState(null);
+
+     useEffect(() => {
+       // Cleanup function runs when component unmounts
+       return sound ? () => sound.unloadAsync() : undefined;
+     }, [sound]);
+
+     const handlePlayback = async (fileUri) => {
+       // Stop current sound if any
+       if (sound) {
+         await sound.unloadAsync();
+       }
+
+       // Load and play new sound
+       const cleanup = await playAudio(fileUri);
+       setSound(cleanup);
+     };
+
+     return (
+       <Button 
+         title="Play Audio"
+         onPress={() => handlePlayback('your-file-uri-here')}
+       />
+     );
+   };
+   ```
+
+   Key points about audio playback:
+   - Install `expo-av` using `expo install expo-av`
+   - Always unload sounds when done to free up resources
+   - Handle the audio session properly for background playback
+   - Consider platform-specific audio behaviors
+   - Test with different audio formats (MP3, WAV, etc.)
+   - Remember to request audio permissions if needed
+
+   For background audio (iOS):
+   ```javascript
+   // In app.json
+   {
+     "expo": {
+       "ios": {
+         "infoPlist": {
+           "UIBackgroundModes": ["audio"]
+         }
+       }
+     }
+   }
+   ```
+
+
+   ### Dynamic Styles with StyleSheet
+   Yes, the style property accepts an array! This is how you can combine static StyleSheet styles with dynamic values:
+
+   ```javascript
+   import { useState } from 'react';
+
+   function DynamicStyleExample() {
+     const [padding, setPadding] = useState(10);
+     
+     return (
+       <View style={[
+         styles.container,    // Static styles from StyleSheet
+         { padding: padding } // Dynamic styles as object
+       ]}>
+         <Text>Content with dynamic padding</Text>
+       </View>
+     );
+   }
+
+   // You can add multiple style objects to the array:
+   <View style={[
+     styles.container,
+     styles.border,
+     { padding: 20 },
+     { backgroundColor: 'red' }
+   ]}>
+     <Text>Multiple styles</Text>
+   </View>
+
+   const styles = StyleSheet.create({
+     container: {
+       flex: 1,
+       backgroundColor: '#fff',
+     },
+     border: {
+       borderWidth: 1,
+       borderColor: 'black',
+     }
+   });
+   ```
+
+   The style array is evaluated from left to right, so later styles will override earlier ones if they set the same properties. This is useful for:
+   - Applying base styles from StyleSheet
+   - Overriding specific properties dynamically
+   - Conditionally adding styles
+   
+   Example with conditional styles:
+   ```javascript
+   <View style={[
+     styles.base,
+     isActive && styles.active,    // Only applied if isActive is true
+     { padding: dynamicPadding }   // Dynamic value
+   ]}>
+     <Text>Conditional Styling</Text>
+   </View>
+   ```
+
+
 
 
