@@ -5,9 +5,30 @@
 1. **View** is the basic building block. Everything you see on screen is a View. Views describe what the UI should look like, not how to change it.
    ```swift
    struct ContentView: View {  // Curly braces define the struct's implementation block
+       // The 'body' property is required by the View protocol - it's the only required property
+       // You must name it 'body' - no other name will work
+       // This property defines what your view looks like and returns its content
+       // SwiftUI calls this property to render your view on screen
        var body: some View {   // 'some View' means this returns a specific type that conforms to View protocol
            // Curly braces after View define the body property's implementation block
-           // This is where you describe your view's layout and content
+           // This block contains the code that gets executed whenever SwiftUI needs to render this view
+           // It runs when the view first appears and re-runs whenever any @State or observed data changes
+           // This block is a closure that returns a View
+           // You can write logical code here, like:
+           // - Variables and constants using let/var 
+           // - Control flow (if/else, switch, loops)
+           // - Function calls
+           // - Calculations
+           // You have access to:
+           // - Properties and methods of the view struct
+           // - @State and other property wrappers
+           // - Environment values
+           // - Any imported frameworks
+           // The final expression must return a View
+           // In this example, Text("Hello, World!") is the final expression,
+           // so this view's body returns a Text view. You can return any view
+           // type - Text, Button, VStack, etc. The last view in the body
+           // becomes what this view displays
            Text("Hello, World!")
        }
    }
@@ -51,7 +72,7 @@
    ```swift
    Image("photo-name")         // Shows image from your app's assets
    Image(systemName: "heart")  // Shows SF Symbol (Apple's icons)
-       .foregroundColor(.red)  // Colors the icon red
+       .foregroundColor(Color.red)  // Colors the icon red (Color.red makes it explicit that .red comes from the Color type in SwiftUI. Color has static properties like .red, .blue etc. that return Color instances)
        .font(.largeTitle)      // Makes icon bigger
    ```
 
