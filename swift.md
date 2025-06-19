@@ -5705,6 +5705,43 @@ MyApp/
         print("Point is at (\(point.x), \(point.y))")
     }
     ```
+    // PROPERTY INITIALIZATION SYNTAX
+    
+    // Using '=' with closure
+    var prop1: String = {
+        // This is a closure that runs once to initialize the property
+        // Must return a String
+        return "Initial value"
+    }()  // Note the () at the end to execute the closure
+    
+    // Using just {} for computed property
+    var prop2: String {
+        // This is a computed property that runs every time it's accessed
+        // Must return a String
+        return "Computed value"
+    }
+    
+    // Example showing the difference:
+    class Example {
+        // Closure initialization - runs once when instance is created
+        var initialized: Int = {
+            print("Initializing...")
+            return 42
+        }()
+        
+        // Computed property - runs every time it's accessed
+        var computed: Int {
+            print("Computing...")
+            return 42
+        }
+    }
+    
+    let example = Example()
+    print(example.initialized)  // "Initializing..." prints only once
+    print(example.initialized)  // No "Initializing..." message
+    
+    print(example.computed)     // "Computing..." prints every time
+    print(example.computed)     // "Computing..." prints again
 
 71. **Memory and performance considerations with structs.** Understanding how structs behave in memory helps you write efficient code.
 
