@@ -4304,3 +4304,1533 @@ MyApp/
       .library(name: "MyDynamicLib", type: .dynamic, targets: ["MyDynamicLib"]),
   ]
   ```
+
+## Structs: Your Building Blocks for Data
+
+58. **Structs are like custom types you create to group related data together.** Think of them as blueprints for creating objects that hold information. Unlike classes, structs are *value types* - when you copy them, you get a completely separate copy.
+
+    ```swift
+    // Basic struct - groups related properties together
+    struct Person {
+        var name: String
+        var age: Int
+        var email: String
+    }
+    
+    // Create instances (objects) from the struct
+    var person1 = Person(name: "Alice", age: 25, email: "alice@example.com")
+    var person2 = person1        // This creates a COPY, not a reference
+    
+    person2.name = "Bob"         // Only changes person2
+    print(person1.name)          // Still prints "Alice"
+    print(person2.name)          // Prints "Bob"
+    
+    // Classes would share the same object:
+    class PersonClass {
+        var name: String
+        var age: Int
+        init(name: String, age: Int) {
+            self.name = name
+            self.age = age
+        }
+    }
+    
+    let classInstance1 = PersonClass(name: "Alice", age: 25)
+    let classInstance2 = classInstance1  // Both point to SAME object
+    classInstance2.name = "Bob"          // Changes the shared object
+    print(classInstance1.name)           // Prints "Bob" - both changed!
+    ```
+
+59. **Swift automatically creates initializers for structs.** You get a free "memberwise initializer" that takes all the properties as parameters. No need to write `init` yourself unless you want custom logic.
+
+    ```swift
+    struct Rectangle {
+        var width: Double
+        var height: Double
+        // Swift automatically creates: init(width: Double, height: Double)
+    }
+    
+    // Use the automatic initializer
+    let rect1 = Rectangle(width: 10.0, height: 5.0)
+    let rect2 = Rectangle(width: 20.0, height: 15.0)
+    
+    // You can also provide custom initializers
+    struct Circle {
+        var radius: Double
+        var center: CGPoint
+        
+        // Custom initializer with default center
+        init(radius: Double, centerX: Double = 0, centerY: Double = 0) {
+            self.radius = radius
+            self.center = CGPoint(x: centerX, y: centerY)
+        }
+        
+        // Multiple custom initializers
+        init(diameter: Double) {
+            self.radius = diameter / 2.0
+            self.center = CGPoint(x: 0, y: 0)
+        }
+    }
+    
+    let circle1 = Circle(radius: 5.0)                    // Uses default center
+    let circle2 = Circle(radius: 3.0, centerX: 10, centerY: 20)
+    let circle3 = Circle(diameter: 10.0)                 // radius = 5.0
+    ```
+
+60. **Add methods to structs to give them behavior.** Methods are functions that belong to the struct and can access its properties using `self`.
+
+    ```swift
+    struct Rectangle {
+        var width: Double
+        var height: Double
+        
+        // Method that calculates area
+        func area() -> Double {
+            return width * height
+        }
+        
+        // Method that calculates perimeter
+        func perimeter() -> Double {
+            return 2 * (width + height)
+        }
+        
+        // Method that checks if it's a square
+        func isSquare() -> Bool {
+            return width == height
+        }
+        
+        // Method that creates a scaled version
+        func scaled(by factor: Double) -> Rectangle {
+            return Rectangle(width: width * factor, height: height * factor)
+        }
+        
+        // Method that compares with another rectangle
+        func isLargerThan(_ other: Rectangle) -> Bool {
+            return self.area() > other.area()
+        }
+    }
+    
+    let rect = Rectangle(width: 10.0, height: 5.0)
+    print("Area: \(rect.area())")                    // 50.0
+    print("Perimeter: \(rect.perimeter())")         // 30.0
+    print("Is square: \(rect.isSquare())")          // false
+    
+    let biggerRect = rect.scaled(by: 2.0)            // New rectangle: 20x10
+    print("Bigger rect area: \(biggerRect.area())")  // 200.0
+    
+    let square = Rectangle(width: 5.0, height: 5.0)
+    print("Rect is larger than square: \(rect.isLargerThan(square))")  // true
+    ```
+
+61. **Use `mutating` methods when you need to change the struct's properties.** Remember, structs are value types, so methods can't modify them by default. `mutating` tells Swift "this method will change the struct."
+
+    ```swift
+    struct BankAccount {
+        var balance: Double
+        var accountNumber: String
+        
+        // Non-mutating methods - just read data
+        func getBalance() -> Double {
+            return balance
+        }
+        
+        func canWithdraw(_ amount: Double) -> Bool {
+            return balance >= amount
+        }
+        
+        // Mutating methods - change the struct
+        mutating func deposit(_ amount: Double) {
+            balance += amount
+        }
+        
+        mutating func withdraw(_ amount: Double) -> Bool {
+            guard balance >= amount else { return false }
+            balance -= amount
+            return true
+        }
+        
+        mutating func transfer(to other: inout BankAccount, amount: Double) -> Bool {
+            guard self.withdraw(amount) else { return false }
+            other.deposit(amount)
+            return true
+        }
+        
+        // Mutating method that completely replaces the instance
+        mutating func reset() {
+            self = BankAccount(balance: 0.0, accountNumber: accountNumber)
+        }
+    }
+    
+    var account1 = BankAccount(balance: 1000.0, accountNumber: "12345")
+    var account2 = BankAccount(balance: 500.0, accountNumber: "67890")
+    
+    account1.deposit(200.0)                    // balance becomes 1200.0
+    let success = account1.withdraw(300.0)     // balance becomes 900.0
+    
+    // Transfer money between accounts
+    account1.transfer(to: &account2, amount: 100.0)  // Note the & for inout
+    print("Account1: \(account1.balance)")     // 800.0
+    print("Account2: \(account2.balance)")     // 600.0
+    
+    // Important: You can only call mutating methods on 'var' instances
+    let immutableAccount = BankAccount(balance: 100.0, accountNumber: "99999")
+    // immutableAccount.deposit(50.0)  // ❌ Error: cannot use mutating member on immutable value
+    ```
+
+62. **Computed properties let structs calculate values on-the-fly.** Instead of storing every possible value, compute them when needed. This keeps your struct lean and ensures calculated values are always up-to-date.
+
+    ```swift
+    struct Temperature {
+        var celsius: Double
+        
+        // Computed property - calculates Fahrenheit from Celsius
+        var fahrenheit: Double {
+            get {
+                return celsius * 9/5 + 32
+            }
+            set {
+                celsius = (newValue - 32) * 5/9
+            }
+        }
+        
+        // Read-only computed property
+        var kelvin: Double {
+            return celsius + 273.15
+        }
+        
+        // Computed property that returns a description
+        var description: String {
+            return "\(celsius)°C (\(fahrenheit)°F, \(kelvin)K)"
+        }
+        
+        // Computed property that categorizes the temperature
+        var category: String {
+            switch celsius {
+            case ..<0:
+                return "Freezing"
+            case 0..<10:
+                return "Cold"
+            case 10..<25:
+                return "Cool"
+            case 25..<35:
+                return "Warm"
+            default:
+                return "Hot"
+            }
+        }
+    }
+    
+    var temp = Temperature(celsius: 20.0)
+    print(temp.fahrenheit)       // 68.0 (calculated)
+    print(temp.kelvin)           // 293.15 (calculated)
+    print(temp.description)      // "20.0°C (68.0°F, 293.15K)"
+    print(temp.category)         // "Cool"
+    
+    // Setting computed property updates the stored property
+    temp.fahrenheit = 86.0       // Sets celsius to 30.0
+    print(temp.celsius)          // 30.0
+    print(temp.category)         // "Warm"
+    ```
+
+63. **Property observers let you run code when properties change.** Use `didSet` to respond after a property changes, or `willSet` to prepare before it changes.
+
+    ```swift
+    struct GameScore {
+        var playerName: String
+        
+        var score: Int = 0 {
+            didSet {
+                // Runs after score changes
+                print("\(playerName)'s score changed from \(oldValue) to \(score)")
+                
+                // Check for achievements
+                if score >= 100 && oldValue < 100 {
+                    print("🎉 \(playerName) reached 100 points!")
+                }
+                
+                if score > highScore {
+                    highScore = score
+                    print("🏆 New high score: \(score)")
+                }
+            }
+            willSet {
+                // Runs before score changes
+                print("About to change \(playerName)'s score to \(newValue)")
+            }
+        }
+        
+        var highScore: Int = 0 {
+            didSet {
+                print("High score updated: \(highScore)")
+            }
+        }
+        
+        var level: Int = 1 {
+            didSet {
+                print("\(playerName) advanced to level \(level)!")
+                // Bonus points for leveling up
+                score += level * 10
+            }
+        }
+    }
+    
+    var game = GameScore(playerName: "Alice")
+    
+    game.score = 50      // Triggers willSet and didSet
+    // Output: "About to change Alice's score to 50"
+    //         "Alice's score changed from 0 to 50"
+    
+    game.score = 120     // Triggers achievement
+    // Output: "About to change Alice's score to 120"
+    //         "Alice's score changed from 50 to 120"
+    //         "🎉 Alice reached 100 points!"
+    //         "🏆 New high score: 120"
+    
+    game.level = 2       // Triggers level up and bonus points
+    // Output: "Alice advanced to level 2!"
+    //         "About to change Alice's score to 140"
+    //         "Alice's score changed from 120 to 140"
+    //         "🏆 New high score: 140"
+    ```
+
+64. **Static properties and methods belong to the struct type itself, not individual instances.** Use them for shared data or utility functions that don't need instance data.
+
+    ```swift
+    struct MathUtils {
+        // Static properties - shared by all instances (or just the type)
+        static let pi = 3.14159265359
+        static let goldenRatio = 1.618033988749
+        static var calculationCount = 0    // Keeps track of how many calculations done
+        
+        // Instance properties
+        var name: String
+        
+        // Static methods - called on the type, not instances
+        static func degreesToRadians(_ degrees: Double) -> Double {
+            calculationCount += 1
+            return degrees * pi / 180.0
+        }
+        
+        static func radiansToDegrees(_ radians: Double) -> Double {
+            calculationCount += 1
+            return radians * 180.0 / pi
+        }
+        
+        static func circleArea(radius: Double) -> Double {
+            calculationCount += 1
+            return pi * radius * radius
+        }
+        
+        static func resetCalculationCount() {
+            calculationCount = 0
+        }
+        
+        // Instance methods can access both static and instance properties
+        func printCalculationInfo() {
+            print("\(name): Total calculations performed: \(MathUtils.calculationCount)")
+        }
+    }
+    
+    // Call static methods on the type itself
+    let area = MathUtils.circleArea(radius: 5.0)        // Uses MathUtils.pi
+    let radians = MathUtils.degreesToRadians(90.0)      // π/2
+    let degrees = MathUtils.radiansToDegrees(radians)   // Back to 90.0
+    
+    print("Area: \(area)")                              // 78.539...
+    print("Calculations: \(MathUtils.calculationCount)") // 3
+    
+    // Static properties are shared across all instances
+    let utils1 = MathUtils(name: "Calculator 1")
+    let utils2 = MathUtils(name: "Calculator 2")
+    
+    utils1.printCalculationInfo()  // "Calculator 1: Total calculations performed: 3"
+    utils2.printCalculationInfo()  // "Calculator 2: Total calculations performed: 3" (same count!)
+    
+    // Static methods can be called from instances too (but usually called on type)
+    let moreArea = MathUtils.circleArea(radius: 10.0)   // Preferred
+    // let moreArea = utils1.circleArea(radius: 10.0)   // This doesn't work - static methods are type methods
+    ```
+
+65. **Structs vs Classes: When to use which?** Choose structs for simple data containers and value semantics. Choose classes for complex objects that need identity and reference semantics.
+
+    ```swift
+    // Use STRUCTS for:
+    
+    // 1. Simple data that represents a value
+    struct Point {
+        var x: Double
+        var y: Double
+    }
+    
+    struct Color {
+        var red: Double
+        var green: Double
+        var blue: Double
+    }
+    
+    // 2. Data that should be copied, not shared
+    struct UserPreferences {
+        var theme: String
+        var fontSize: Int
+        var notificationsEnabled: Bool
+    }
+    
+    // 3. Mathematical or geometric concepts
+    struct Vector3D {
+        var x, y, z: Double
+        
+        func magnitude() -> Double {
+            return sqrt(x*x + y*y + z*z)
+        }
+        
+        func normalized() -> Vector3D {
+            let mag = magnitude()
+            return Vector3D(x: x/mag, y: y/mag, z: z/mag)
+        }
+    }
+    
+    // 4. Configuration or settings
+    struct DatabaseConfig {
+        var host: String
+        var port: Int
+        var username: String
+        var timeout: TimeInterval
+    }
+    
+    // Use CLASSES for:
+    
+    // 1. Objects that need identity (each instance is unique)
+    class User {
+        var id: String
+        var name: String
+        var loginSessions: [String] = []
+        
+        init(id: String, name: String) {
+            self.id = id
+            self.name = name
+        }
+        
+        func login() {
+            let sessionId = UUID().uuidString
+            loginSessions.append(sessionId)
+        }
+    }
+    
+    // 2. Objects that need inheritance
+    class Vehicle {
+        var speed: Double = 0
+        func accelerate() { speed += 10 }
+    }
+    
+    class Car: Vehicle {
+        var numberOfDoors: Int
+        init(doors: Int) { numberOfDoors = doors }
+    }
+    
+    // 3. Objects that manage resources or have side effects
+    class DatabaseConnection {
+        private var connection: SomeConnectionType
+        
+        init() {
+            connection = establishConnection()
+        }
+        
+        deinit {
+            connection.close()  // Cleanup when object is destroyed
+        }
+    }
+    
+    // Why the difference matters:
+    let point1 = Point(x: 1, y: 2)
+    let point2 = point1              // COPY created - two separate points
+    
+    let user1 = User(id: "123", name: "Alice")
+    let user2 = user1                // SAME object - both variables point to same user
+    user2.name = "Bob"
+    print(user1.name)                // "Bob" - both changed because it's the same object!
+    ```
+
+66. **Protocol conformance with structs.** Structs can adopt protocols to gain shared behavior and be used polymorphically.
+
+    ```swift
+    // Define protocols for different capabilities
+    protocol Drawable {
+        func draw()
+        var area: Double { get }
+    }
+    
+    protocol Printable {
+        var description: String { get }
+    }
+    
+    // Structs can conform to multiple protocols
+    struct Rectangle: Drawable, Printable {
+        var width: Double
+        var height: Double
+        
+        // Implement Drawable
+        func draw() {
+            print("Drawing rectangle \(width) x \(height)")
+        }
+        
+        var area: Double {
+            return width * height
+        }
+        
+        // Implement Printable
+        var description: String {
+            return "Rectangle(\(width) x \(height), area: \(area))"
+        }
+    }
+    
+    struct Circle: Drawable, Printable {
+        var radius: Double
+        
+        func draw() {
+            print("Drawing circle with radius \(radius)")
+        }
+        
+        var area: Double {
+            return Double.pi * radius * radius
+        }
+        
+        var description: String {
+            return "Circle(radius: \(radius), area: \(area))"
+        }
+    }
+    
+    // Use structs polymorphically through protocols
+    let shapes: [Drawable] = [
+        Rectangle(width: 10, height: 5),
+        Circle(radius: 3),
+        Rectangle(width: 4, height: 4)
+    ]
+    
+    for shape in shapes {
+        shape.draw()                    // Calls appropriate draw method
+        print("Area: \(shape.area)")    // Calls appropriate area calculation
+    }
+    
+    // Protocol extensions can provide default implementations
+    extension Drawable {
+        func printArea() {
+            print("This shape has area: \(area)")
+        }
+        
+        func isLargerThan(_ other: Drawable) -> Bool {
+            return self.area > other.area
+        }
+    }
+    
+    // Now all Drawable structs get these methods for free
+    let rect = Rectangle(width: 10, height: 5)
+    let circle = Circle(radius: 3)
+    
+    rect.printArea()                    // "This shape has area: 50.0"
+    print(rect.isLargerThan(circle))    // true
+    ```
+
+67. **Nested types let you organize related types inside structs.** Use this to group related enums, structs, or classes that are only used by the containing type.
+
+    ```swift
+    struct ChessGame {
+        // Nested enum for piece types
+        enum PieceType {
+            case pawn, rook, knight, bishop, queen, king
+            
+            var symbol: String {
+                switch self {
+                case .pawn: return "♟"
+                case .rook: return "♜"
+                case .knight: return "♞"
+                case .bishop: return "♝"
+                case .queen: return "♛"
+                case .king: return "♚"
+                }
+            }
+        }
+        
+        // Nested enum for colors
+        enum Color {
+            case white, black
+            
+            var opposite: Color {
+                return self == .white ? .black : .white
+            }
+        }
+        
+        // Nested struct for position
+        struct Position {
+            var row: Int
+            var column: Int
+            
+            var isValid: Bool {
+                return row >= 0 && row < 8 && column >= 0 && column < 8
+            }
+            
+            func distance(to other: Position) -> Int {
+                return abs(row - other.row) + abs(column - other.column)
+            }
+        }
+        
+        // Nested struct for a chess piece
+        struct Piece {
+            var type: PieceType
+            var color: Color
+            var position: Position
+            
+            var description: String {
+                return "\(color) \(type) at (\(position.row), \(position.column))"
+            }
+        }
+        
+        // Game properties using nested types
+        var board: [[Piece?]] = Array(repeating: Array(repeating: nil, count: 8), count: 8)
+        var currentPlayer: Color = .white
+        var moveHistory: [(from: Position, to: Position)] = []
+        
+        // Methods using nested types
+        mutating func movePiece(from: Position, to: Position) -> Bool {
+            guard from.isValid && to.isValid else { return false }
+            guard let piece = board[from.row][from.column] else { return false }
+            guard piece.color == currentPlayer else { return false }
+            
+            // Move the piece
+            board[to.row][to.column] = Piece(type: piece.type, color: piece.color, position: to)
+            board[from.row][from.column] = nil
+            
+            // Record the move
+            moveHistory.append((from: from, to: to))
+            currentPlayer = currentPlayer.opposite
+            
+            return true
+        }
+        
+        func pieceAt(position: Position) -> Piece? {
+            guard position.isValid else { return nil }
+            return board[position.row][position.column]
+        }
+    }
+    
+    // Using nested types from outside the struct
+    var game = ChessGame()
+    let kingPosition = ChessGame.Position(row: 0, column: 4)
+    let pawn = ChessGame.Piece(
+        type: .pawn, 
+        color: .white, 
+        position: ChessGame.Position(row: 1, column: 0)
+    )
+    
+    // Nested types are namespaced by their containing type
+    let whiteKing = ChessGame.PieceType.king
+    let blackColor = ChessGame.Color.black
+    
+    print(whiteKing.symbol)             // "♚"
+    print(blackColor.opposite)          // white
+    print(kingPosition.isValid)         // true
+    ```
+
+68. **Generic structs let you create reusable data structures that work with any type.** Instead of writing separate structs for different types, use generics to make one struct that works with all types.
+
+    ```swift
+    // Generic struct for a simple container
+    struct Container<T> {
+        private var items: [T] = []
+        
+        mutating func add(_ item: T) {
+            items.append(item)
+        }
+        
+        mutating func remove() -> T? {
+            return items.popLast()
+        }
+        
+        func peek() -> T? {
+            return items.last
+        }
+        
+        var count: Int {
+            return items.count
+        }
+        
+        var isEmpty: Bool {
+            return items.isEmpty
+        }
+    }
+    
+    // Use with different types
+    var stringContainer = Container<String>()
+    stringContainer.add("Hello")
+    stringContainer.add("World")
+    print(stringContainer.peek())        // Optional("World")
+    
+    var intContainer = Container<Int>()
+    intContainer.add(42)
+    intContainer.add(100)
+    print(intContainer.count)            // 2
+    
+    // Generic struct with multiple type parameters
+    struct KeyValuePair<Key, Value> {
+        let key: Key
+        var value: Value
+        
+        init(key: Key, value: Value) {
+            self.key = key
+            self.value = value
+        }
+        
+        mutating func updateValue(_ newValue: Value) {
+            value = newValue
+        }
+    }
+    
+    let userAge = KeyValuePair(key: "age", value: 25)
+    let userScore = KeyValuePair(key: "score", value: 1500)
+    let isOnline = KeyValuePair(key: "online", value: true)
+    
+    // Generic struct with constraints
+    struct NumberContainer<T: Numeric> {
+        private var numbers: [T] = []
+        
+        mutating func add(_ number: T) {
+            numbers.append(number)
+        }
+        
+        func sum() -> T {
+            return numbers.reduce(0, +)
+        }
+        
+        func average() -> Double {
+            guard !numbers.isEmpty else { return 0 }
+            let sum = self.sum()
+            return Double(sum as! Double) / Double(numbers.count)
+        }
+    }
+    
+    var intNumbers = NumberContainer<Int>()
+    intNumbers.add(10)
+    intNumbers.add(20)
+    intNumbers.add(30)
+    print(intNumbers.sum())              // 60
+    
+    var doubleNumbers = NumberContainer<Double>()
+    doubleNumbers.add(1.5)
+    doubleNumbers.add(2.5)
+    print(doubleNumbers.average())       // 2.0
+    
+    // Real-world example: Generic Result type
+    struct Result<Success, Failure: Error> {
+        private let value: Either<Success, Failure>
+        
+        private enum Either<Success, Failure: Error> {
+            case success(Success)
+            case failure(Failure)
+        }
+        
+        init(success: Success) {
+            value = .success(success)
+        }
+        
+        init(failure: Failure) {
+            value = .failure(failure)
+        }
+        
+        var isSuccess: Bool {
+            switch value {
+            case .success: return true
+            case .failure: return false
+            }
+        }
+        
+        var isFailure: Bool {
+            return !isSuccess
+        }
+        
+        func get() throws -> Success {
+            switch value {
+            case .success(let success):
+                return success
+            case .failure(let failure):
+                throw failure
+            }
+        }
+    }
+    
+    enum NetworkError: Error {
+        case noConnection
+        case invalidResponse
+    }
+    
+    // Using generic Result
+    let successResult = Result<String, NetworkError>(success: "Data loaded successfully")
+    let failureResult = Result<String, NetworkError>(failure: .noConnection)
+    
+    print(successResult.isSuccess)       // true
+    print(failureResult.isFailure)       // true
+    ```
+
+69. **Common struct patterns and best practices.** Here are proven patterns for organizing and using structs effectively.
+
+    ```swift
+    // Pattern 1: Builder pattern for complex initialization
+    struct HTTPRequest {
+        private(set) var url: String
+        private(set) var method: String = "GET"
+        private(set) var headers: [String: String] = [:]
+        private(set) var body: Data?
+        
+        init(url: String) {
+            self.url = url
+        }
+        
+        func method(_ method: String) -> HTTPRequest {
+            var request = self
+            request.method = method
+            return request
+        }
+        
+        func header(_ key: String, _ value: String) -> HTTPRequest {
+            var request = self
+            request.headers[key] = value
+            return request
+        }
+        
+        func body(_ data: Data) -> HTTPRequest {
+            var request = self
+            request.body = data
+            return request
+        }
+    }
+    
+    // Usage: Method chaining for clean configuration
+    let request = HTTPRequest(url: "https://api.example.com/users")
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .header("Authorization", "Bearer token123")
+        .body(jsonData)
+    
+    // Pattern 2: Configuration struct with defaults
+    struct AppConfig {
+        var baseURL: String = "https://api.example.com"
+        var timeout: TimeInterval = 30.0
+        var retryCount: Int = 3
+        var enableLogging: Bool = false
+        var apiKey: String?
+        
+        // Factory methods for common configurations
+        static var development: AppConfig {
+            return AppConfig(
+                baseURL: "https://dev-api.example.com",
+                enableLogging: true
+            )
+        }
+        
+        static var production: AppConfig {
+            return AppConfig(
+                timeout: 60.0,
+                retryCount: 5
+            )
+        }
+        
+        static func custom(apiKey: String) -> AppConfig {
+            return AppConfig(apiKey: apiKey)
+        }
+    }
+    
+    // Pattern 3: State machine using enums within structs
+    struct DownloadTask {
+        enum State {
+            case pending
+            case downloading(progress: Double)
+            case completed(data: Data)
+            case failed(error: Error)
+            
+            var isFinished: Bool {
+                switch self {
+                case .completed, .failed:
+                    return true
+                case .pending, .downloading:
+                    return false
+                }
+            }
+        }
+        
+        let id: String
+        let url: String
+        private(set) var state: State = .pending
+        private(set) var startTime: Date?
+        
+        mutating func start() {
+            guard case .pending = state else { return }
+            state = .downloading(progress: 0.0)
+            startTime = Date()
+        }
+        
+        mutating func updateProgress(_ progress: Double) {
+            guard case .downloading = state else { return }
+            state = .downloading(progress: progress)
+        }
+        
+        mutating func complete(with data: Data) {
+            guard case .downloading = state else { return }
+            state = .completed(data: data)
+        }
+        
+        mutating func fail(with error: Error) {
+            state = .failed(error: error)
+        }
+        
+        var duration: TimeInterval? {
+            guard let startTime = startTime, state.isFinished else { return nil }
+            return Date().timeIntervalSince(startTime)
+        }
+    }
+    
+    // Pattern 4: Validation and error handling
+    struct EmailAddress {
+        private let value: String
+        
+        init?(_ email: String) {
+            guard Self.isValid(email) else { return nil }
+            self.value = email
+        }
+        
+        private static func isValid(_ email: String) -> Bool {
+            return email.contains("@") && email.contains(".")
+        }
+        
+        var domain: String {
+            return String(value.split(separator: "@").last ?? "")
+        }
+        
+        var localPart: String {
+            return String(value.split(separator: "@").first ?? "")
+        }
+        
+        var description: String {
+            return value
+        }
+    }
+    
+    // Pattern 5: Wrapper types for type safety
+    struct UserID {
+        let value: String
+        
+        init(_ value: String) {
+            self.value = value
+        }
+    }
+    
+    struct PostID {
+        let value: String
+        
+        init(_ value: String) {
+            self.value = value
+        }
+    }
+    
+    // This prevents mixing up different types of IDs
+    func getUser(id: UserID) -> User? {
+        // Can't accidentally pass PostID here
+        return userDatabase[id.value]
+    }
+    
+    func getPost(id: PostID) -> Post? {
+        return postDatabase[id.value]
+    }
+    
+    let userId = UserID("user123")
+    let postId = PostID("post456")
+    
+    // getUser(id: postId)  // ❌ Compiler error - type safety!
+    getUser(id: userId)     // ✅ Correct
+    ```
+
+70. **Swift Keywords Reference.** Complete guide to all Swift keywords and their usage with practical examples.
+
+    ```swift
+    // DECLARATION KEYWORDS - Used to declare different types of entities
+    
+    // 'var' - Declares a mutable variable
+    var userName = "John"           // Can be changed later
+    userName = "Jane"               // ✅ Valid
+    
+    // 'let' - Declares an immutable constant
+    let maxCount = 100              // Cannot be changed
+    // maxCount = 200               // ❌ Compiler error
+    
+    // 'func' - Declares a function
+    func greetUser(name: String) -> String {
+        return "Hello, \(name)!"
+    }
+    
+    // 'class' - Declares a class (reference type)
+    class Person {
+        var name: String
+        init(name: String) { self.name = name }
+    }
+    
+    // 'struct' - Declares a structure (value type)
+    struct Point {
+        var x: Double
+        var y: Double
+    }
+    
+    // 'enum' - Declares an enumeration
+    enum Direction {
+        case north, south, east, west
+    }
+    
+    // 'protocol' - Declares a protocol (interface)
+    protocol Drawable {
+        func draw()
+    }
+    
+    // 'extension' - Extends existing types
+    extension String {
+        func reversed() -> String {
+            return String(self.reversed())
+        }
+    }
+    
+    // 'typealias' - Creates a type alias
+    typealias UserID = String
+    // Creates a type alias for a tuple with named parameters (x, y) of type Double
+    typealias Coordinates = (x: Double, y: Double)
+    let userId: UserID = "user123"
+    let point: Coordinates = (x: 10.0, y: 20.0)
+    
+    // 'import' - Imports modules or frameworks
+    import Foundation
+    import UIKit
+    
+    // CONTROL FLOW KEYWORDS - Used for program flow control
+    
+    // 'if', 'else' - Conditional statements
+    let age = 25
+    if age >= 18 {
+        print("Adult")
+    } else if age >= 13 {
+        print("Teenager")
+    } else {
+        print("Child")
+    }
+    
+    // 'guard' - Early exit with condition
+    func processUser(name: String?) {
+        guard let userName = name else {
+            print("No name provided")
+            return
+        }
+        print("Processing: \(userName)")
+    }
+    
+    // 'switch', 'case', 'default' - Switch statements
+    let direction = Direction.north
+    switch direction {
+    case .north:
+        print("Going north")
+    case .south:
+        print("Going south")
+    default:
+        print("Going east or west")
+    }
+    
+    // 'for', 'in' - For loops
+    let numbers = [1, 2, 3, 4, 5]
+    for number in numbers {
+        print(number)
+    }
+    
+    for i in 1...5 {               // Range operator
+        print("Count: \(i)")
+    }
+    
+    // 'while' - While loops
+    var counter = 0
+    while counter < 5 {
+        print("Counter: \(counter)")
+        counter += 1
+    }
+    
+    // 'repeat' - Repeat-while loops (do-while equivalent)
+    var attempts = 0
+    repeat {
+        print("Attempt \(attempts + 1)")
+        attempts += 1
+    } while attempts < 3
+    
+    // 'break' - Exits loops or switch statements
+    for i in 1...10 {
+        if i == 5 {
+            break                  // Exit the loop
+        }
+        print(i)
+    }
+    
+    // 'continue' - Skips current iteration
+    for i in 1...5 {
+        if i == 3 {
+            continue               // Skip number 3
+        }
+        print(i)                   // Prints 1, 2, 4, 5
+    }
+    
+    // 'fallthrough' - Continues to next case in switch
+    let number = 2
+    switch number {
+    case 1:
+        print("One")
+        fallthrough            // Continues to case 2
+    case 2:
+        print("Two or after one")
+    default:
+        print("Other")
+    }
+    
+    // 'return' - Returns value from function
+    func multiply(a: Int, b: Int) -> Int {
+        return a * b
+    }
+    
+    // ACCESS CONTROL KEYWORDS - Control visibility
+    
+    // 'public' - Accessible from anywhere
+    public class PublicClass {
+        public var publicProperty = "Everyone can see this"
+    }
+    
+    // 'internal' - Default access level, accessible within module
+    internal class InternalClass {
+        internal var internalProperty = "Same module only"
+    }
+    
+    // 'fileprivate' - Accessible within same source file
+    fileprivate class FilePrivateClass {
+        fileprivate var filePrivateProperty = "Same file only"
+    }
+    
+    // 'private' - Accessible within same declaration
+    class MyClass {
+        private var privateProperty = "Only within MyClass"
+        
+        private func privateMethod() {
+            print("Only MyClass can call this")
+        }
+    }
+    
+    // 'open' - Public and subclassable/overridable
+    open class OpenClass {
+        open func openMethod() {
+            print("Can be overridden")
+        }
+    }
+    
+    // PROPERTY KEYWORDS - Used with properties
+    
+    class PropertyExample {
+        // 'static' - Type property (belongs to type, not instance)
+        static let sharedInstance = PropertyExample()
+        static var count = 0
+        
+        // 'lazy' - Property initialized only when first accessed
+        lazy var expensiveProperty: String = {
+            print("Computing expensive property...")
+            return "Expensive result"
+        }()
+        
+        // 'weak' - Weak reference (doesn't increase retain count)
+        weak var delegate: SomeDelegate?
+        
+        // 'unowned' - Unowned reference (assumes target always exists)
+        unowned let parent: ParentClass
+        
+        // Property observers
+        var temperature: Double = 0.0 {
+            willSet {                    // 'willSet' - Called before value changes
+                print("About to set temperature to \(newValue)")
+            }
+            didSet {                     // 'didSet' - Called after value changes
+                print("Temperature changed from \(oldValue) to \(temperature)")
+            }
+        }
+        
+        // Computed property with getter and setter
+        var fahrenheit: Double {
+            get {                        // 'get' - Getter for computed property
+                return temperature * 9/5 + 32
+            }
+            set {                        // 'set' - Setter for computed property
+                temperature = (newValue - 32) * 5/9
+            }
+        }
+        
+        init(parent: ParentClass) {
+            self.parent = parent
+        }
+    }
+    
+    // METHOD KEYWORDS - Used with methods
+    
+    struct MutableStruct {
+        var value = 0
+        
+        // 'mutating' - Method can modify struct properties
+        mutating func increment() {
+            value += 1
+        }
+    }
+    
+    class MethodExample {
+        // 'override' - Overrides parent class method
+        override func description() -> String {
+            return "MethodExample instance"
+        }
+        
+        // 'final' - Prevents method from being overridden
+        final func cannotOverride() {
+            print("This method cannot be overridden")
+        }
+        
+        // 'convenience' - Convenience initializer
+        convenience init(defaultValue: Int) {
+            self.init()
+            // Additional setup...
+        }
+        
+        // 'required' - Subclasses must implement this initializer
+        required init() {
+            // Initialization code
+        }
+    }
+    
+    // ERROR HANDLING KEYWORDS - Used for error handling
+    
+    enum NetworkError: Error {
+        case noConnection
+        case invalidResponse
+    }
+    
+    // 'throws' - Function can throw errors
+    func fetchData() throws -> String {
+        guard Bool.random() else {
+            throw NetworkError.noConnection
+        }
+        return "Data fetched successfully"
+    }
+    
+    // 'try' - Calls throwing function
+    do {
+        let data = try fetchData()
+        print(data)
+    } catch NetworkError.noConnection {    // 'catch' - Handles specific errors
+        print("No network connection")
+    } catch {                              // Catches all other errors
+        print("Other error: \(error)")
+    }
+    
+    // 'try?' - Optional try (returns nil if throws)
+    let optionalData = try? fetchData()
+    
+    // 'try!' - Force try (crashes if throws)
+    // let forcedData = try! fetchData()  // Use with caution!
+    
+    // 'defer' - Code to run when leaving scope
+    func processFile() {
+        print("Opening file")
+        defer {
+            print("Closing file")  // Always runs, even if function exits early
+        }
+        
+        guard Bool.random() else {
+            print("Early return")
+            return  // defer block still runs
+        }
+        
+        print("Processing file")
+        // defer block runs here too
+    }
+    
+    // GENERIC KEYWORDS - Used with generics
+    
+    // 'where' - Generic constraints
+    func processItems<T>(_ items: [T]) where T: Comparable {
+        let sorted = items.sorted()
+        print("Sorted items: \(sorted)")
+    }
+    
+    // 'associatedtype' - Associated type in protocol
+    protocol Container {
+        associatedtype Item
+        func add(_ item: Item)
+        func get(at index: Int) -> Item?
+    }
+    
+    struct IntContainer: Container {
+        typealias Item = Int  // 'typealias' can specify associated type
+        
+        private var items: [Int] = []
+        
+        func add(_ item: Int) {
+            items.append(item)
+        }
+        
+        func get(at index: Int) -> Int? {
+            return index < items.count ? items[index] : nil
+        }
+    }
+    
+    // MEMORY MANAGEMENT KEYWORDS
+    
+    class Parent {
+        var children: [Child] = []
+        
+        deinit {                        // 'deinit' - Cleanup when object is deallocated
+            print("Parent being deallocated")
+        }
+    }
+    
+    class Child {
+        weak var parent: Parent?        // Prevents retain cycles
+        
+        deinit {
+            print("Child being deallocated")
+        }
+    }
+    
+    // OPERATOR KEYWORDS - Used with custom operators
+    
+    struct Vector {
+        let x, y: Double
+        
+        // Custom operator using 'operator' keyword would be declared globally:
+        // infix operator +++: AdditionPrecedence
+        
+        static func + (left: Vector, right: Vector) -> Vector {
+            return Vector(x: left.x + right.x, y: left.y + right.y)
+        }
+    }
+    
+    // ATTRIBUTE KEYWORDS - Used as attributes
+    
+    @available(iOS 13.0, *)           // '@available' - Availability checking
+    func newerFunction() {
+        print("Only available on iOS 13+")
+    }
+    
+    @objc                              // '@objc' - Exposes to Objective-C
+    class ObjCCompatibleClass: NSObject {
+        @objc func objcMethod() {
+            print("Callable from Objective-C")
+        }
+    }
+    
+    @discardableResult                 // '@discardableResult' - Result can be ignored
+    func performTask() -> Bool {
+        print("Task performed")
+        return true
+    }
+    
+    performTask()  // No warning about unused result
+    
+    @escaping                          // '@escaping' - Closure can escape function
+    func performAsync(completion: @escaping () -> Void) {
+        DispatchQueue.main.async {
+            completion()
+        }
+    }
+    
+    // LITERAL KEYWORDS - Special literals
+    
+    func debugInfo() {
+        print("File: \(#file)")        // '#file' - Current file name
+        print("Function: \(#function)") // '#function' - Current function name
+        print("Line: \(#line)")        // '#line' - Current line number
+        print("Column: \(#column)")    // '#column' - Current column
+    }
+    
+    // ADVANCED KEYWORDS
+    
+    // 'inout' - Pass by reference
+    func swapValues<T>(_ a: inout T, _ b: inout T) {
+        let temp = a
+        a = b
+        b = temp
+    }
+    
+    var x = 5, y = 10
+    swapValues(&x, &y)  // & passes by reference
+    print("x: \(x), y: \(y)")  // x: 10, y: 5
+    
+    // 'indirect' - For recursive enums
+    indirect enum TreeNode {
+        case leaf(Int)
+        case branch(TreeNode, TreeNode)
+    }
+    
+    let tree = TreeNode.branch(
+        .leaf(1),
+        .branch(.leaf(2), .leaf(3))
+    )
+    
+    // 'some' - Opaque return type (Swift 5.1+)
+    func makeShape() -> some Shape {
+        return Circle(radius: 5.0)
+    }
+    
+    // PATTERN MATCHING KEYWORDS
+    
+    let point = (x: 2, y: 3)
+    
+    // 'is' - Type checking
+    if point is (Int, Int) {
+        print("Point has integer coordinates")
+    }
+    
+    // 'as', 'as?', 'as!' - Type casting
+    let anyValue: Any = "Hello"
+    if let stringValue = anyValue as? String {
+        print("It's a string: \(stringValue)")
+    }
+    
+    // Pattern matching in switch
+    switch point {
+    case let (x, y) where x == y:      // 'where' in pattern matching
+        print("Point is on diagonal")
+    case (0, let y):
+        print("Point is on y-axis at \(y)")
+    case (let x, 0):
+        print("Point is on x-axis at \(x)")
+    default:
+        print("Point is at (\(point.x), \(point.y))")
+    }
+    ```
+
+71. **Memory and performance considerations with structs.** Understanding how structs behave in memory helps you write efficient code.
+
+    ```swift
+    // Structs are allocated on the stack when possible (faster than heap)
+    struct Point {
+        var x: Double
+        var y: Double
+    }
+    
+    func processPoints() {
+        let point1 = Point(x: 1, y: 2)    // Stack allocated - very fast
+        let point2 = Point(x: 3, y: 4)    // Stack allocated - very fast
+        // When function ends, memory is automatically freed
+    }
+    
+    // Large structs or structs in collections might use heap
+    struct LargeStruct {
+        var data = Array(repeating: 0, count: 10000)  // This might go on heap
+    }
+    
+    // Copying behavior - be aware of performance implications
+    struct ExpensiveToCopy {
+        var largeArray = Array(repeating: 0.0, count: 100000)
+        
+        func process() {
+            // This method doesn't modify the struct, so it's efficient
+            print("Processing \(largeArray.count) items")
+        }
+        
+        mutating func expensiveModification() {
+            // This modifies the struct, which is fine
+            largeArray[0] = 1.0
+        }
+    }
+    
+    var original = ExpensiveToCopy()
+    let copy = original                   // This copies 100,000 doubles! Could be slow
+    
+    // Better: Use inout parameters to avoid copying
+    func processLargeStruct(_ largeStruct: inout ExpensiveToCopy) {
+        // Works with the original, no copying
+        largeStruct.expensiveModification()
+    }
+    
+    // Or pass by value only when you need a copy
+    func processLargeStructReadOnly(_ largeStruct: ExpensiveToCopy) {
+        // If you only read, Swift optimizes and might not actually copy
+        largeStruct.process()
+    }
+    
+    // Copy-on-write optimization for collections
+    struct OptimizedContainer {
+        private var storage: [Int] = []
+        
+        // Swift's Array implements copy-on-write automatically
+        mutating func append(_ value: Int) {
+            storage.append(value)  // Only copies if multiple references exist
+        }
+        
+        func contains(_ value: Int) -> Bool {
+            return storage.contains(value)  // No copying for read-only access
+        }
+    }
+    
+    var container1 = OptimizedContainer()
+    container1.append(1)
+    container1.append(2)
+    
+    let container2 = container1           // No copying yet - shares storage
+    
+    // container1.append(3)               // Now copying happens because container2 exists
+    let hasValue = container2.contains(1) // No copying - read-only access
+    
+    // Best practices for performance:
+    // 1. Keep structs small when possible
+    // 2. Use inout parameters to avoid copying large structs
+    // 3. Prefer methods over computed properties for expensive calculations
+    // 4. Be mindful of copying in loops
+    
+    struct GoodPerformance {
+        var id: String
+        var value: Double
+        
+        // Cheap to copy - just two simple values
+    }
+    
+    struct CarefulWithCopying {
+        var id: String
+        var largeData: [Double]
+        
+        // Use inout when modifying
+        static func batchUpdate(_ items: inout [CarefulWithCopying]) {
+            for i in 0..<items.count {
+                items[i].largeData.append(0.0)  // Modifies in place
+            }
+        }
+        
+        // Use non-mutating methods for calculations
+        func average() -> Double {
+            return largeData.reduce(0, +) / Double(largeData.count)
+        }
+    }
+    ```
+
+## Key Takeaways: When to Use Structs
+
+**✅ Use structs when:**
+- You're modeling simple data (coordinates, colors, configuration)
+- You want value semantics (copying creates independent copies)
+- You don't need inheritance
+- The data is relatively small and cheap to copy
+- You want automatic memory management without reference counting
+
+**❌ Avoid structs when:**
+- You need reference semantics (multiple variables pointing to same object)
+- You need inheritance
+- The struct would be very large and expensive to copy
+- You're modeling objects with identity (users, database connections)
+- You need deinitializers for cleanup
+
+**🎯 Perfect struct use cases:**
+- Mathematical types (Point, Vector, Matrix)
+- Configuration objects (Settings, Options)
+- Simple data models (Person, Product, Order)
+- State representations (GameState, UIState)
+- Value objects (Color, Currency, EmailAddress)
+- Enumerations with associated data
+- Generic containers (Stack, Queue, Result)
