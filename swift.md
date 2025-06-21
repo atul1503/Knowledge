@@ -1507,7 +1507,431 @@ Notes:
     }
     ```
 
-24. `Result` type handles success and failure cleanly.
+24. **Swift Parallelism and Concurrency - Multiple ways to handle parallel operations.** Swift offers several approaches: `async/await` with structured concurrency, `DispatchQueue` for GCD-based concurrency, and `Task` for managing concurrent operations.
+
+    **24a. Task Groups for Parallel Operations**
+    Use `TaskGroup` when you need to run multiple async operations in parallel and collect their results.
+    
+    ```swift
+    // PARALLEL DATA FETCHING - Wait for multiple operations to complete
+    func fetchAllUserData() async throws -> [User] {
+        let userIDs = ["user1", "user2", "user3", "user4"]
+        
+        // Run all fetches in parallel using TaskGroup
+        return try await withThrowingTaskGroup(of: User.self) { group in
+            // Add each fetch operation to the group
+            for id in userIDs {
+                group.addTask {
+                    try await fetchUserData(id: id)
+                }
+            }
+            
+            // Collect all results as they complete
+            var users: [User] = []
+            for try await user in group {
+                users.append(user)
+            }
+            return users
+        }
+    }
+    
+    // PARALLEL IMAGE PROCESSING
+    func processImages(urls: [URL]) async throws -> [ProcessedImage] {
+        return try await withThrowingTaskGroup(of: ProcessedImage.self) { group in
+            for url in urls {
+                group.addTask {
+                    let imageData = try await URLSession.shared.data(from: url).0
+                    return try await processImage(data: imageData)
+                }
+            }
+            
+            var processedImages: [ProcessedImage] = []
+            for try await image in group {
+                processedImages.append(image)
+            }
+            return processedImages
+        }
+    }
+    
+    // NON-THROWING VERSION for operations that don't throw errors
+    func fetchMultipleScores(gameIDs: [String]) async -> [GameScore] {
+        return await withTaskGroup(of: GameScore?.self) { group in
+            for gameID in gameIDs {
+                group.addTask {
+                    do {
+                        return try await fetchGameScore(id: gameID)
+                    } catch {
+                        print("Failed to fetch score for \(gameID): \(error)")
+                        return nil  // Return nil for failed operations
+                    }
+                }
+            }
+            
+            var scores: [GameScore] = []
+            for await score in group {
+                if let score = score {  // Filter out nil results
+                    scores.append(score)
+                }
+            }
+            return scores
+        }
+    }
+    ```
+
+    **24b. Async Let for Simple Parallel Operations**
+    Use `async let` when you have a small number of operations that can run concurrently.
+    
+    ```swift
+    // SIMPLE PARALLEL OPERATIONS with async let
+    func loadDashboardData() async throws -> DashboardData {
+        // Start all three operations in parallel
+        async let user = fetchCurrentUser()
+        async let notifications = fetchNotifications()
+        async let stats = fetchUserStats()
+        
+        // Wait for all to complete (they run concurrently)
+        return DashboardData(
+            user: try await user,
+            notifications: try await notifications, 
+            stats: try await stats
+        )
+    }
+    
+    // PARALLEL FILE OPERATIONS
+    func backupUserData() async throws {
+        async let profileBackup = backupProfile()
+        async let settingsBackup = backupSettings()
+        async let documentsBackup = backupDocuments()
+        
+        // Wait for all backups to complete
+        try await profileBackup
+        try await settingsBackup
+        try await documentsBackup
+        
+        print("All backups completed successfully")
+    }
+    
+    // MIXING PARALLEL AND SEQUENTIAL operations
+    func processOrder() async throws -> Order {
+        // First: validate payment (must happen first)
+        try await validatePayment()
+        
+        // Then: do these three things in parallel
+        async let inventoryCheck = checkInventory()
+        async let shippingCalculation = calculateShipping()
+        async let taxCalculation = calculateTax()
+        
+        // Wait for parallel operations
+        let inventory = try await inventoryCheck
+        let shipping = try await shippingCalculation
+        let tax = try await taxCalculation
+        
+        // Finally: create order with all the data
+        return try await createOrder(inventory: inventory, shipping: shipping, tax: tax)
+    }
+    ```
+
+    **24c. Actors for Thread-Safe State Management**
+    Actors protect shared mutable state from data races by ensuring only one task can access the actor's state at a time.
+    
+    ```swift
+    // ACTOR for thread-safe counter
+    actor Counter {
+        private var value = 0
+        
+        func increment() {
+            value += 1
+        }
+        
+        func decrement() {
+            value -= 1
+        }
+        
+        func getValue() -> Int {
+            return value
+        }
+        
+        // Async function that can do work
+        func incrementAfterDelay() async {
+            await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+            value += 1
+        }
+    }
+    
+    // Using the actor from multiple tasks
+    func testCounter() async {
+        let counter = Counter()
+        
+        // Run multiple increments concurrently - actor ensures thread safety
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 1...100 {
+                group.addTask {
+                    await counter.increment()
+                }
+            }
+        }
+        
+        let finalValue = await counter.getValue()
+        print("Final counter value: \(finalValue)") // Always 100, never race conditions
+    }
+    
+    // ACTOR for managing a shared resource
+    actor ImageCache {
+        private var cache: [String: UIImage] = [:]
+        private var downloadTasks: [String: Task<UIImage, Error>] = [:]
+        
+        func getImage(from url: String) async throws -> UIImage {
+            // Return cached image if available
+            if let cachedImage = cache[url] {
+                return cachedImage
+            }
+            
+            // Return existing download task if already in progress
+            if let existingTask = downloadTasks[url] {
+                return try await existingTask.value
+            }
+            
+            // Start new download task
+            let task = Task<UIImage, Error> {
+                let (data, _) = try await URLSession.shared.data(from: URL(string: url)!)
+                guard let image = UIImage(data: data) else {
+                    throw ImageError.invalidData
+                }
+                return image
+            }
+            
+            downloadTasks[url] = task
+            
+            do {
+                let image = try await task.value
+                cache[url] = image
+                downloadTasks.removeValue(forKey: url)
+                return image
+            } catch {
+                downloadTasks.removeValue(forKey: url)
+                throw error
+            }
+        }
+        
+        func clearCache() {
+            cache.removeAll()
+        }
+    }
+    ```
+
+    **24d. DispatchQueue for Traditional GCD Concurrency**
+    When you need more control over execution contexts or are working with non-async code.
+    
+    ```swift
+    // PARALLEL PROCESSING with DispatchQueue
+    func processDataInParallel(data: [String]) {
+        let concurrentQueue = DispatchQueue(label: "com.app.processing", 
+                                          attributes: .concurrent)
+        let group = DispatchGroup()
+        var results: [String] = []
+        let resultsQueue = DispatchQueue(label: "com.app.results") // Serial queue for results
+        
+        for item in data {
+            group.enter()
+            concurrentQueue.async {
+                // Do heavy processing on background thread
+                let processedItem = heavyProcessing(item)
+                
+                // Add result to array on serial queue (thread-safe)
+                resultsQueue.async {
+                    results.append(processedItem)
+                    group.leave()
+                }
+            }
+        }
+        
+        // Wait for all processing to complete
+        group.notify(queue: .main) {
+            print("All processing complete. Results: \(results)")
+        }
+    }
+    
+    // BACKGROUND PROCESSING with main thread updates
+    func downloadAndDisplayImages(urls: [URL]) {
+        let downloadQueue = DispatchQueue(label: "com.app.downloads", 
+                                        attributes: .concurrent)
+        
+        for (index, url) in urls.enumerated() {
+            downloadQueue.async {
+                // Download on background thread
+                if let data = try? Data(contentsOf: url),
+                   let image = UIImage(data: data) {
+                    
+                    // Update UI on main thread
+                    DispatchQueue.main.async {
+                        self.imageViews[index].image = image
+                    }
+                }
+            }
+        }
+    }
+    
+    // COMBINING GCD with async/await
+    func bridgeToAsyncAwait() async -> String {
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global().async {
+                // Some legacy code that uses completion handlers
+                performLegacyOperation { result in
+                    continuation.resume(returning: result)
+                }
+            }
+        }
+    }
+    ```
+
+    **24e. Task Cancellation and Control**
+    Managing and cancelling concurrent operations properly.
+    
+    ```swift
+    // CANCELLABLE TASKS
+    class DataManager {
+        private var currentTask: Task<[Data], Error>?
+        
+        func startDataFetch() {
+            // Cancel any existing task
+            currentTask?.cancel()
+            
+            currentTask = Task {
+                try await fetchLargeDataSet()
+            }
+        }
+        
+        func cancelDataFetch() {
+            currentTask?.cancel()
+            currentTask = nil
+        }
+        
+        private func fetchLargeDataSet() async throws -> [Data] {
+            var allData: [Data] = []
+            
+            for i in 1...1000 {
+                // Check for cancellation regularly
+                try Task.checkCancellation()
+                
+                let data = try await fetchDataChunk(i)
+                allData.append(data)
+                
+                // Alternative: handle cancellation gracefully
+                if Task.isCancelled {
+                    print("Task was cancelled, cleaning up...")
+                    cleanup()
+                    throw CancellationError()
+                }
+            }
+            
+            return allData
+        }
+        
+        private func cleanup() {
+            // Clean up any resources
+        }
+    }
+    
+    // TIMEOUT for async operations
+    func fetchWithTimeout<T>(timeout: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
+        return try await withThrowingTaskGroup(of: T.self) { group in
+            // Add the main operation
+            group.addTask {
+                try await operation()
+            }
+            
+            // Add timeout task
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                throw TimeoutError()
+            }
+            
+            // Return first result and cancel the other
+            let result = try await group.next()!
+            group.cancelAll()
+            return result
+        }
+    }
+    
+    // Usage
+    func fetchUserWithTimeout() async {
+        do {
+            let user = try await fetchWithTimeout(timeout: 5.0) {
+                try await fetchUserData(id: "123")
+            }
+            print("Fetched user: \(user)")
+        } catch is TimeoutError {
+            print("Request timed out")
+        } catch {
+            print("Request failed: \(error)")
+        }
+    }
+    ```
+
+    **24f. Performance Tips for Parallelism**
+    
+    ```swift
+    // DON'T create too many concurrent tasks
+    // BAD: Creates 10,000 tasks
+    func badParallelProcessing(items: [String]) async {
+        await withTaskGroup(of: Void.self) { group in
+            for item in items { // 10,000 items = 10,000 tasks!
+                group.addTask {
+                    await processItem(item)
+                }
+            }
+        }
+    }
+    
+    // GOOD: Limit concurrency using a semaphore or batch processing
+    func goodParallelProcessing(items: [String]) async {
+        let batchSize = 10
+        
+        for batch in items.chunked(into: batchSize) {
+            await withTaskGroup(of: Void.self) { group in
+                for item in batch {
+                    group.addTask {
+                        await processItem(item)
+                    }
+                }
+            }
+        }
+    }
+    
+    // CHOOSE the right tool for the job:
+    // - Use async/await + TaskGroup for async operations
+    // - Use DispatchQueue for CPU-intensive work
+    // - Use actors for shared mutable state
+    // - Use async let for simple parallel operations (2-4 tasks)
+    
+    // CPU-INTENSIVE work should use DispatchQueue
+    func cpuIntensiveWork(data: [Int]) -> [Int] {
+        return data.concurrentMap { value in
+            // Heavy computation on background queue
+            return complexCalculation(value)
+        }
+    }
+    
+    // I/O work should use async/await
+    func ioIntensiveWork(urls: [URL]) async throws -> [Data] {
+        return try await withThrowingTaskGroup(of: Data.self) { group in
+            for url in urls {
+                group.addTask {
+                    let (data, _) = try await URLSession.shared.data(from: url)
+                    return data
+                }
+            }
+            
+            var results: [Data] = []
+            for try await data in group {
+                results.append(data)
+            }
+            return results
+        }
+    }
+    ```
+
+25. `Result` type handles success and failure cleanly.
     ```swift
     func divide(_ a: Double, by b: Double) -> Result<Double, ArithmeticError> {
         guard b != 0 else {
@@ -5871,3 +6295,7 @@ MyApp/
 - Value objects (Color, Currency, EmailAddress)
 - Enumerations with associated data
 - Generic containers (Stack, Queue, Result)
+
+
+
+
