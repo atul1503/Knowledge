@@ -664,15 +664,34 @@ task setup, "Sets up the project":
   exec "cp config/default.conf build/"
 ```
 
-#### NimScript vs. Nim
-- NimScript is interpreted at build time, not compiled.
-- Not all Nim features are available (no FFI, limited OS access).
-- Great for scripting, automation, and project setup.
+#### Calling Other Tasks from a Task
 
-#### Tips
-- Use NimScript for anything you would use a Makefile, shell script, or npm script for.
-- Tasks make it easy to automate repetitive project chores.
-- For complex build logic, you can write separate `.nims` files and include them.
+You can call (invoke) other tasks from within a custom Nimble task using the `exec "nimble <task>"` command. This is useful for composing complex workflows from smaller, reusable tasks.
+
+**Example: Chaining Tasks**
+```nim
+# In your .nimble file:
+task clean, "Removes build artifacts":
+  exec "rm -rf build/"
+
+task setup, "Sets up the project":
+  exec "mkdir -p build"
+  exec "cp config/default.conf build/"
+
+task reset, "Cleans and sets up the project":
+  exec "nimble clean"
+  exec "nimble setup"
+```
+Now, running:
+```bash
+nimble reset
+```
+will first run the `clean` task, then the `setup` task.
+
+**Tips:**
+- You can pass arguments to tasks as well: `exec "nimble greet Alice"`
+- This works recursively, so you can build complex task chains.
+- Each `exec` runs as a separate process, so environment variables may not persist between tasks.
 
 #### More Resources
 - [NimScript documentation](https://nim-lang.org/docs/nims.html)
