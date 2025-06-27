@@ -151,6 +151,234 @@
 3. Create new project: `nimble init`
 4. Dependencies go in `.nimble` file (like `package.json` or `requirements.txt`).
 
+## Nimble: Project Management in Nim
+
+Nimble is Nim's official package manager and project tool. It helps you create, build, and manage Nim projects and their dependencies, similar to npm (JavaScript), pip (Python), or cargo (Rust).
+
+### Creating a New Project
+
+Nimble can create different types of projects for you:
+
+- **Executable (default):**
+  ```bash
+  nimble init myapp
+  # or interactively:
+  nimble init
+  ```
+  This creates a folder `myapp/` with:
+  - `myapp.nimble` (project config)
+  - `src/myapp.nim` (main entrypoint)
+  - `README.md`, `.gitignore`, etc.
+
+- **Library:**
+  ```bash
+  nimble init mylib --type:lib
+  ```
+  This is for code you want others to import.
+
+- **Empty project:**
+  ```bash
+  nimble init myproj --type:none
+  ```
+  Lets you set up everything yourself.
+
+#### Project Structure Example
+```
+myapp/
+├── myapp.nimble      # Project config (like package.json)
+├── src/
+│   └── myapp.nim     # Main entrypoint (for executables)
+├── README.md
+└── ...
+```
+
+### Entrypoint: Where Does My Code Start?
+- For executables: The entrypoint is the `.nim` file named after your project in `src/` (e.g., `src/myapp.nim`).
+- For libraries: You provide modules in `src/` that others can import.
+
+### Installing and Managing Dependencies
+- **Add a dependency:**
+  ```bash
+  nimble install packagename
+  ```
+  This downloads and builds the package, and adds it to your project if you run it inside a nimble project folder.
+
+- **List installed packages:**
+  ```bash
+  nimble list --installed
+  ```
+
+- **Upgrade a package:**
+  ```bash
+  nimble install packagename@latest
+  ```
+
+- **Remove a package:**
+  Edit your `.nimble` file and remove it from the `requires` section, then run:
+  ```bash
+  nimble refresh
+  ```
+
+### The .nimble File: Comprehensive Guide
+
+The `.nimble` file is the heart of your Nim project configuration. It controls how your project is built, what dependencies it has, and how it is distributed. Here are the most common and useful fields and use cases:
+
+#### Basic Fields
+```nim
+# myproject.nimble
+version       = "1.0.0"                # Project version
+author        = "Your Name"
+description   = "A cool Nim project"
+license       = "MIT"
+
+srcDir        = "src"                   # Where your Nim source files live
+bin           = @ ["myproject"]         # Executable(s) to build (for apps)
+requires      = @ ["strutils >= 0.13.0", "httpbeast"]  # Dependencies
+```
+
+#### Library vs Executable
+- **Executable:** Use the `bin` field to specify the main file(s) to build as executables.
+- **Library:** Omit the `bin` field. Your modules in `src/` can be imported by others.
+
+#### Linking C Libraries
+If your project depends on a C library, you can specify linker options:
+```nim
+# Link to the math library (libm)
+# Add this to your .nimble file:
+
+# For all platforms:
+passL = "-lm"
+
+# For platform-specific linking:
+when defined(windows):
+  passL = "-lws2_32"   # Windows Sockets library
+when defined(linux):
+  passL = "-lpthread"  # POSIX threads
+```
+- You can also use `passC` to pass flags to the C compiler.
+
+#### Custom Nimble Tasks
+You can define custom tasks (like scripts) in your `.nimble` file:
+```nim
+# In your .nimble file:
+task hello, "Prints Hello World":
+  echo "Hello from Nimble!"
+```
+Run with:
+```bash
+nimble hello
+```
+
+#### Other Useful Fields
+- `installDirs`: Control where files are installed (for libraries/tools)
+- `skipDirs`: Skip certain directories when building
+- `skipFiles`: Skip specific files
+- `installFiles`: Extra files to install (docs, configs, etc.)
+- `beforescripts`/`afterscripts`: Run commands before/after build
+
+#### Example: Advanced .nimble File
+```nim
+# mytool.nimble
+version       = "0.2.0"
+author        = "Jane Doe"
+description   = "A CLI tool with C library dependency"
+license       = "Apache-2.0"
+
+srcDir        = "src"
+bin           = @ ["mytool"]
+requires      = @ ["cligen >= 1.0.0"]
+
+# Link to zlib (C compression library)
+passL         = "-lz"
+
+# Install README and config file
+installFiles  = @ ["README.md", "config/default.conf"]
+
+# Custom task
+task greet, "Prints a greeting":
+  echo "Greetings from mytool!"
+```
+
+#### Tips
+- You can have multiple `bin` entries for multi-executable projects.
+- Use version constraints in `requires` for reproducible builds.
+- For more, see the [Nimble documentation](https://github.com/nim-lang/nimble#nimble-packages).
+
+### Where Are Dependencies Stored?
+- When you install a dependency, nimble downloads it to a global Nimble package directory (e.g., `~/.nimble/pkgs/`).
+- Your project itself does **not** get a `vendor` or `node_modules` folder by default.
+- When you build or run your project, Nimble makes sure all dependencies are available on the import path.
+
+### How to See and Access Dependencies
+- **See all installed packages:**
+  ```bash
+  nimble list --installed
+  ```
+- **See dependencies for your project:**
+  Check the `requires` field in your `.nimble` file.
+- **Use in code:**
+  Just `import` the module:
+  ```nim
+  import strutils, httpbeast
+  ```
+  Nimble makes sure these are available when you build or run your project.
+
+### Summary Table
+| Task                        | Command or File                |
+|-----------------------------|-------------------------------|
+| Create new project          | `nimble init`                 |
+| Add dependency              | `nimble install packagename`  |
+| List installed packages     | `nimble list --installed`     |
+| Configure project           | Edit `.nimble` file           |
+| Where are dependencies?     | `~/.nimble/pkgs/`             |
+| Entrypoint for executable   | `src/<project>.nim`           |
+
+### Tips
+- You can edit the `.nimble` file directly to add or pin dependency versions.
+- For reproducible builds, use version constraints in `requires`.
+- To use a local package, add a path in the `requires` field: `requires = @ ["../mypkg"]`
+- Nimble also supports hooks for custom build steps (see Nimble docs for advanced usage).
+
+### Where Do Nimble Packages Come From?
+
+- **Official Nimble Package Repository:**
+  - Most packages are published to the official Nimble package index at https://nimble.directory or https://nim-lang.org/nimble.html.
+  - When you run `nimble install packagename`, Nimble fetches the package from this central repository.
+
+- **GitHub and Other Git Repositories:**
+  - You can install packages directly from a Git URL:
+    ```bash
+    nimble install https://github.com/username/repo
+    ```
+  - You can also specify a branch, tag, or commit:
+    ```bash
+    nimble install https://github.com/username/repo@branch
+    nimble install https://github.com/username/repo@v1.2.3
+    nimble install https://github.com/username/repo@commit_hash
+    ```
+
+- **Local Packages:**
+  - You can install a package from a local folder:
+    ```bash
+    nimble install /path/to/local/package
+    ```
+
+- **Searching for Packages:**
+  - Browse or search for packages at https://nimble.directory
+  - Or use the command line:
+    ```bash
+    nimble search keyword
+    ```
+
+- **Summary Table:**
+| Source                | How to install                                      |
+|-----------------------|-----------------------------------------------------|
+| Official repository   | `nimble install packagename`                        |
+| GitHub repo           | `nimble install https://github.com/user/repo`       |
+| Specific branch/tag   | `nimble install https://github.com/user/repo@tag`   |
+| Local folder          | `nimble install /path/to/package`                   |
+| Search for packages   | `nimble search keyword` or visit nimble.directory   |
+
 ## Useful Libraries
 1. `strutils` - string manipulation functions
 2. `sequtils` - sequence/array utilities  
@@ -359,4 +587,94 @@ Remember: Nim's philosophy is "efficiency, expressiveness, elegance". It tries t
    ```
 
 These features were added to make Nim more robust for large-scale development while maintaining its performance characteristics.
+
+### NimScript and Nimble Tasks: Build Automation
+
+NimScript is a subset of Nim that runs at build time. Nimble uses NimScript to let you automate tasks, customize builds, and write scripts directly in your `.nimble` file.
+
+#### What is NimScript?
+- NimScript is Nim code that runs in the Nimble/Nim build environment (not in your final binary).
+- It lets you write logic for build steps, custom tasks, or scripting project setup.
+- You can use most Nim syntax, but some features (like FFI or OS-specific code) may be limited.
+
+#### Custom Tasks in .nimble
+You can define your own tasks in the `.nimble` file. These are like custom commands you can run with Nimble.
+
+**Example: Simple Custom Task**
+```nim
+# In your .nimble file:
+task hello, "Prints Hello World":
+  echo "Hello from Nimble!"
+```
+Run it with:
+```bash
+nimble hello
+```
+
+**Example: Task with Arguments**
+```nim
+task greet, "Greets a user":
+  if paramCount() > 0:
+    echo "Hello, ", paramStr(1), "!"
+  else:
+    echo "Hello, world!"
+```
+Run with:
+```bash
+nimble greet Alice
+```
+
+#### Using NimScript for Build Automation
+You can use NimScript to customize the build process, copy files, generate code, or run shell commands.
+
+**Example: Copy a file before build**
+```nim
+before build:
+  echo "Copying config..."
+  exec "cp config/default.conf build/"
+```
+
+**Example: Generate a file**
+```nim
+before build:
+  let f = open("src/generated.nim", fmWrite)
+  f.writeLine("const generatedValue = 42")
+  f.close()
+```
+
+**Example: Run a shell command after build**
+```nim
+after build:
+  exec "echo Build finished!"
+```
+
+#### Advanced NimScript Usage
+- You can use `exec` to run shell commands (cross-platform: use `cp`/`mv`/`rm` on Unix, `copy`/`move`/`del` on Windows).
+- Use `paramCount()` and `paramStr(i)` to access command-line arguments in tasks.
+- You can import NimScript modules (like `os`, `strutils`, etc.) for more complex logic.
+- You can define multiple tasks in one `.nimble` file.
+
+**Example: Multiple Tasks**
+```nim
+task clean, "Removes build artifacts":
+  exec "rm -rf build/"
+
+task setup, "Sets up the project":
+  exec "mkdir -p build"
+  exec "cp config/default.conf build/"
+```
+
+#### NimScript vs. Nim
+- NimScript is interpreted at build time, not compiled.
+- Not all Nim features are available (no FFI, limited OS access).
+- Great for scripting, automation, and project setup.
+
+#### Tips
+- Use NimScript for anything you would use a Makefile, shell script, or npm script for.
+- Tasks make it easy to automate repetitive project chores.
+- For complex build logic, you can write separate `.nims` files and include them.
+
+#### More Resources
+- [NimScript documentation](https://nim-lang.org/docs/nims.html)
+- [Nimble tasks and scripting](https://github.com/nim-lang/nimble#custom-tasks)
 
