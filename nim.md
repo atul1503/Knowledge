@@ -697,3 +697,67 @@ will first run the `clean` task, then the `setup` task.
 - [NimScript documentation](https://nim-lang.org/docs/nims.html)
 - [Nimble tasks and scripting](https://github.com/nim-lang/nimble#custom-tasks)
 
+### Full Example: Multiple External Dependencies and Build Task
+
+Here's an example of a Nimble project with more than three external dependencies and a custom build task.
+
+#### 1. Project Structure
+```
+myapp/
+├── myapp.nimble
+├── src/
+│   └── myapp.nim
+└── README.md
+```
+
+#### 2. myapp.nimble
+```nim
+# myapp.nimble
+version       = "0.1.0"
+author        = "Your Name"
+description   = "Demo app with multiple dependencies and build task"
+license       = "MIT"
+
+srcDir        = "src"
+bin           = @ ["myapp"]
+requires      = @ [
+  "strutils >= 0.13.0",   # String utilities
+  "httpbeast >= 0.2.0",   # HTTP server
+  "jsony >= 0.2.0",       # JSON parsing
+  "osproc >= 1.0.0"       # OS process utilities
+]
+
+# Custom build task
+task buildapp, "Builds the app using nimble":
+  exec "nimble build -y"
+```
+- `requires` lists four external dependencies from the Nimble repository.
+
+#### 3. src/myapp.nim
+```nim
+import strutils, jsony, osproc
+
+echo "Uppercase: ", "hello world".toUpper()
+
+let jsonStr = "{""name"": ""Nimble"", ""year"": 2025}"
+let data = jsonStr.fromJson(Table[string, JsonNode])
+echo "Parsed JSON: ", data["name"].getStr()
+
+echo "Current process ID: ", getCurrentProcessId()
+```
+
+#### 4. Build the App Using the Task
+From the project root, run:
+```bash
+nimble buildapp
+```
+This will:
+- Ensure all dependencies are installed
+- Build the app using the custom task
+- Output the executable (e.g., `myapp` or `myapp.exe`)
+
+#### Notes
+- You can add as many dependencies as needed in the `requires` field.
+- The code sample uses at least two dependencies (`strutils`, `jsony`, and `osproc`).
+- You can define more tasks for testing, cleaning, etc.
+
