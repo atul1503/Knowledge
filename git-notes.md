@@ -419,4 +419,38 @@ Notes:
 
     
 
+24. **Working with remote branches and linking them to local:**
+    ```bash
+    # See all remote branches
+    git branch -r                   # -r shows only remote branches
+    
+    # Create local branch from remote and link them (tracking)
+    git checkout -b feature-local origin/feature-remote    # Creates and switches to new local branch
+    
+    # Alternative way to create tracking branch
+    git branch --track feature-local origin/feature-remote
+    git checkout feature-local
+    
+    # Set up tracking for existing local branch
+    git branch -u origin/feature-remote feature-local      # -u or --set-upstream-to
+    
+    # Verify tracking relationships
+    git branch -vv                  # Shows which remote branches are tracked
+    
+    # Push local branch and set up tracking in one command
+    git push -u origin feature-local    # -u or --set-upstream
+    ```
+
+    **What each command does:**
+    - `branch -r` lists all remote branches so you can see what's available
+    - `checkout -b` creates new local branch and links it to remote in one step
+    - `branch --track` creates the link without switching to the branch
+    - `branch -u` sets up tracking for an existing local branch
+    - `branch -vv` shows which local branches are tracking which remote branches
+    - `push -u` both pushes your branch and sets up tracking for future pushes
+
+    **Use this when:**
+    - You need to work on a feature that exists on remote
+    - You want to ensure your local branch pushes to the correct remote branch
+    - You're setting up a new feature branch that needs to be shared with team
 

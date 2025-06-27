@@ -1587,6 +1587,10 @@ Notes:
         // Start all three operations in parallel
         async let user = fetchCurrentUser()
         async let notifications = fetchNotifications()
+        // What's special about async let?
+        // It lets you start an async operation immediately and in parallel,
+        // without waiting for it to finish before moving on.
+        // The operation runs concurrently, and you can await its result later.
         async let stats = fetchUserStats()
         
         // Wait for all to complete (they run concurrently)
