@@ -102,6 +102,71 @@
    };
    ```
 
+#### `var`, `let`, and `const` – What's the Difference?
+
+JavaScript gives you three ways to declare variables: `var`, `let`, and `const`. They look similar, but behave very differently! Here's what you need to know:
+
+**Quick summary:**
+- `var`: *Old way* – function-scoped, hoisted, avoid using in modern code.
+- `let`: *Modern way* – block-scoped, can be reassigned.
+- `const`: *Modern way* – block-scoped, cannot be reassigned (but object contents can still change!).
+
+**Comparison Table:**
+
+| Keyword | Scope         | Hoisting         | Reassign? | Redeclare? | Use for...                |
+|---------|--------------|------------------|-----------|------------|---------------------------|
+| var     | Function     | Yes (initialized as `undefined`) | Yes       | Yes (in same scope) | Old code, avoid in new code |
+| let     | Block        | Yes (but not initialized, TDZ)   | Yes       | No         | Variables that change      |
+| const   | Block        | Yes (but not initialized, TDZ)   | No        | No         | Constants (no reassignment)|
+
+**Examples:**
+
+```javascript
+// var: function-scoped, hoisted, can be redeclared
+function demoVar() {
+    if (true) {
+        var x = 10;
+    }
+    console.log(x); // 10 (var is visible outside the block!)
+}
+demoVar();
+
+// let: block-scoped, not hoisted to usable value (TDZ)
+function demoLet() {
+    if (true) {
+        let y = 20;
+        console.log(y); // 20
+    }
+    // console.log(y); // ReferenceError: y is not defined
+}
+demoLet();
+
+// const: block-scoped, must be assigned at declaration, cannot be reassigned
+function demoConst() {
+    const z = 30;
+    // z = 40; // TypeError: Assignment to constant variable
+    const arr = [1, 2, 3];
+    arr.push(4); // Allowed! (array contents can change)
+    console.log(arr); // [1, 2, 3, 4]
+}
+demoConst();
+```
+
+**Gotchas and Best Practices:**
+- `var` is function-scoped and hoisted. It can lead to bugs because it's visible everywhere in the function, even before it's declared. Avoid using `var` in modern code.
+- `let` and `const` are block-scoped (like variables in Python, Java, etc.). They are only visible inside the `{}` block where you declare them.
+- `let` can be updated, but not redeclared in the same scope.
+- `const` must be assigned a value when declared, and cannot be reassigned. But if it's an object or array, you *can* still change the contents!
+- Both `let` and `const` have a "temporal dead zone" (TDZ): you can't use them before the line where they're declared.
+- **Default to `const`**. Use `let` only if you know the variable will change. You almost never need `var`.
+
+**In short:**
+- Use `const` for everything by default.
+- Use `let` if you need to reassign.
+- Avoid `var` unless you have a specific reason (like legacy code).
+
+---
+
 ### Common Pitfalls
 
 5. **Array and object comparison** - Objects are compared by reference, not value.
