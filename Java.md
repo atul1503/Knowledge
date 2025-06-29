@@ -129,6 +129,216 @@ Java is a high-level, object-oriented programming language designed to be platfo
   ```
 - **Access Modifiers:** `public`, `private`, `protected`, (default)
 
+## OOP Concepts and Design Patterns in Java
+
+### Core OOP Concepts
+
+1. **Encapsulation**
+   - Hiding internal state and requiring all interaction to be performed through methods.
+   - Use `private` fields and `public` getters/setters.
+   ```java
+   public class Account {
+       private double balance;
+       public double getBalance() { return balance; }
+       public void deposit(double amount) { balance += amount; }
+   }
+   ```
+
+2. **Inheritance**
+   - Allows a class to inherit fields and methods from another class.
+   - Use `extends` keyword.
+   ```java
+   class Animal { void speak() { System.out.println("Animal sound"); } }
+   class Dog extends Animal { void speak() { System.out.println("Woof"); } }
+   ```
+
+3. **Polymorphism**
+   - One interface, many implementations. Enables using a superclass reference for subclass objects.
+   - Achieved via method overriding and interfaces.
+   ```java
+   Animal a = new Dog();
+   a.speak(); // Prints "Woof"
+   ```
+
+4. **Abstraction**
+   - Hiding complex implementation details and showing only the necessary features.
+   - Use `abstract` classes and interfaces.
+   ```java
+   abstract class Shape {
+       abstract double area();
+   }
+   class Square extends Shape {
+       double side;
+       Square(double s) { side = s; }
+       double area() { return side * side; }
+   }
+   ```
+
+5. **Interfaces and Abstract Classes**
+   - **Interface:** Only method signatures, no implementation (until Java 8 default methods).
+   - **Abstract class:** Can have both abstract and concrete methods.
+   ```java
+   interface Flyable { void fly(); }
+   abstract class Bird implements Flyable {
+       public abstract void fly();
+       public void eat() { System.out.println("Eating"); }
+   }
+   ```
+
+6. **Method Overloading and Overriding**
+   - **Overloading:** Same method name, different parameters (compile-time polymorphism).
+   - **Overriding:** Subclass provides specific implementation for a superclass method (runtime polymorphism).
+   ```java
+   class MathUtil {
+       int add(int a, int b) { return a + b; }
+       double add(double a, double b) { return a + b; } // Overloading
+   }
+   class Parent { void show() { System.out.println("Parent"); } }
+   class Child extends Parent { void show() { System.out.println("Child"); } } // Overriding
+   ```
+
+7. **Other OOP Features in Java**
+   - **final:** Prevents inheritance or modification.
+     ```java
+     final class Constants { static final double PI = 3.14; }
+     ```
+   - **static:** Belongs to the class, not instances.
+     ```java
+     class Counter { static int count = 0; }
+     ```
+   - **Inner Classes:** Classes defined within another class.
+     ```java
+     class Outer {
+         class Inner { void hello() { System.out.println("Hi"); } }
+     }
+     ```
+   - **Anonymous Classes:** Inline implementation of interfaces or abstract classes.
+     ```java
+     Runnable r = new Runnable() { public void run() { System.out.println("Run"); } };
+     ```
+   - **Default and Static Methods in Interfaces (Java 8+):**
+     ```java
+     interface MyInterface {
+         default void hello() { System.out.println("Hello"); }
+         static void hi() { System.out.println("Hi"); }
+     }
+     ```
+
+### Common Design Patterns in Java
+
+1. **Singleton Pattern**
+   - Ensures only one instance of a class exists.
+   ```java
+   class Singleton {
+       private static Singleton instance;
+       private Singleton() {}
+       public static Singleton getInstance() {
+           if (instance == null) instance = new Singleton();
+           return instance;
+       }
+   }
+   ```
+
+2. **Factory Pattern**
+   - Creates objects without specifying the exact class.
+   ```java
+   interface Animal { void speak(); }
+   class Dog implements Animal { public void speak() { System.out.println("Woof"); } }
+   class Cat implements Animal { public void speak() { System.out.println("Meow"); } }
+   class AnimalFactory {
+       public static Animal getAnimal(String type) {
+           if (type.equals("dog")) return new Dog();
+           else return new Cat();
+       }
+   }
+   // Usage: Animal a = AnimalFactory.getAnimal("dog");
+   ```
+
+3. **Observer Pattern**
+   - One-to-many dependency. When one object changes, all dependents are notified.
+   ```java
+   import java.util.*;
+   interface Observer { void update(String msg); }
+   class Subject {
+       private List<Observer> observers = new ArrayList<>();
+       public void addObserver(Observer o) { observers.add(o); }
+       public void notifyAll(String msg) {
+           for (Observer o : observers) o.update(msg);
+       }
+   }
+   class User implements Observer {
+       public void update(String msg) { System.out.println("Received: " + msg); }
+   }
+   // Usage: Subject s = new Subject(); s.addObserver(new User()); s.notifyAll("Hello");
+   ```
+
+4. **Strategy Pattern**
+   - Selects an algorithm at runtime.
+   ```java
+   interface SortStrategy { void sort(int[] arr); }
+   class BubbleSort implements SortStrategy {
+       public void sort(int[] arr) { /* bubble sort */ }
+   }
+   class QuickSort implements SortStrategy {
+       public void sort(int[] arr) { /* quick sort */ }
+   }
+   class Sorter {
+       private SortStrategy strategy;
+       public Sorter(SortStrategy s) { strategy = s; }
+       public void sort(int[] arr) { strategy.sort(arr); }
+   }
+   // Usage: Sorter s = new Sorter(new QuickSort()); s.sort(arr);
+   ```
+
+5. **Decorator Pattern**
+   - Adds new behavior to objects dynamically.
+   ```java
+   interface Coffee { String getDescription(); }
+   class SimpleCoffee implements Coffee { public String getDescription() { return "Simple Coffee"; } }
+   class MilkDecorator implements Coffee {
+       private Coffee coffee;
+       public MilkDecorator(Coffee c) { coffee = c; }
+       public String getDescription() { return coffee.getDescription() + ", Milk"; }
+   }
+   // Usage: Coffee c = new MilkDecorator(new SimpleCoffee());
+   ```
+
+6. **Adapter Pattern**
+   - Allows incompatible interfaces to work together.
+   ```java
+   interface Target { void request(); }
+   class Adaptee { void specificRequest() { System.out.println("Specific"); } }
+   class Adapter implements Target {
+       private Adaptee adaptee;
+       public Adapter(Adaptee a) { adaptee = a; }
+       public void request() { adaptee.specificRequest(); }
+   }
+   // Usage: Target t = new Adapter(new Adaptee()); t.request();
+   ```
+
+7. **Command Pattern**
+   - Encapsulates a request as an object.
+   ```java
+   interface Command { void execute(); }
+   class LightOnCommand implements Command {
+       public void execute() { System.out.println("Light On"); }
+   }
+   class Remote {
+       private Command command;
+       public void setCommand(Command c) { command = c; }
+       public void pressButton() { command.execute(); }
+   }
+   // Usage: Remote r = new Remote(); r.setCommand(new LightOnCommand()); r.pressButton();
+   ```
+
+8. **Other Patterns**
+   - **Builder:** For complex object construction.
+   - **Prototype:** Cloning objects.
+   - **Facade:** Simplifies complex subsystems.
+   - **Proxy:** Controls access to another object.
+
+**Tip:** Use design patterns to solve common problems in a reusable way. Don't overuse them—choose patterns that fit your problem.
+
 ## Collections
 
 - **Array:** Fixed size.
