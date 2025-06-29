@@ -14,6 +14,7 @@
 11. [Spring Cloud](#spring-cloud)
 12. [Database Setup (Postgres Example)](#database-setup-postgres-example)
 13. [Running Spring Boot JARs](#running-spring-boot-jars)
+14. [Running Code at Different Stages in Spring Boot](#running-code-at-different-stages-in-spring-boot)
 
 ---
 
@@ -893,5 +894,130 @@ To run a Spring Boot JAR:
 java -jar myapp.jar
 ```
 Make sure your project uses the Spring Boot Maven plugin to package the JAR.
+
+---
+
+## Running Code at Different Stages in Spring Boot
+
+Spring Boot provides several ways to run code at specific points in the application lifecycle, after certain beans are created, or on a schedule. Here's how you can do it:
+
+### 1. At Application Startup
+- **CommandLineRunner** and **ApplicationRunner**: Implement these interfaces to run code after the application context is loaded.
+  ```java
+  @SpringBootApplication
+  public class StartupApp implements CommandLineRunner {
+      public static void main(String[] args) {
+          SpringApplication.run(StartupApp.class, args);
+      }
+      @Override
+      public void run(String... args) {
+          System.out.println("App started!");
+      }
+  }
+  ```
+- **@PostConstruct**: Runs after bean creation and dependency injection.
+  ```java
+  @Component
+  public class MyBean {
+      @PostConstruct
+      public void init() {
+          System.out.println("Bean initialized!");
+      }
+  }
+  ```
+- **ApplicationListener**: Listen for context events (e.g., ContextRefreshedEvent).
+  ```java
+  @Component
+  public class StartupListener implements ApplicationListener<ContextRefreshedEvent> {
+      @Override
+      public void onApplicationEvent(ContextRefreshedEvent event) {
+          System.out.println("Context refreshed!");
+      }
+  }
+  ```
+
+### 2. After Creating a Specific Bean
+- **@PostConstruct**: Method in the bean runs after it's created and dependencies are injected.
+- **InitializingBean**: Implement `afterPropertiesSet()` for custom init logic.
+- **BeanPostProcessor**: For advanced use, intercept bean creation for all or specific beans.
+  ```java
+  @Component
+  public class MyBeanPostProcessor implements BeanPostProcessor {
+      @Override
+      public Object postProcessAfterInitialization(Object bean, String beanName) {
+          if (bean instanceof MySpecialBean) {
+              System.out.println("MySpecialBean is ready!");
+          }
+          return bean;
+      }
+  }
+  ```
+
+### 3. Periodically (Scheduled Tasks)
+- **@Scheduled**: Run code on a fixed schedule. Enable with `@EnableScheduling` on a config class.
+  ```java
+  @Component
+  public class ScheduledTask {
+      @Scheduled(fixedRate = 5000) // every 5 seconds
+      public void doSomething() {
+          System.out.println("Running scheduled task");
+      }
+  }
+  // In your main class or config:
+  // @SpringBootApplication
+  // @EnableScheduling
+  ```
+
+### 4. On Application Shutdown
+- **@PreDestroy**: Runs before bean is destroyed (on shutdown).
+  ```java
+  @Component
+  public class MyBean {
+      @PreDestroy
+      public void cleanup() {
+          System.out.println("Cleaning up before shutdown");
+      }
+  }
+  ```
+- **DisposableBean**: Implement `destroy()` for custom shutdown logic.
+- **Shutdown hooks**: Register a JVM shutdown hook if you need to run code at JVM exit.
+  ```java
+  @SpringBootApplication
+  public class ShutdownApp {
+      public static void main(String[] args) {
+          SpringApplication app = new SpringApplication(ShutdownApp.class);
+          app.addListeners((ApplicationListener<ContextClosedEvent>) event -> {
+              System.out.println("Context is closing!");
+          });
+          app.run(args);
+      }
+  }
+  ```
+
+### 5. On Custom Events
+- **Publish and listen to custom events**:
+  ```java
+  // Define an event
+  public class MyCustomEvent extends ApplicationEvent {
+      public MyCustomEvent(Object source) { super(source); }
+  }
+  // Publish the event
+  @Component
+  public class EventPublisher {
+      @Autowired
+      private ApplicationEventPublisher publisher;
+      public void publish() {
+          publisher.publishEvent(new MyCustomEvent(this));
+      }
+  }
+  // Listen for the event
+  @Component
+  public class MyEventListener {
+      @EventListener
+      public void handle(MyCustomEvent event) {
+          System.out.println("Custom event received!");
+      }
+  }
+  ```
 
 ---
