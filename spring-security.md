@@ -8,11 +8,12 @@
 5. [Core Spring Concepts](#core-spring-concepts)
 6. [Declaring Beans and Dependency Injection in Spring Boot](#declaring-beans-and-dependency-injection-in-spring-boot)
 7. [Bean Scopes and Lifecycles in Spring Boot](#bean-scopes-and-lifecycles-in-spring-boot)
-8. [Spring Data (JPA)](#spring-data-jpa)
-9. [Spring Security (with JWT & HTTPS)](#spring-security-with-jwt--https)
-10. [Spring Cloud](#spring-cloud)
-11. [Database Setup (Postgres Example)](#database-setup-postgres-example)
-12. [Running Spring Boot JARs](#running-spring-boot-jars)
+8. [Types of Applications in Spring Boot](#types-of-applications-in-spring-boot)
+9. [Spring Data (JPA)](#spring-data-jpa)
+10. [Spring Security (with JWT & HTTPS)](#spring-security-with-jwt--https)
+11. [Spring Cloud](#spring-cloud)
+12. [Database Setup (Postgres Example)](#database-setup-postgres-example)
+13. [Running Spring Boot JARs](#running-spring-boot-jars)
 
 ---
 
@@ -230,6 +231,81 @@ Spring Boot DevTools enables hot reloading and developer-friendly features. Add 
 </dependency>
 ```
 
+### How Auto-Configuration Works in Spring Boot
+
+Spring Boot's auto-configuration is a powerful feature that automatically sets up beans and configuration for you, based on what's on the classpath and your `application.properties` settings.
+
+### What is Auto-Configuration?
+- Spring Boot scans your dependencies (classpath) and, if it finds certain libraries, it automatically configures beans for you.
+- It uses many `@Conditional...` annotations to only create beans if certain classes are present or certain properties are set.
+- You can always override any auto-configured bean by defining your own bean of the same type or name.
+
+### Example: JPA Auto-Configuration
+Suppose you add this to your `pom.xml`:
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-data-jpa</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.postgresql</groupId>
+  <artifactId>postgresql</artifactId>
+</dependency>
+```
+
+And in your `application.properties`:
+```
+spring.datasource.url=jdbc:postgresql://localhost:5432/mydb
+spring.datasource.username=myuser
+spring.datasource.password=mypassword
+spring.jpa.hibernate.ddl-auto=update
+```
+
+**What happens?**
+- Spring Boot sees `spring-boot-starter-data-jpa` and the Postgres driver on the classpath.
+- It auto-configures:
+  - A `DataSource` bean (database connection pool)
+  - An `EntityManagerFactory` bean (for JPA/Hibernate)
+  - A `PlatformTransactionManager` bean
+  - JPA repositories (if you have interfaces extending `JpaRepository`)
+- You don't need to write any configuration code for these beans—they're created automatically.
+
+### How to See Auto-Configuration
+- Run your app with `--debug` or set `debug=true` in `application.properties` to see a report of which auto-configurations were applied or not.
+- Example output:
+  ```
+  ==========================
+  AUTO-CONFIGURATION REPORT
+  ==========================
+  Positive matches:
+  - DataSourceAutoConfiguration matched
+  - HibernateJpaAutoConfiguration matched
+  ...
+  Negative matches:
+  - MongoAutoConfiguration did not match
+  ...
+  ```
+
+### How to Override Auto-Configuration
+- If you define your own bean of the same type (e.g., a custom `DataSource`), Spring Boot will use yours instead of the auto-configured one.
+- You can also use properties to customize most auto-configured beans (see the [Spring Boot docs](https://docs.spring.io/spring-boot/docs/current/reference/html/application-properties.html)).
+
+**Example: Custom DataSource**
+```java
+@Configuration
+public class MyDbConfig {
+    @Bean
+    public DataSource dataSource() {
+        // create and return your own DataSource
+    }
+}
+```
+
+### Summary
+- Auto-configuration saves you from writing boilerplate config.
+- It's based on what's on the classpath and your properties.
+- You can always override or customize it as needed.
+
 ---
 
 ## Declaring Beans and Dependency Injection in Spring Boot
@@ -419,6 +495,186 @@ public class ExampleBean implements InitializingBean, DisposableBean {
 | session       | On session start    | At session end         | Yes                | Yes                          |
 | application   | On context startup  | On context shutdown    | Yes                | Yes                          |
 | websocket     | On WebSocket connect| On WebSocket disconnect| Yes                | Yes                          |
+
+---
+
+## Types of Applications in Spring Boot
+
+Spring Boot can be used to build several types of applications, each suited for different use cases. Here are the main types, with full examples:
+
+### 1. Web Applications (Servlet-based, REST APIs, MVC)
+**What:** Traditional web apps using the Servlet API, RESTful APIs, or MVC (Model-View-Controller) pattern.
+
+**When to use:** When you need to serve web pages, build REST APIs, or handle HTTP requests synchronously.
+
+**How Spring Boot supports it:**
+- Use `spring-boot-starter-web` for embedded Tomcat/Jetty/Undertow, DispatcherServlet, REST controllers, and MVC.
+
+**Example: Minimal REST API**
+```java
+// pom.xml dependency:
+// <dependency>
+//   <groupId>org.springframework.boot</groupId>
+//   <artifactId>spring-boot-starter-web</artifactId>
+// </dependency>
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@SpringBootApplication
+public class WebApp {
+    public static void main(String[] args) {
+        SpringApplication.run(WebApp.class, args);
+    }
+}
+
+@RestController
+class HelloController {
+    @GetMapping("/hello")
+    public String hello() {
+        return "Hello, World!";
+    }
+}
+```
+Run with `java -jar app.jar` and visit `http://localhost:8080/hello`.
+
+---
+
+### 2. Reactive Applications (WebFlux, Non-blocking)
+**What:** Applications using non-blocking, asynchronous programming for high scalability (handles many concurrent connections efficiently).
+
+**When to use:** For real-time apps, streaming, or when you need to handle thousands of concurrent users with minimal threads (e.g., chat, IoT, streaming APIs).
+
+**How Spring Boot supports it:**
+- Use `spring-boot-starter-webflux` for reactive programming with Project Reactor.
+
+**Example: Minimal Reactive REST API**
+```java
+// pom.xml dependency:
+// <dependency>
+//   <groupId>org.springframework.boot</groupId>
+//   <artifactId>spring-boot-starter-webflux</artifactId>
+// </dependency>
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Mono;
+
+@SpringBootApplication
+public class ReactiveApp {
+    public static void main(String[] args) {
+        SpringApplication.run(ReactiveApp.class, args);
+    }
+}
+
+@RestController
+class ReactiveController {
+    @GetMapping("/reactive-hello")
+    public Mono<String> hello() {
+        return Mono.just("Hello, Reactive World!");
+    }
+}
+```
+Run and visit `http://localhost:8080/reactive-hello`.
+
+---
+
+### 3. CLI Applications (Command-line, Batch Jobs)
+**What:** Applications that run from the command line, perform background processing, or execute batch jobs (no web server).
+
+**When to use:** For automation, scheduled jobs, ETL, data processing, or any task that doesn't need to serve HTTP requests.
+
+**How Spring Boot supports it:**
+- Use `spring-boot-starter` (no web dependency) or `spring-boot-starter-batch` for batch jobs.
+- Implement `CommandLineRunner` or `ApplicationRunner` interfaces for startup logic.
+
+**Example: Minimal CLI App**
+```java
+// pom.xml dependency:
+// <dependency>
+//   <groupId>org.springframework.boot</groupId>
+//   <artifactId>spring-boot-starter</artifactId>
+// </dependency>
+
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class CliApp implements CommandLineRunner {
+    public static void main(String[] args) {
+        SpringApplication.run(CliApp.class, args);
+    }
+
+    @Override
+    public void run(String... args) {
+        System.out.println("Hello from CLI app!");
+        // Do your batch/automation logic here
+    }
+}
+```
+Run with `java -jar app.jar` and see output in the terminal.
+
+---
+
+### 4. Applications Using AOP (Aspect-Oriented Programming)
+**What:** Applications that use AOP to handle cross-cutting concerns (logging, security, transactions, etc.)
+
+**When to use:** When you want to separate concerns like logging, security, or transactions from business logic.
+
+**How Spring Boot supports it:**
+- Use `spring-boot-starter-aop` for AOP support.
+
+**Example: Logging Aspect**
+```java
+// pom.xml dependency:
+// <dependency>
+//   <groupId>org.springframework.boot</groupId>
+//   <artifactId>spring-boot-starter-aop</artifactId>
+// </dependency>
+// <dependency>
+//   <groupId>org.springframework.boot</groupId>
+//   <artifactId>spring-boot-starter-web</artifactId>
+// </dependency>
+
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.AfterReturning;
+import org.aspectj.lang.annotation.Aspect;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@SpringBootApplication
+public class AopApp {
+    public static void main(String[] args) {
+        SpringApplication.run(AopApp.class, args);
+    }
+}
+
+@RestController
+class DemoController {
+    @GetMapping("/aop-hello")
+    public String hello() {
+        return "Hello with AOP!";
+    }
+}
+
+@Aspect
+@Component
+class LoggingAspect {
+    @AfterReturning("execution(* DemoController.*(..))")
+    public void logAfter(JoinPoint joinPoint) {
+        System.out.println("Method executed: " + joinPoint.getSignature().getName());
+    }
+}
+```
+Run and visit `http://localhost:8080/aop-hello`—check the console for log output after the endpoint is called.
 
 ---
 
