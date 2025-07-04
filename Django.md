@@ -58,11 +58,2801 @@ Notes:
 
 38. `io` library provides varios kinds of streams. `io.BytesIO` you provide the `io.StringIO` uses streams to write things down. Use `BufferedReader` and `BufferedWriter` with file as `with` to write or read bytes. Buffered writer contrcutor accepts file object. 
 
+# Django Models - Complete Guide
+
+## Model Definition and Fields
+
+39. **Django Models basics** - Models define the structure of your database tables. Each model class represents a database table, and each attribute represents a database field.
+
+    ```python
+    # models.py
+    from django.db import models
+    from django.contrib.auth.models import User
+    from django.utils import timezone
+    
+    class Category(models.Model):
+        name = models.CharField(max_length=100, unique=True)
+        description = models.TextField(blank=True)
+        created_at = models.DateTimeField(auto_now_add=True)
+        updated_at = models.DateTimeField(auto_now=True)
+        is_active = models.BooleanField(default=True)
+        
+        class Meta:
+            verbose_name_plural = "Categories"
+            ordering = ['name']
+            
+        def __str__(self):
+            return self.name
+    
+    class Product(models.Model):
+        name = models.CharField(max_length=200)
+        description = models.TextField()
+        price = models.DecimalField(max_digits=10, decimal_places=2)
+        category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
+        created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+        created_at = models.DateTimeField(auto_now_add=True)
+        updated_at = models.DateTimeField(auto_now=True)
+        
+        class Meta:
+            ordering = ['-created_at']
+            
+        def __str__(self):
+            return self.name
+    ```
+
+40. **Common field types** - Choose the right field type for your data to ensure proper validation and database optimization.
+
+    ```python
+    class ExampleModel(models.Model):
+        # Text fields
+        char_field = models.CharField(max_length=100)           # Short text, required max_length
+        text_field = models.TextField()                         # Long text, no length limit
+        slug_field = models.SlugField(max_length=100)          # URL-friendly text
+        email_field = models.EmailField()                      # Email validation
+        url_field = models.URLField()                          # URL validation
+        
+        # Number fields
+        integer_field = models.IntegerField()                  # Integer numbers
+        decimal_field = models.DecimalField(max_digits=10, decimal_places=2)  # Precise decimals
+        float_field = models.FloatField()                      # Floating point numbers
+        
+        # Date/time fields
+        date_field = models.DateField()                        # Date only
+        datetime_field = models.DateTimeField()               # Date and time
+        time_field = models.TimeField()                        # Time only
+        auto_now_add = models.DateTimeField(auto_now_add=True) # Set once on creation
+        auto_now = models.DateTimeField(auto_now=True)         # Update every save
+        
+        # Boolean fields
+        boolean_field = models.BooleanField()                  # True/False, required
+        null_boolean = models.BooleanField(null=True, blank=True)  # True/False/None
+        
+        # File fields
+        file_field = models.FileField(upload_to='uploads/')    # Any file
+        image_field = models.ImageField(upload_to='images/')   # Image files only
+        
+        # Choice fields
+        STATUS_CHOICES = [
+            ('draft', 'Draft'),
+            ('published', 'Published'),
+            ('archived', 'Archived'),
+        ]
+        status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+        
+        # JSON field (PostgreSQL, MySQL 5.7+)
+        json_field = models.JSONField(default=dict, blank=True)
+    ```
+
+41. **Model relationships** - Define how models relate to each other using ForeignKey, OneToOneField, and ManyToManyField.
+
+    ```python
+    # One-to-Many relationship (ForeignKey)
+    class Author(models.Model):
+        name = models.CharField(max_length=100)
+        email = models.EmailField()
+        
+        def __str__(self):
+            return self.name
+    
+    class Book(models.Model):
+        title = models.CharField(max_length=200)
+        author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name='books')
+        published_date = models.DateField()
+        
+        def __str__(self):
+            return self.title
+    
+    # One-to-One relationship
+    class UserProfile(models.Model):
+        user = models.OneToOneField(User, on_delete=models.CASCADE)
+        bio = models.TextField(max_length=500, blank=True)
+        location = models.CharField(max_length=30, blank=True)
+        birth_date = models.DateField(null=True, blank=True)
+        
+        def __str__(self):
+            return f"{self.user.username}'s profile"
+    
+    # Many-to-Many relationship
+    class Tag(models.Model):
+        name = models.CharField(max_length=50, unique=True)
+        
+        def __str__(self):
+            return self.name
+    
+    class Article(models.Model):
+        title = models.CharField(max_length=200)
+        content = models.TextField()
+        tags = models.ManyToManyField(Tag, related_name='articles', blank=True)
+        author = models.ForeignKey(User, on_delete=models.CASCADE)
+        
+        def __str__(self):
+            return self.title
+    ```
+
+42. **Model methods and properties** - Add custom methods and properties to your models for business logic.
+
+    ```python
+    class Product(models.Model):
+        name = models.CharField(max_length=200)
+        price = models.DecimalField(max_digits=10, decimal_places=2)
+        cost = models.DecimalField(max_digits=10, decimal_places=2)
+        created_at = models.DateTimeField(auto_now_add=True)
+        
+        def __str__(self):
+            return self.name
+        
+        # Custom methods
+        def get_profit_margin(self):
+            """Calculate profit margin as percentage"""
+            if self.cost > 0:
+                return ((self.price - self.cost) / self.cost) * 100
+            return 0
+        
+        def is_recently_created(self):
+            """Check if product was created in the last 30 days"""
+            from datetime import datetime, timedelta
+            return self.created_at >= timezone.now() - timedelta(days=30)
+        
+        # Properties
+        @property
+        def profit(self):
+            """Calculate absolute profit"""
+            return self.price - self.cost
+        
+        @property
+        def formatted_price(self):
+            """Return price formatted as currency"""
+            return f"${self.price:.2f}"
+        
+        # Class methods
+        @classmethod
+        def get_expensive_products(cls, min_price=100):
+            """Get products above a certain price"""
+            return cls.objects.filter(price__gte=min_price)
+        
+        # Save method override
+        def save(self, *args, **kwargs):
+            # Custom logic before saving
+            if not self.slug:
+                self.slug = self.name.lower().replace(' ', '-')
+            super().save(*args, **kwargs)
+    ```
+
+## Django ORM - Querying Data
+
+43. **Basic queries** - Essential ORM operations for retrieving data from the database.
+
+    ```python
+    # Get all objects
+    products = Product.objects.all()
+    
+    # Get single object
+    product = Product.objects.get(id=1)                    # Raises DoesNotExist if not found
+    product = Product.objects.filter(id=1).first()        # Returns None if not found
+    
+    # Filter objects
+    active_products = Product.objects.filter(is_active=True)
+    expensive_products = Product.objects.filter(price__gte=100)
+    recent_products = Product.objects.filter(created_at__gte=timezone.now() - timedelta(days=7))
+    
+    # Exclude objects
+    not_electronics = Product.objects.exclude(category__name='Electronics')
+    
+    # Order objects
+    products_by_price = Product.objects.order_by('price')           # Ascending
+    products_by_price_desc = Product.objects.order_by('-price')     # Descending
+    products_multi_order = Product.objects.order_by('category', '-price')  # Multiple fields
+    
+    # Limit results
+    first_10_products = Product.objects.all()[:10]
+    products_5_to_15 = Product.objects.all()[5:15]
+    
+    # Check if objects exist
+    has_products = Product.objects.exists()
+    has_expensive_products = Product.objects.filter(price__gte=1000).exists()
+    
+    # Count objects
+    total_products = Product.objects.count()
+    expensive_count = Product.objects.filter(price__gte=100).count()
+    ```
+
+44. **Advanced filtering with field lookups** - Use Django's powerful field lookup system for complex queries.
+
+    ```python
+    # Text field lookups
+    Product.objects.filter(name__contains='laptop')           # Case-sensitive contains
+    Product.objects.filter(name__icontains='laptop')          # Case-insensitive contains
+    Product.objects.filter(name__startswith='Apple')          # Starts with
+    Product.objects.filter(name__endswith='Pro')              # Ends with
+    Product.objects.filter(name__exact='MacBook Pro')         # Exact match
+    Product.objects.filter(name__iexact='macbook pro')        # Case-insensitive exact
+    Product.objects.filter(name__regex=r'^Apple.*Pro$')       # Regular expression
+    
+    # Number field lookups
+    Product.objects.filter(price__lt=100)                     # Less than
+    Product.objects.filter(price__lte=100)                    # Less than or equal
+    Product.objects.filter(price__gt=100)                     # Greater than
+    Product.objects.filter(price__gte=100)                    # Greater than or equal
+    Product.objects.filter(price__range=(50, 200))            # Between values
+    
+    # Date field lookups
+    Product.objects.filter(created_at__year=2023)             # Specific year
+    Product.objects.filter(created_at__month=12)              # Specific month
+    Product.objects.filter(created_at__day=25)                # Specific day
+    Product.objects.filter(created_at__week_day=1)            # Day of week (1=Sunday)
+    Product.objects.filter(created_at__date=timezone.now().date())  # Specific date
+    
+    # Null/empty lookups
+    Product.objects.filter(description__isnull=True)          # NULL values
+    Product.objects.filter(description__isnull=False)         # NOT NULL values
+    Product.objects.filter(name__in=['iPhone', 'iPad'])       # In list
+    Product.objects.exclude(name__in=['iPhone', 'iPad'])      # Not in list
+    ```
+
+45. **Complex queries with Q objects** - Combine multiple conditions with AND, OR, and NOT logic.
+
+    ```python
+    from django.db.models import Q
+    
+    # OR conditions
+    expensive_or_popular = Product.objects.filter(
+        Q(price__gte=1000) | Q(views__gte=10000)
+    )
+    
+    # AND conditions (default behavior, but explicit)
+    expensive_and_popular = Product.objects.filter(
+        Q(price__gte=1000) & Q(views__gte=10000)
+    )
+    
+    # NOT conditions
+    not_expensive = Product.objects.filter(~Q(price__gte=1000))
+    
+    # Complex combinations
+    complex_query = Product.objects.filter(
+        Q(category__name='Electronics') & 
+        (Q(price__lt=100) | Q(price__gt=1000)) &
+        ~Q(name__contains='Refurbished')
+    )
+    
+    # Dynamic query building
+    def search_products(name=None, min_price=None, max_price=None, category=None):
+        query = Q()
+        
+        if name:
+            query &= Q(name__icontains=name)
+        if min_price:
+            query &= Q(price__gte=min_price)
+        if max_price:
+            query &= Q(price__lte=max_price)
+        if category:
+            query &= Q(category__name=category)
+        
+        return Product.objects.filter(query)
+    ```
+
+46. **Relationship queries** - Query across model relationships efficiently.
+
+    ```python
+    # Forward relationship queries (following ForeignKey)
+    # Get products from a specific category
+    electronics = Product.objects.filter(category__name='Electronics')
+    
+    # Get products created by users with specific email domain
+    gmail_users_products = Product.objects.filter(created_by__email__endswith='@gmail.com')
+    
+    # Chain relationships
+    products_by_active_users = Product.objects.filter(
+        created_by__is_active=True,
+        created_by__profile__location='New York'
+    )
+    
+    # Reverse relationship queries (following related_name)
+    # Get categories that have products
+    categories_with_products = Category.objects.filter(products__isnull=False).distinct()
+    
+    # Get categories with expensive products
+    categories_with_expensive = Category.objects.filter(products__price__gte=1000).distinct()
+    
+    # Get users who have created products
+    authors = User.objects.filter(product__isnull=False).distinct()
+    
+    # Count related objects
+    categories_with_count = Category.objects.filter(products__count__gt=5)
+    ```
+
+47. **Aggregation and annotation** - Perform calculations and add computed fields to your queries.
+
+    ```python
+    from django.db.models import Count, Sum, Avg, Max, Min, F
+    
+    # Aggregation - single values for entire queryset
+    total_products = Product.objects.count()
+    average_price = Product.objects.aggregate(Avg('price'))['price__avg']
+    max_price = Product.objects.aggregate(Max('price'))['price__max']
+    price_stats = Product.objects.aggregate(
+        avg_price=Avg('price'),
+        max_price=Max('price'),
+        min_price=Min('price'),
+        total_value=Sum('price')
+    )
+    
+    # Annotation - add calculated fields to each object
+    # Add product count to each category
+    categories = Category.objects.annotate(
+        product_count=Count('products')
+    )
+    
+    # Add average price to each category
+    categories = Category.objects.annotate(
+        avg_price=Avg('products__price'),
+        max_price=Max('products__price')
+    )
+    
+    # Filter by annotated fields
+    popular_categories = Category.objects.annotate(
+        product_count=Count('products')
+    ).filter(product_count__gte=10)
+    
+    # F expressions - reference model fields
+    # Update all prices by 10%
+    Product.objects.update(price=F('price') * 1.1)
+    
+    # Find products where price is higher than cost
+    profitable_products = Product.objects.filter(price__gt=F('cost'))
+    
+    # Annotate with calculated fields
+    products_with_profit = Product.objects.annotate(
+        profit=F('price') - F('cost'),
+        profit_margin=F('price') / F('cost') * 100
+    )
+    ```
+
+48. **Query optimization** - Techniques to make your queries faster and more efficient.
+
+    ```python
+    # Use select_related() for forward relationships (ForeignKey, OneToOneField)
+    # Instead of N+1 queries, use JOINs
+    
+    # BAD - causes N+1 queries
+    products = Product.objects.all()
+    for product in products:
+        print(product.category.name)  # Each iteration hits the database
+    
+    # GOOD - single query with JOIN
+    products = Product.objects.select_related('category', 'created_by').all()
+    for product in products:
+        print(product.category.name)  # No additional database hits
+    
+    # Use prefetch_related() for reverse relationships (ManyToMany, reverse ForeignKey)
+    # BAD - causes N+1 queries
+    categories = Category.objects.all()
+    for category in categories:
+        print(category.products.count())  # Each iteration hits the database
+    
+    # GOOD - separate optimized queries
+    categories = Category.objects.prefetch_related('products').all()
+    for category in categories:
+        print(category.products.count())  # Uses prefetched data
+    
+    # Combine select_related and prefetch_related
+    products = Product.objects.select_related('category').prefetch_related('tags').all()
+    
+    # Use only() to fetch specific fields only
+    products = Product.objects.only('name', 'price').all()  # Only fetch name and price
+    
+    # Use defer() to exclude specific fields
+    products = Product.objects.defer('description').all()  # Fetch everything except description
+    
+    # Use values() for dictionary results (lighter than model instances)
+    product_data = Product.objects.values('name', 'price', 'category__name')
+    
+    # Use values_list() for tuple results
+    product_names = Product.objects.values_list('name', flat=True)  # Returns list of names
+    price_pairs = Product.objects.values_list('name', 'price')      # Returns list of tuples
+    ```
+
+# Django Forms - Complete Guide
+
+## Form Definition and Field Types
+
+49. **Django Forms basics** - Forms handle user input validation and HTML generation automatically.
+
+    ```python
+    # forms.py
+    from django import forms
+    from django.contrib.auth.models import User
+    from .models import Product, Category
+    
+    class ProductForm(forms.Form):
+        name = forms.CharField(max_length=200)
+        description = forms.CharField(widget=forms.Textarea)
+        price = forms.DecimalField(max_digits=10, decimal_places=2)
+        category = forms.ModelChoiceField(queryset=Category.objects.all())
+        is_active = forms.BooleanField(required=False)
+        
+        def clean_price(self):
+            price = self.cleaned_data.get('price')
+            if price and price <= 0:
+                raise forms.ValidationError("Price must be positive")
+            return price
+    
+    # ModelForm - automatically generates form from model
+    class ProductModelForm(forms.ModelForm):
+        class Meta:
+            model = Product
+            fields = ['name', 'description', 'price', 'category']
+            widgets = {
+                'description': forms.Textarea(attrs={'rows': 4}),
+                'price': forms.NumberInput(attrs={'step': '0.01'}),
+            }
+            labels = {
+                'name': 'Product Name',
+                'description': 'Product Description',
+            }
+            help_texts = {
+                'price': 'Enter price in USD',
+            }
+    ```
+
+50. **Form field types and widgets** - Choose appropriate field types and customize their appearance.
+
+    ```python
+    class ExampleForm(forms.Form):
+        # Text inputs
+        char_field = forms.CharField(max_length=100)
+        text_field = forms.CharField(widget=forms.Textarea)
+        email_field = forms.EmailField()
+        url_field = forms.URLField()
+        slug_field = forms.SlugField()
+        
+        # Number inputs
+        integer_field = forms.IntegerField()
+        float_field = forms.FloatField()
+        decimal_field = forms.DecimalField(max_digits=10, decimal_places=2)
+        
+        # Choice fields
+        CHOICES = [
+            ('option1', 'Option 1'),
+            ('option2', 'Option 2'),
+            ('option3', 'Option 3'),
+        ]
+        choice_field = forms.ChoiceField(choices=CHOICES)
+        multiple_choice = forms.MultipleChoiceField(choices=CHOICES)
+        
+        # Boolean fields
+        boolean_field = forms.BooleanField()
+        null_boolean = forms.NullBooleanField()
+        
+        # Date/time fields
+        date_field = forms.DateField()
+        datetime_field = forms.DateTimeField()
+        time_field = forms.TimeField()
+        
+        # File fields
+        file_field = forms.FileField()
+        image_field = forms.ImageField()
+        
+        # Model fields
+        category = forms.ModelChoiceField(queryset=Category.objects.all())
+        tags = forms.ModelMultipleChoiceField(queryset=Tag.objects.all())
+        
+        # Custom widgets
+        password_field = forms.CharField(widget=forms.PasswordInput)
+        hidden_field = forms.CharField(widget=forms.HiddenInput)
+        custom_textarea = forms.CharField(
+            widget=forms.Textarea(attrs={
+                'rows': 5,
+                'cols': 40,
+                'placeholder': 'Enter your message here...'
+            })
+        )
+    ```
+
+51. **Form validation** - Implement field-level and form-level validation for user input.
+
+    ```python
+    class ProductForm(forms.ModelForm):
+        class Meta:
+            model = Product
+            fields = ['name', 'description', 'price', 'category']
+        
+        def clean_name(self):
+            """Field-level validation for name"""
+            name = self.cleaned_data.get('name')
+            if name and len(name) < 3:
+                raise forms.ValidationError("Name must be at least 3 characters long")
+            
+            # Check for duplicate names (excluding current instance if editing)
+            queryset = Product.objects.filter(name=name)
+            if self.instance and self.instance.pk:
+                queryset = queryset.exclude(pk=self.instance.pk)
+            if queryset.exists():
+                raise forms.ValidationError("A product with this name already exists")
+            
+            return name
+        
+        def clean_price(self):
+            """Field-level validation for price"""
+            price = self.cleaned_data.get('price')
+            if price and price <= 0:
+                raise forms.ValidationError("Price must be positive")
+            if price and price > 10000:
+                raise forms.ValidationError("Price cannot exceed $10,000")
+            return price
+        
+        def clean(self):
+            """Form-level validation"""
+            cleaned_data = super().clean()
+            name = cleaned_data.get('name')
+            description = cleaned_data.get('description')
+            
+            # Check if name appears in description
+            if name and description and name.lower() in description.lower():
+                raise forms.ValidationError(
+                    "Product name should not appear in the description"
+                )
+            
+            return cleaned_data
+    ```
+
+52. **Using forms in views** - Handle form display, validation, and processing in your views.
+
+    ```python
+    # views.py
+    from django.shortcuts import render, redirect, get_object_or_404
+    from django.contrib import messages
+    from .forms import ProductForm
+    from .models import Product
+    
+    def create_product(request):
+        if request.method == 'POST':
+            form = ProductForm(request.POST)
+            if form.is_valid():
+                product = form.save(commit=False)
+                product.created_by = request.user
+                product.save()
+                messages.success(request, 'Product created successfully!')
+                return redirect('product_detail', pk=product.pk)
+        else:
+            form = ProductForm()
+        
+        return render(request, 'products/create.html', {'form': form})
+    
+    def update_product(request, pk):
+        product = get_object_or_404(Product, pk=pk)
+        
+        if request.method == 'POST':
+            form = ProductForm(request.POST, instance=product)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Product updated successfully!')
+                return redirect('product_detail', pk=product.pk)
+        else:
+            form = ProductForm(instance=product)
+        
+        return render(request, 'products/update.html', {'form': form, 'product': product})
+    
+    # Function-based view with manual form handling
+    def manual_form_handling(request):
+        if request.method == 'POST':
+            form = ProductForm(request.POST)
+            if form.is_valid():
+                # Access cleaned data
+                name = form.cleaned_data['name']
+                price = form.cleaned_data['price']
+                category = form.cleaned_data['category']
+                
+                # Manual object creation
+                product = Product.objects.create(
+                    name=name,
+                    price=price,
+                    category=category,
+                    created_by=request.user
+                )
+                return redirect('product_detail', pk=product.pk)
+        else:
+            form = ProductForm()
+        
+        return render(request, 'products/manual_form.html', {'form': form})
+    ```
+
+# Django Views - Complete Guide
+
+## Function-Based Views (FBVs)
+
+53. **Function-based views basics** - Simple functions that take a request and return a response.
+
+    ```python
+    # views.py
+    from django.shortcuts import render, get_object_or_404, redirect
+    from django.http import HttpResponse, JsonResponse
+    from django.contrib.auth.decorators import login_required
+    from django.contrib import messages
+    from .models import Product, Category
+    
+    def product_list(request):
+        products = Product.objects.all()
+        return render(request, 'products/list.html', {'products': products})
+    
+    def product_detail(request, pk):
+        product = get_object_or_404(Product, pk=pk)
+        return render(request, 'products/detail.html', {'product': product})
+    
+    @login_required
+    def product_create(request):
+        if request.method == 'POST':
+            # Handle form submission
+            name = request.POST.get('name')
+            price = request.POST.get('price')
+            category_id = request.POST.get('category')
+            
+            product = Product.objects.create(
+                name=name,
+                price=price,
+                category_id=category_id,
+                created_by=request.user
+            )
+            
+            messages.success(request, 'Product created successfully!')
+            return redirect('product_detail', pk=product.pk)
+        
+        # GET request - show form
+        categories = Category.objects.all()
+        return render(request, 'products/create.html', {'categories': categories})
+    
+    def product_search(request):
+        query = request.GET.get('q', '')
+        products = Product.objects.filter(name__icontains=query) if query else []
+        
+        # Return JSON for AJAX requests
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            data = [{'id': p.id, 'name': p.name, 'price': str(p.price)} for p in products]
+            return JsonResponse({'products': data})
+        
+        return render(request, 'products/search.html', {'products': products, 'query': query})
+    ```
+
+54. **Class-Based Views (CBVs)** - Reusable view classes with built-in functionality.
+
+    ```python
+    from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
+    from django.contrib.auth.mixins import LoginRequiredMixin
+    from django.urls import reverse_lazy
+    from .models import Product
+    from .forms import ProductForm
+    
+    class ProductListView(ListView):
+        model = Product
+        template_name = 'products/list.html'
+        context_object_name = 'products'
+        paginate_by = 10
+        
+        def get_queryset(self):
+            queryset = super().get_queryset()
+            category = self.request.GET.get('category')
+            if category:
+                queryset = queryset.filter(category__name=category)
+            return queryset.order_by('-created_at')
+        
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context['categories'] = Category.objects.all()
+            return context
+    
+    class ProductDetailView(DetailView):
+        model = Product
+        template_name = 'products/detail.html'
+        context_object_name = 'product'
+        
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context['related_products'] = Product.objects.filter(
+                category=self.object.category
+            ).exclude(id=self.object.id)[:5]
+            return context
+    
+    class ProductCreateView(LoginRequiredMixin, CreateView):
+        model = Product
+        form_class = ProductForm
+        template_name = 'products/create.html'
+        success_url = reverse_lazy('product_list')
+        
+        def form_valid(self, form):
+            form.instance.created_by = self.request.user
+            messages.success(self.request, 'Product created successfully!')
+            return super().form_valid(form)
+    
+    class ProductUpdateView(LoginRequiredMixin, UpdateView):
+        model = Product
+        form_class = ProductForm
+        template_name = 'products/update.html'
+        
+        def get_success_url(self):
+            return reverse_lazy('product_detail', kwargs={'pk': self.object.pk})
+        
+        def form_valid(self, form):
+            messages.success(self.request, 'Product updated successfully!')
+            return super().form_valid(form)
+    
+    class ProductDeleteView(LoginRequiredMixin, DeleteView):
+        model = Product
+        template_name = 'products/delete.html'
+        success_url = reverse_lazy('product_list')
+        
+        def delete(self, request, *args, **kwargs):
+            messages.success(self.request, 'Product deleted successfully!')
+            return super().delete(request, *args, **kwargs)
+    ```
+
+55. **Custom mixins and view utilities** - Create reusable view components.
+
+    ```python
+    from django.contrib.auth.mixins import UserPassesTestMixin
+    from django.core.exceptions import PermissionDenied
+    
+    class OwnerRequiredMixin(UserPassesTestMixin):
+        """Ensure only the owner can access/modify the object"""
+        def test_func(self):
+            obj = self.get_object()
+            return obj.created_by == self.request.user
+    
+    class CategoryFilterMixin:
+        """Add category filtering to list views"""
+        def get_queryset(self):
+            queryset = super().get_queryset()
+            category = self.request.GET.get('category')
+            if category:
+                queryset = queryset.filter(category__slug=category)
+            return queryset
+        
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context['categories'] = Category.objects.all()
+            context['current_category'] = self.request.GET.get('category')
+            return context
+    
+    # Using custom mixins
+    class UserProductListView(LoginRequiredMixin, CategoryFilterMixin, ListView):
+        model = Product
+        template_name = 'products/user_products.html'
+        
+        def get_queryset(self):
+            queryset = super().get_queryset()
+            return queryset.filter(created_by=self.request.user)
+    
+    class ProductUpdateView(LoginRequiredMixin, OwnerRequiredMixin, UpdateView):
+        model = Product
+        form_class = ProductForm
+        template_name = 'products/update.html'
+    ```
+
+# Django Admin - Complete Guide
+
+## Basic Admin Configuration
+
+56. **Django Admin setup** - Configure your models to appear in the Django admin interface.
+
+    ```python
+    # admin.py
+    from django.contrib import admin
+    from .models import Category, Product, Tag
+    
+    # Simple admin registration
+    admin.site.register(Category)
+    
+    # Custom admin configuration
+    @admin.register(Product)
+    class ProductAdmin(admin.ModelAdmin):
+        list_display = ['name', 'price', 'category', 'created_at', 'is_active']
+        list_filter = ['category', 'is_active', 'created_at']
+        search_fields = ['name', 'description']
+        list_editable = ['price', 'is_active']
+        list_per_page = 25
+        date_hierarchy = 'created_at'
+        
+        # Field organization
+        fieldsets = (
+            ('Basic Information', {
+                'fields': ('name', 'description', 'category')
+            }),
+            ('Pricing', {
+                'fields': ('price', 'cost')
+            }),
+            ('Status', {
+                'fields': ('is_active',),
+                'classes': ('collapse',)
+            }),
+        )
+        
+        # Read-only fields
+        readonly_fields = ['created_at', 'updated_at']
+        
+        # Custom actions
+        actions = ['make_inactive', 'make_active']
+        
+        def make_inactive(self, request, queryset):
+            queryset.update(is_active=False)
+            self.message_user(request, f'{queryset.count()} products were marked as inactive.')
+        make_inactive.short_description = "Mark selected products as inactive"
+        
+        def make_active(self, request, queryset):
+            queryset.update(is_active=True)
+            self.message_user(request, f'{queryset.count()} products were marked as active.')
+        make_active.short_description = "Mark selected products as active"
+    ```
+
+57. **Advanced admin customization** - Add computed fields, custom methods, and complex functionality.
+
+    ```python
+    @admin.register(Product)
+    class ProductAdmin(admin.ModelAdmin):
+        list_display = ['name', 'price', 'category', 'profit_margin', 'created_at']
+        list_filter = ['category', 'created_at', ProfitMarginFilter]
+        search_fields = ['name', 'description', 'category__name']
+        
+        # Custom methods for list_display
+        def profit_margin(self, obj):
+            if obj.cost > 0:
+                margin = ((obj.price - obj.cost) / obj.cost) * 100
+                return f"{margin:.1f}%"
+            return "N/A"
+        profit_margin.short_description = "Profit Margin"
+        profit_margin.admin_order_field = 'price'  # Allow sorting
+        
+        # Custom filter
+        def get_queryset(self, request):
+            queryset = super().get_queryset(request)
+            if not request.user.is_superuser:
+                queryset = queryset.filter(created_by=request.user)
+            return queryset
+        
+        # Custom form validation
+        def save_model(self, request, obj, form, change):
+            if not change:  # Creating new object
+                obj.created_by = request.user
+            super().save_model(request, obj, form, change)
+    
+    # Custom filter class
+    class ProfitMarginFilter(admin.SimpleListFilter):
+        title = 'profit margin'
+        parameter_name = 'profit_margin'
+        
+        def lookups(self, request, model_admin):
+            return (
+                ('high', 'High (>50%)'),
+                ('medium', 'Medium (20-50%)'),
+                ('low', 'Low (<20%)'),
+            )
+        
+        def queryset(self, request, queryset):
+            if self.value() == 'high':
+                return queryset.filter(price__gt=F('cost') * 1.5)
+            elif self.value() == 'medium':
+                return queryset.filter(
+                    price__gt=F('cost') * 1.2,
+                    price__lte=F('cost') * 1.5
+                )
+            elif self.value() == 'low':
+                return queryset.filter(price__lte=F('cost') * 1.2)
+    ```
+
+58. **Inline admin models** - Edit related models on the same page.
+
+    ```python
+    class ProductImageInline(admin.TabularInline):
+        model = ProductImage
+        extra = 1
+        fields = ['image', 'alt_text', 'is_primary']
+        readonly_fields = ['image_preview']
+        
+        def image_preview(self, obj):
+            if obj.image:
+                return format_html(
+                    '<img src="{}" width="50" height="50" />',
+                    obj.image.url
+                )
+            return "No image"
+        image_preview.short_description = "Preview"
+    
+    class ProductReviewInline(admin.StackedInline):
+        model = ProductReview
+        extra = 0
+        fields = ['reviewer', 'rating', 'comment']
+        readonly_fields = ['created_at']
+    
+    @admin.register(Product)
+    class ProductAdmin(admin.ModelAdmin):
+        inlines = [ProductImageInline, ProductReviewInline]
+        list_display = ['name', 'price', 'category', 'image_count', 'avg_rating']
+        
+        def image_count(self, obj):
+            return obj.images.count()
+        image_count.short_description = "Images"
+        
+        def avg_rating(self, obj):
+            avg = obj.reviews.aggregate(Avg('rating'))['rating__avg']
+            return f"{avg:.1f}" if avg else "No reviews"
+        avg_rating.short_description = "Average Rating"
+    ```
+
+# Django Authentication & Authorization - Complete Guide
+
+## User Authentication
+
+59. **Django's built-in authentication** - Use Django's authentication system for login, logout, and user management.
+
+    ```python
+    # views.py
+    from django.contrib.auth import authenticate, login, logout
+    from django.contrib.auth.decorators import login_required
+    from django.contrib.auth.forms import UserCreationForm
+    from django.shortcuts import render, redirect
+    from django.contrib import messages
+    
+    def user_login(request):
+        if request.method == 'POST':
+            username = request.POST.get('username')
+            password = request.POST.get('password')
+            
+            user = authenticate(request, username=username, password=password)
+            if user is not None:
+                login(request, user)
+                messages.success(request, 'Logged in successfully!')
+                return redirect('dashboard')
+            else:
+                messages.error(request, 'Invalid username or password.')
+        
+        return render(request, 'accounts/login.html')
+    
+    @login_required
+    def user_logout(request):
+        logout(request)
+        messages.success(request, 'Logged out successfully!')
+        return redirect('home')
+    
+    def user_register(request):
+        if request.method == 'POST':
+            form = UserCreationForm(request.POST)
+            if form.is_valid():
+                user = form.save()
+                login(request, user)
+                messages.success(request, 'Account created successfully!')
+                return redirect('dashboard')
+        else:
+            form = UserCreationForm()
+        
+        return render(request, 'accounts/register.html', {'form': form})
+    
+    @login_required
+    def dashboard(request):
+        return render(request, 'accounts/dashboard.html')
+    ```
+
+60. **Custom user model** - Extend Django's default User model with additional fields.
+
+    ```python
+    # models.py
+    from django.contrib.auth.models import AbstractUser
+    from django.db import models
+    
+    class CustomUser(AbstractUser):
+        email = models.EmailField(unique=True)
+        phone = models.CharField(max_length=20, blank=True)
+        date_of_birth = models.DateField(null=True, blank=True)
+        profile_picture = models.ImageField(upload_to='profiles/', blank=True)
+        is_verified = models.BooleanField(default=False)
+        
+        # Use email as username
+        USERNAME_FIELD = 'email'
+        REQUIRED_FIELDS = ['username']
+        
+        def __str__(self):
+            return self.email
+    
+    # settings.py
+    AUTH_USER_MODEL = 'myapp.CustomUser'
+    
+    # Custom user creation form
+    from django.contrib.auth.forms import UserCreationForm
+    
+    class CustomUserCreationForm(UserCreationForm):
+        email = forms.EmailField(required=True)
+        phone = forms.CharField(max_length=20, required=False)
+        
+        class Meta:
+            model = CustomUser
+            fields = ('username', 'email', 'phone', 'password1', 'password2')
+        
+        def save(self, commit=True):
+            user = super().save(commit=False)
+            user.email = self.cleaned_data['email']
+            user.phone = self.cleaned_data['phone']
+            if commit:
+                user.save()
+            return user
+    ```
+
+61. **Permission system** - Use Django's permission system for fine-grained access control.
+
+    ```python
+    # models.py
+    from django.contrib.auth.models import Permission
+    from django.contrib.contenttypes.models import ContentType
+    
+    class Product(models.Model):
+        name = models.CharField(max_length=200)
+        price = models.DecimalField(max_digits=10, decimal_places=2)
+        created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+        
+        class Meta:
+            permissions = [
+                ('can_approve_product', 'Can approve product'),
+                ('can_feature_product', 'Can feature product'),
+                ('can_bulk_edit', 'Can bulk edit products'),
+            ]
+    
+    # views.py
+    from django.contrib.auth.decorators import permission_required
+    from django.contrib.auth.mixins import PermissionRequiredMixin
+    
+    @permission_required('myapp.can_approve_product')
+    def approve_product(request, pk):
+        product = get_object_or_404(Product, pk=pk)
+        product.is_approved = True
+        product.save()
+        messages.success(request, 'Product approved successfully!')
+        return redirect('product_detail', pk=pk)
+    
+    class ProductApprovalView(PermissionRequiredMixin, UpdateView):
+        model = Product
+        permission_required = 'myapp.can_approve_product'
+        fields = ['is_approved']
+        
+        def handle_no_permission(self):
+            messages.error(self.request, 'You do not have permission to approve products.')
+            return redirect('product_list')
+    
+    # Programmatic permission handling
+    def check_product_permissions(request, product):
+        user = request.user
+        
+        # Check if user can edit this product
+        if user.has_perm('myapp.change_product') or product.created_by == user:
+            return True
+        
+        # Check custom permissions
+        if user.has_perm('myapp.can_approve_product'):
+            return True
+        
+        return False
+    ```
+
+62. **Groups and roles** - Organize users into groups with specific permissions.
+
+    ```python
+    # utils.py - Group management utilities
+    from django.contrib.auth.models import Group, Permission
+    from django.contrib.contenttypes.models import ContentType
+    
+    def create_user_groups():
+        """Create default user groups with permissions"""
+        
+        # Create groups
+        admin_group, _ = Group.objects.get_or_create(name='Product Managers')
+        editor_group, _ = Group.objects.get_or_create(name='Product Editors')
+        viewer_group, _ = Group.objects.get_or_create(name='Product Viewers')
+        
+        # Get content type
+        product_ct = ContentType.objects.get_for_model(Product)
+        
+        # Product Manager permissions
+        admin_perms = Permission.objects.filter(
+            content_type=product_ct,
+            codename__in=['add_product', 'change_product', 'delete_product', 'can_approve_product']
+        )
+        admin_group.permissions.set(admin_perms)
+        
+        # Product Editor permissions
+        editor_perms = Permission.objects.filter(
+            content_type=product_ct,
+            codename__in=['add_product', 'change_product']
+        )
+        editor_group.permissions.set(editor_perms)
+        
+        # Product Viewer permissions
+        viewer_perms = Permission.objects.filter(
+            content_type=product_ct,
+            codename='view_product'
+        )
+        viewer_group.permissions.set(viewer_perms)
+    
+    # views.py - Group-based access control
+    from django.contrib.auth.decorators import user_passes_test
+    
+    def is_product_manager(user):
+        return user.groups.filter(name='Product Managers').exists()
+    
+    @user_passes_test(is_product_manager)
+    def product_manager_dashboard(request):
+        products = Product.objects.all()
+        return render(request, 'products/manager_dashboard.html', {'products': products})
+    
+    # Class-based view with group checking
+    class ProductManagerView(UserPassesTestMixin, ListView):
+        model = Product
+        template_name = 'products/manager_list.html'
+        
+        def test_func(self):
+            return self.request.user.groups.filter(name='Product Managers').exists()
+        
+        def handle_no_permission(self):
+            messages.error(self.request, 'You must be a Product Manager to access this page.')
+            return redirect('product_list')
+    ```
+
+# Django Testing - Complete Guide
+
+## Test Types and Setup
+
+63. **Django testing basics** - Write tests to ensure your application works correctly and catch bugs early.
+
+    ```python
+    # tests.py
+    from django.test import TestCase, Client
+    from django.contrib.auth.models import User
+    from django.urls import reverse
+    from .models import Product, Category
+    
+    class ProductModelTest(TestCase):
+        def setUp(self):
+            """Set up test data"""
+            self.user = User.objects.create_user(
+                username='testuser',
+                password='testpass123'
+            )
+            self.category = Category.objects.create(
+                name='Electronics',
+                description='Electronic products'
+            )
+            self.product = Product.objects.create(
+                name='Test Product',
+                description='A test product',
+                price=99.99,
+                category=self.category,
+                created_by=self.user
+            )
+        
+        def test_product_creation(self):
+            """Test product is created correctly"""
+            self.assertEqual(self.product.name, 'Test Product')
+            self.assertEqual(self.product.price, 99.99)
+            self.assertEqual(self.product.category, self.category)
+            self.assertEqual(self.product.created_by, self.user)
+        
+        def test_product_str_method(self):
+            """Test product string representation"""
+            self.assertEqual(str(self.product), 'Test Product')
+        
+        def test_product_profit_calculation(self):
+            """Test custom product methods"""
+            self.product.cost = 50.00
+            self.product.save()
+            
+            expected_profit = self.product.price - self.product.cost
+            self.assertEqual(self.product.profit, expected_profit)
+        
+        def tearDown(self):
+            """Clean up after tests"""
+            # Django automatically handles database cleanup
+            pass
+    ```
+
+64. **View testing** - Test your views to ensure they respond correctly and handle different scenarios.
+
+    ```python
+    from django.test import TestCase, Client
+    from django.contrib.auth.models import User
+    from django.urls import reverse
+    from django.http import Http404
+    
+    class ProductViewTest(TestCase):
+        def setUp(self):
+            self.client = Client()
+            self.user = User.objects.create_user(
+                username='testuser',
+                password='testpass123'
+            )
+            self.category = Category.objects.create(name='Electronics')
+            self.product = Product.objects.create(
+                name='Test Product',
+                price=99.99,
+                category=self.category,
+                created_by=self.user
+            )
+        
+        def test_product_list_view(self):
+            """Test product list view"""
+            response = self.client.get(reverse('product_list'))
+            
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, 'Test Product')
+            self.assertContains(response, '99.99')
+        
+        def test_product_detail_view(self):
+            """Test product detail view"""
+            response = self.client.get(
+                reverse('product_detail', kwargs={'pk': self.product.pk})
+            )
+            
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context['product'], self.product)
+        
+        def test_product_create_view_anonymous(self):
+            """Test product creation requires authentication"""
+            response = self.client.post(reverse('product_create'), {
+                'name': 'New Product',
+                'price': 149.99,
+                'category': self.category.pk
+            })
+            
+            # Should redirect to login
+            self.assertEqual(response.status_code, 302)
+        
+        def test_product_create_view_authenticated(self):
+            """Test product creation when authenticated"""
+            self.client.login(username='testuser', password='testpass123')
+            
+            response = self.client.post(reverse('product_create'), {
+                'name': 'New Product',
+                'price': 149.99,
+                'category': self.category.pk
+            })
+            
+            self.assertEqual(response.status_code, 302)  # Redirect after creation
+            self.assertTrue(Product.objects.filter(name='New Product').exists())
+        
+        def test_product_update_view_owner(self):
+            """Test product update by owner"""
+            self.client.login(username='testuser', password='testpass123')
+            
+            response = self.client.post(
+                reverse('product_update', kwargs={'pk': self.product.pk}),
+                {
+                    'name': 'Updated Product',
+                    'price': 199.99,
+                    'category': self.category.pk
+                }
+            )
+            
+            self.assertEqual(response.status_code, 302)
+            self.product.refresh_from_db()
+            self.assertEqual(self.product.name, 'Updated Product')
+    ```
+
+65. **Form testing** - Test form validation and processing.
+
+    ```python
+    from django.test import TestCase
+    from .forms import ProductForm
+    
+    class ProductFormTest(TestCase):
+        def setUp(self):
+            self.category = Category.objects.create(name='Electronics')
+        
+        def test_product_form_valid_data(self):
+            """Test form with valid data"""
+            form_data = {
+                'name': 'Test Product',
+                'description': 'A test product',
+                'price': 99.99,
+                'category': self.category.pk
+            }
+            
+            form = ProductForm(data=form_data)
+            self.assertTrue(form.is_valid())
+        
+        def test_product_form_invalid_data(self):
+            """Test form with invalid data"""
+            form_data = {
+                'name': '',  # Required field
+                'description': 'A test product',
+                'price': -10,  # Invalid price
+                'category': self.category.pk
+            }
+            
+            form = ProductForm(data=form_data)
+            self.assertFalse(form.is_valid())
+            self.assertIn('name', form.errors)
+            self.assertIn('price', form.errors)
+        
+        def test_product_form_clean_name(self):
+            """Test custom name validation"""
+            form_data = {
+                'name': 'ab',  # Too short
+                'description': 'A test product',
+                'price': 99.99,
+                'category': self.category.pk
+            }
+            
+            form = ProductForm(data=form_data)
+            self.assertFalse(form.is_valid())
+            self.assertIn('Name must be at least 3 characters', str(form.errors))
+        
+        def test_product_form_save(self):
+            """Test form save method"""
+            user = User.objects.create_user(username='testuser', password='testpass')
+            
+            form_data = {
+                'name': 'Form Test Product',
+                'description': 'Created via form',
+                'price': 149.99,
+                'category': self.category.pk
+            }
+            
+            form = ProductForm(data=form_data)
+            if form.is_valid():
+                product = form.save(commit=False)
+                product.created_by = user
+                product.save()
+                
+                self.assertEqual(product.name, 'Form Test Product')
+                self.assertEqual(product.created_by, user)
+    ```
+
+66. **API testing with DRF** - Test your API endpoints and serializers.
+
+    ```python
+    from rest_framework.test import APITestCase
+    from rest_framework import status
+    from django.contrib.auth.models import User
+    from django.urls import reverse
+    from .models import Product, Category
+    
+    class ProductAPITest(APITestCase):
+        def setUp(self):
+            self.user = User.objects.create_user(
+                username='testuser',
+                password='testpass123'
+            )
+            self.category = Category.objects.create(name='Electronics')
+            self.product = Product.objects.create(
+                name='Test Product',
+                price=99.99,
+                category=self.category,
+                created_by=self.user
+            )
+        
+        def test_get_product_list(self):
+            """Test GET /api/products/"""
+            url = reverse('product-list')
+            response = self.client.get(url)
+            
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(len(response.data), 1)
+            self.assertEqual(response.data[0]['name'], 'Test Product')
+        
+        def test_get_product_detail(self):
+            """Test GET /api/products/{id}/"""
+            url = reverse('product-detail', kwargs={'pk': self.product.pk})
+            response = self.client.get(url)
+            
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data['name'], 'Test Product')
+        
+        def test_create_product_authenticated(self):
+            """Test POST /api/products/ with authentication"""
+            self.client.force_authenticate(user=self.user)
+            
+            data = {
+                'name': 'New API Product',
+                'description': 'Created via API',
+                'price': 199.99,
+                'category': self.category.pk
+            }
+            
+            url = reverse('product-list')
+            response = self.client.post(url, data)
+            
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+            self.assertEqual(response.data['name'], 'New API Product')
+            self.assertTrue(Product.objects.filter(name='New API Product').exists())
+        
+        def test_create_product_unauthenticated(self):
+            """Test POST /api/products/ without authentication"""
+            data = {
+                'name': 'New API Product',
+                'price': 199.99,
+                'category': self.category.pk
+            }
+            
+            url = reverse('product-list')
+            response = self.client.post(url, data)
+            
+            self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+        def test_update_product_owner(self):
+            """Test PUT /api/products/{id}/ by owner"""
+            self.client.force_authenticate(user=self.user)
+            
+            data = {
+                'name': 'Updated API Product',
+                'description': 'Updated via API',
+                'price': 299.99,
+                'category': self.category.pk
+            }
+            
+            url = reverse('product-detail', kwargs={'pk': self.product.pk})
+            response = self.client.put(url, data)
+            
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.product.refresh_from_db()
+            self.assertEqual(self.product.name, 'Updated API Product')
+    ```
+
+67. **Advanced testing techniques** - Mocking, fixtures, and test utilities.
+
+    ```python
+    from django.test import TestCase, override_settings
+    from django.test.utils import override_settings
+    from unittest.mock import patch, Mock
+    import tempfile
+    import os
+    
+    class AdvancedTestingExample(TestCase):
+        def setUp(self):
+            self.temp_dir = tempfile.mkdtemp()
+        
+        def tearDown(self):
+            # Clean up temp files
+            import shutil
+            shutil.rmtree(self.temp_dir)
+        
+        @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+        def test_file_upload(self):
+            """Test file upload functionality"""
+            from django.core.files.uploadedfile import SimpleUploadedFile
+            
+            # Create a fake file
+            fake_file = SimpleUploadedFile(
+                "test.txt",
+                b"file_content",
+                content_type="text/plain"
+            )
+            
+            # Test file upload
+            response = self.client.post('/upload/', {'file': fake_file})
+            self.assertEqual(response.status_code, 200)
+        
+        @patch('requests.get')
+        def test_external_api_call(self, mock_get):
+            """Test external API call with mocking"""
+            # Mock the external API response
+            mock_response = Mock()
+            mock_response.json.return_value = {'price': 100.00}
+            mock_response.status_code = 200
+            mock_get.return_value = mock_response
+            
+            # Test your function that makes the API call
+            from .utils import get_external_price
+            price = get_external_price('TEST_PRODUCT')
+            
+            self.assertEqual(price, 100.00)
+            mock_get.assert_called_once_with('https://api.example.com/price/TEST_PRODUCT')
+        
+        def test_database_queries(self):
+            """Test database query optimization"""
+            from django.test.utils import override_settings
+            from django.db import connection
+            
+            # Create test data
+            category = Category.objects.create(name='Test Category')
+            for i in range(10):
+                Product.objects.create(
+                    name=f'Product {i}',
+                    category=category,
+                    price=100.00,
+                    created_by=User.objects.create_user(f'user{i}', 'pass')
+                )
+            
+            # Test query count
+            with self.assertNumQueries(1):
+                # This should use select_related to avoid N+1 queries
+                products = Product.objects.select_related('category').all()
+                for product in products:
+                    print(product.category.name)  # Should not hit database
+        
+        def test_custom_management_command(self):
+            """Test custom management command"""
+            from django.core.management import call_command
+            from io import StringIO
+            
+            out = StringIO()
+            call_command('your_custom_command', stdout=out)
+            
+            self.assertIn('Expected output', out.getvalue())
+    ```
+
+# Django Signals - Complete Guide
+
+## Built-in Signals
+
+68. **Django signals basics** - Signals allow decoupled applications to get notified when certain actions occur.
+
+    ```python
+    # signals.py
+    from django.db.models.signals import post_save, pre_save, post_delete
+    from django.dispatch import receiver
+    from django.contrib.auth.models import User
+    from .models import Product, UserProfile
+    
+    @receiver(post_save, sender=User)
+    def create_user_profile(sender, instance, created, **kwargs):
+        """Create user profile when user is created"""
+        if created:
+            UserProfile.objects.create(user=instance)
+    
+    @receiver(post_save, sender=User)
+    def save_user_profile(sender, instance, **kwargs):
+        """Save user profile when user is saved"""
+        if hasattr(instance, 'profile'):
+            instance.profile.save()
+    
+    @receiver(pre_save, sender=Product)
+    def product_pre_save(sender, instance, **kwargs):
+        """Actions before product is saved"""
+        # Generate slug if not provided
+        if not instance.slug and instance.name:
+            from django.utils.text import slugify
+            instance.slug = slugify(instance.name)
+        
+        # Validate price
+        if instance.price <= 0:
+            raise ValueError("Price must be positive")
+    
+    @receiver(post_save, sender=Product)
+    def product_post_save(sender, instance, created, **kwargs):
+        """Actions after product is saved"""
+        if created:
+            # Send welcome email to product owner
+            from django.core.mail import send_mail
+            send_mail(
+                'Product Created',
+                f'Your product "{instance.name}" has been created successfully.',
+                'from@example.com',
+                [instance.created_by.email],
+                fail_silently=False,
+            )
+        
+        # Clear cache
+        from django.core.cache import cache
+        cache.delete('product_list')
+    
+    @receiver(post_delete, sender=Product)
+    def product_post_delete(sender, instance, **kwargs):
+        """Actions after product is deleted"""
+        # Delete associated files
+        if instance.image:
+            instance.image.delete(save=False)
+        
+        # Clear cache
+        from django.core.cache import cache
+        cache.delete('product_list')
+    ```
+
+69. **Custom signals** - Create your own signals for application-specific events.
+
+    ```python
+    # signals.py
+    import django.dispatch
+    
+    # Create custom signals
+    product_viewed = django.dispatch.Signal()
+    product_purchased = django.dispatch.Signal()
+    user_achievement_unlocked = django.dispatch.Signal()
+    
+    # Example of sending custom signals
+    def track_product_view(request, product):
+        """Track when a product is viewed"""
+        product_viewed.send(
+            sender=product.__class__,
+            product=product,
+            user=request.user,
+            ip_address=request.META.get('REMOTE_ADDR'),
+            user_agent=request.META.get('HTTP_USER_AGENT')
+        )
+    
+    def process_purchase(user, product, quantity):
+        """Process a purchase and send signal"""
+        # Purchase logic here
+        order = Order.objects.create(
+            user=user,
+            product=product,
+            quantity=quantity,
+            total_price=product.price * quantity
+        )
+        
+        # Send purchase signal
+        product_purchased.send(
+            sender=Order,
+            order=order,
+            user=user,
+            product=product,
+            quantity=quantity
+        )
+        
+        return order
+    
+    # Signal receivers for custom signals
+    @receiver(product_viewed)
+    def handle_product_view(sender, product, user, **kwargs):
+        """Handle product view event"""
+        # Update view count
+        product.view_count += 1
+        product.save(update_fields=['view_count'])
+        
+        # Track user behavior
+        if user.is_authenticated:
+            ProductView.objects.create(
+                product=product,
+                user=user,
+                ip_address=kwargs.get('ip_address'),
+                user_agent=kwargs.get('user_agent')
+            )
+    
+    @receiver(product_purchased)
+    def handle_product_purchase(sender, order, user, product, quantity, **kwargs):
+        """Handle product purchase event"""
+        # Update product sales count
+        product.sales_count += quantity
+        product.save(update_fields=['sales_count'])
+        
+        # Check for achievements
+        total_purchases = Order.objects.filter(user=user).count()
+        if total_purchases == 1:
+            user_achievement_unlocked.send(
+                sender=user.__class__,
+                user=user,
+                achievement='first_purchase'
+            )
+    
+    @receiver(user_achievement_unlocked)
+    def handle_user_achievement(sender, user, achievement, **kwargs):
+        """Handle user achievement unlocked"""
+        # Create achievement record
+        UserAchievement.objects.create(
+            user=user,
+            achievement=achievement,
+            unlocked_at=timezone.now()
+        )
+        
+        # Send congratulations email
+        send_achievement_email(user, achievement)
+    ```
+
+70. **Signal connection and disconnection** - Programmatically connect and disconnect signals.
+
+    ```python
+    # utils.py
+    from django.db.models.signals import post_save
+    from django.dispatch import receiver
+    
+    # Manual signal connection
+    def connect_signals():
+        """Connect signals manually"""
+        post_save.connect(my_callback, sender=Product)
+    
+    def disconnect_signals():
+        """Disconnect signals manually"""
+        post_save.disconnect(my_callback, sender=Product)
+    
+    def my_callback(sender, instance, created, **kwargs):
+        """Signal callback function"""
+        if created:
+            print(f"New product created: {instance.name}")
+    
+    # Context manager for temporary signal disconnection
+    from contextlib import contextmanager
+    
+    @contextmanager
+    def disable_signals():
+        """Context manager to temporarily disable signals"""
+        post_save.disconnect(my_callback, sender=Product)
+        try:
+            yield
+        finally:
+            post_save.connect(my_callback, sender=Product)
+    
+    # Usage
+    with disable_signals():
+        # Signals are disabled in this block
+        Product.objects.create(name="Test Product")
+    
+    # Conditional signal handling
+    @receiver(post_save, sender=Product)
+    def conditional_signal_handler(sender, instance, **kwargs):
+        """Signal handler that runs conditionally"""
+        # Skip signal processing in tests
+        if hasattr(settings, 'TESTING') and settings.TESTING:
+            return
+        
+        # Skip for certain users
+        if instance.created_by.username == 'system':
+            return
+        
+        # Your signal logic here
+        process_product_created(instance)
+    ```
+
+# Django Security - Complete Guide
+
+## Security Best Practices
+
+71. **CSRF protection** - Protect against Cross-Site Request Forgery attacks.
+
+    ```python
+    # settings.py
+    MIDDLEWARE = [
+        'django.middleware.security.SecurityMiddleware',
+        'django.contrib.sessions.middleware.SessionMiddleware',
+        'django.middleware.common.CommonMiddleware',
+        'django.middleware.csrf.CsrfViewMiddleware',  # CSRF protection
+        'django.contrib.auth.middleware.AuthenticationMiddleware',
+        'django.contrib.messages.middleware.MessageMiddleware',
+        'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    ]
+    
+    # CSRF settings
+    CSRF_COOKIE_SECURE = True  # Only send over HTTPS
+    CSRF_COOKIE_HTTPONLY = True  # Prevent JavaScript access
+    CSRF_COOKIE_SAMESITE = 'Strict'  # Prevent cross-site requests
+    CSRF_TRUSTED_ORIGINS = ['https://yourdomain.com']  # Trusted domains
+    ```
+
+    ```html
+    <!-- In templates - include CSRF token -->
+    <form method="post">
+        {% csrf_token %}
+        <input type="text" name="username">
+        <input type="password" name="password">
+        <button type="submit">Login</button>
+    </form>
+    ```
+
+    ```python
+    # views.py - CSRF exemption (use carefully)
+    from django.views.decorators.csrf import csrf_exempt
+    from django.utils.decorators import method_decorator
+    
+    @csrf_exempt
+    def api_endpoint(request):
+        """API endpoint that doesn't require CSRF token"""
+        # Only use for APIs that have other authentication
+        pass
+    
+    @method_decorator(csrf_exempt, name='dispatch')
+    class APIView(View):
+        """Class-based view with CSRF exemption"""
+        pass
+    ```
+
+72. **XSS protection** - Prevent Cross-Site Scripting attacks.
+
+    ```python
+    # settings.py
+    SECURE_BROWSER_XSS_FILTER = True  # Enable XSS filtering
+    SECURE_CONTENT_TYPE_NOSNIFF = True  # Prevent MIME type sniffing
+    
+    # Template security
+    from django.utils.safestring import mark_safe
+    from django.utils.html import escape, format_html
+    
+    def safe_template_rendering(request):
+        user_input = request.GET.get('message', '')
+        
+        # BAD - vulnerable to XSS
+        # dangerous_html = f"<p>{user_input}</p>"
+        
+        # GOOD - escape user input
+        safe_html = format_html("<p>{}</p>", user_input)
+        
+        # Or use escape function
+        escaped_input = escape(user_input)
+        
+        return render(request, 'template.html', {
+            'safe_content': safe_html,
+            'escaped_content': escaped_input
+        })
+    ```
+
+    ```html
+    <!-- In templates - Django auto-escapes by default -->
+    <p>{{ user_input }}</p>  <!-- Automatically escaped -->
+    
+    <!-- To display raw HTML (be very careful) -->
+    <p>{{ trusted_html|safe }}</p>
+    
+    <!-- Or use autoescape tag -->
+    {% autoescape off %}
+        {{ trusted_html }}
+    {% endautoescape %}
+    ```
+
+73. **SQL injection prevention** - Use Django ORM properly to prevent SQL injection.
+
+    ```python
+    # GOOD - Using Django ORM (safe)
+    def get_products_safe(request):
+        category = request.GET.get('category')
+        
+        # Django ORM automatically escapes parameters
+        products = Product.objects.filter(category__name=category)
+        
+        # Using Q objects (also safe)
+        from django.db.models import Q
+        products = Product.objects.filter(Q(category__name=category))
+        
+        return render(request, 'products.html', {'products': products})
+    
+    # BAD - Raw SQL without proper escaping (vulnerable)
+    def get_products_unsafe(request):
+        category = request.GET.get('category')
+        
+        # NEVER DO THIS - vulnerable to SQL injection
+        # products = Product.objects.raw(
+        #     f"SELECT * FROM products WHERE category = '{category}'"
+        # )
+        
+        # GOOD - Raw SQL with proper parameterization
+        products = Product.objects.raw(
+            "SELECT * FROM products WHERE category = %s", [category]
+        )
+        
+        return render(request, 'products.html', {'products': products})
+    
+    # Using extra() safely
+    def get_products_with_extra(request):
+        min_price = request.GET.get('min_price', 0)
+        
+        # Safe use of extra()
+        products = Product.objects.extra(
+            where=["price >= %s"],
+            params=[min_price]
+        )
+        
+        return render(request, 'products.html', {'products': products})
+    ```
+
+74. **Authentication security** - Secure user authentication and session management.
+
+    ```python
+    # settings.py
+    # Password validation
+    AUTH_PASSWORD_VALIDATORS = [
+        {
+            'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        },
+        {
+            'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+            'OPTIONS': {
+                'min_length': 8,
+            }
+        },
+        {
+            'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        },
+        {
+            'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        },
+    ]
+    
+    # Session security
+    SESSION_COOKIE_SECURE = True  # Only send over HTTPS
+    SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access
+    SESSION_COOKIE_AGE = 3600  # 1 hour session timeout
+    SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Expire when browser closes
+    
+    # Login security
+    LOGIN_URL = '/login/'
+    LOGIN_REDIRECT_URL = '/dashboard/'
+    LOGOUT_REDIRECT_URL = '/'
+    
+    # views.py - Secure authentication views
+    from django.contrib.auth import authenticate, login
+    from django.contrib.auth.decorators import login_required
+    from django.contrib.auth.forms import AuthenticationForm
+    from django.core.cache import cache
+    import time
+    
+    def secure_login(request):
+        """Secure login with rate limiting"""
+        ip_address = request.META.get('REMOTE_ADDR')
+        cache_key = f"login_attempts_{ip_address}"
+        
+        # Check rate limiting
+        attempts = cache.get(cache_key, 0)
+        if attempts >= 5:
+            return render(request, 'login.html', {
+                'error': 'Too many login attempts. Please try again later.'
+            })
+        
+        if request.method == 'POST':
+            form = AuthenticationForm(request, data=request.POST)
+            if form.is_valid():
+                username = form.cleaned_data.get('username')
+                password = form.cleaned_data.get('password')
+                
+                user = authenticate(username=username, password=password)
+                if user is not None:
+                    login(request, user)
+                    # Clear failed attempts on successful login
+                    cache.delete(cache_key)
+                    return redirect('dashboard')
+            
+            # Increment failed attempts
+            cache.set(cache_key, attempts + 1, 3600)  # 1 hour timeout
+        
+        else:
+            form = AuthenticationForm()
+        
+        return render(request, 'login.html', {'form': form})
+    ```
+
+75. **Data validation and sanitization** - Validate and sanitize all user input.
+
+    ```python
+    # forms.py
+    from django import forms
+    from django.core.exceptions import ValidationError
+    import re
+    
+    class SecureContactForm(forms.Form):
+        name = forms.CharField(max_length=100)
+        email = forms.EmailField()
+        message = forms.CharField(widget=forms.Textarea)
+        
+        def clean_name(self):
+            name = self.cleaned_data.get('name')
+            
+            # Remove potentially dangerous characters
+            if not re.match(r'^[a-zA-Z\s]+$', name):
+                raise ValidationError("Name can only contain letters and spaces")
+            
+            # Check for common injection patterns
+            dangerous_patterns = ['<script', 'javascript:', 'onload=', 'onerror=']
+            name_lower = name.lower()
+            for pattern in dangerous_patterns:
+                if pattern in name_lower:
+                    raise ValidationError("Invalid characters in name")
+            
+            return name
+        
+        def clean_message(self):
+            message = self.cleaned_data.get('message')
+            
+            # Limit message length
+            if len(message) > 1000:
+                raise ValidationError("Message too long")
+            
+            # Remove or escape HTML tags
+            from django.utils.html import strip_tags
+            message = strip_tags(message)
+            
+            return message
+    
+    # Custom validators
+    def validate_safe_filename(value):
+        """Validate uploaded file names"""
+        import os
+        
+        # Get just the filename
+        filename = os.path.basename(value)
+        
+        # Check for dangerous patterns
+        dangerous_patterns = ['..', '/', '\\', '<', '>', ':', '"', '|', '?', '*']
+        for pattern in dangerous_patterns:
+            if pattern in filename:
+                raise ValidationError("Invalid characters in filename")
+        
+        return value
+    
+    # models.py
+    class SecureFileUpload(models.Model):
+        name = models.CharField(max_length=100)
+        file = models.FileField(
+            upload_to='secure_uploads/',
+            validators=[validate_safe_filename]
+        )
+        uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE)
+        
+        def save(self, *args, **kwargs):
+            # Additional security check
+            if self.file:
+                # Check file size
+                if self.file.size > 5 * 1024 * 1024:  # 5MB limit
+                    raise ValidationError("File too large")
+                
+                # Check file type
+                allowed_types = ['image/jpeg', 'image/png', 'application/pdf']
+                if hasattr(self.file, 'content_type'):
+                    if self.file.content_type not in allowed_types:
+                        raise ValidationError("File type not allowed")
+            
+                         super().save(*args, **kwargs)
+    ```
+
+# Django Email - Complete Guide
+
+## Email Configuration and Sending
+
+76. **Email backend configuration** - Configure Django to send emails through various backends.
+
+    ```python
+    # settings.py - Email configuration
+    
+    # SMTP Configuration (Gmail example)
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = 'smtp.gmail.com'
+    EMAIL_PORT = 587
+    EMAIL_USE_TLS = True
+    EMAIL_HOST_USER = 'your-email@gmail.com'
+    EMAIL_HOST_PASSWORD = 'your-app-password'  # Use app-specific password
+    DEFAULT_FROM_EMAIL = 'your-email@gmail.com'
+    
+    # Console backend for development
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    
+    # File backend for testing
+    EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
+    EMAIL_FILE_PATH = '/tmp/app-messages'  # Where to store emails
+    
+    # Dummy backend (sends nothing)
+    EMAIL_BACKEND = 'django.core.mail.backends.dummy.EmailBackend'
+    ```
+
+77. **Basic email sending** - Send simple and HTML emails programmatically.
+
+    ```python
+    # views.py
+    from django.core.mail import send_mail, send_mass_mail
+    from django.template.loader import render_to_string
+    from django.utils.html import strip_tags
+    from django.conf import settings
+    
+    def send_simple_email(request):
+        """Send a simple text email"""
+        send_mail(
+            subject='Subject here',
+            message='Here is the message.',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=['to@example.com'],
+            fail_silently=False,
+        )
+        return HttpResponse('Email sent successfully!')
+    
+    def send_html_email(request):
+        """Send an HTML email"""
+        subject = 'Welcome to our site!'
+        from_email = settings.DEFAULT_FROM_EMAIL
+        to_email = 'user@example.com'
+        
+        # Render HTML template
+        html_message = render_to_string('emails/welcome.html', {
+            'user': request.user,
+            'site_name': 'Our Awesome Site'
+        })
+        
+        # Create plain text version
+        plain_message = strip_tags(html_message)
+        
+        send_mail(
+            subject=subject,
+            message=plain_message,
+            from_email=from_email,
+            recipient_list=[to_email],
+            html_message=html_message,
+            fail_silently=False
+        )
+        
+        return HttpResponse('HTML email sent!')
+    
+    def send_bulk_emails(request):
+        """Send multiple emails efficiently"""
+        message1 = ('Subject here', 'Message body', 'from@example.com', ['to1@example.com'])
+        message2 = ('Another subject', 'Another message', 'from@example.com', ['to2@example.com'])
+        
+        send_mass_mail((message1, message2), fail_silently=False)
+        return HttpResponse('Bulk emails sent!')
+    ```
+
+78. **Advanced email features** - Send emails with attachments, custom headers, and multiple recipients.
+
+    ```python
+    from django.core.mail import EmailMessage, EmailMultiAlternatives
+    from django.core.files.base import ContentFile
+    import os
+    
+    def send_email_with_attachment(request):
+        """Send email with file attachment"""
+        email = EmailMessage(
+            subject='Email with attachment',
+            body='Please find the attached file.',
+            from_email='from@example.com',
+            to=['to@example.com'],
+            cc=['cc@example.com'],
+            bcc=['bcc@example.com'],
+            reply_to=['reply@example.com'],
+            headers={'Message-ID': 'foo'},
+        )
+        
+        # Attach file from filesystem
+        email.attach_file('/path/to/file.pdf')
+        
+        # Attach file from memory
+        email.attach('filename.txt', 'file content', 'text/plain')
+        
+        # Attach file from model FileField
+        # email.attach(model_instance.file.name, model_instance.file.read())
+        
+        email.send()
+        return HttpResponse('Email with attachment sent!')
+    
+    def send_multipart_email(request):
+        """Send email with both text and HTML versions"""
+        subject = 'Multipart Email'
+        from_email = 'from@example.com'
+        to_email = 'to@example.com'
+        
+        text_content = 'This is an important message.'
+        html_content = '<p>This is an <strong>important</strong> message.</p>'
+        
+        msg = EmailMultiAlternatives(subject, text_content, from_email, [to_email])
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+        
+        return HttpResponse('Multipart email sent!')
+    ```
+
+79. **Email templates and context** - Create reusable email templates with dynamic content.
+
+    ```html
+    <!-- templates/emails/welcome.html -->
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Welcome to {{ site_name }}</title>
+        <style>
+            body { font-family: Arial, sans-serif; }
+            .header { background-color: #f0f0f0; padding: 20px; }
+            .content { padding: 20px; }
+            .footer { background-color: #333; color: white; padding: 10px; text-align: center; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Welcome to {{ site_name }}!</h1>
+        </div>
+        
+        <div class="content">
+            <p>Hello {{ user.first_name }},</p>
+            
+            <p>Thank you for joining {{ site_name }}. We're excited to have you on board!</p>
+            
+            <p>Here are some things you can do to get started:</p>
+            <ul>
+                <li>Complete your profile</li>
+                <li>Explore our features</li>
+                <li>Connect with other users</li>
+            </ul>
+            
+            <p>If you have any questions, feel free to contact us.</p>
+            
+            <p>Best regards,<br>The {{ site_name }} Team</p>
+        </div>
+        
+        <div class="footer">
+            <p>&copy; 2023 {{ site_name }}. All rights reserved.</p>
+        </div>
+    </body>
+    </html>
+    ```
+
+    ```python
+    # utils.py - Email utility functions
+    from django.core.mail import EmailMultiAlternatives
+    from django.template.loader import render_to_string
+    from django.utils.html import strip_tags
+    from django.conf import settings
+    
+    def send_templated_email(template_name, context, subject, to_emails, from_email=None):
+        """Send email using template"""
+        if not from_email:
+            from_email = settings.DEFAULT_FROM_EMAIL
+        
+        # Render HTML template
+        html_content = render_to_string(f'emails/{template_name}.html', context)
+        
+        # Create text version
+        text_content = strip_tags(html_content)
+        
+        # Send email
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=from_email,
+            to=to_emails
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+    
+    # Usage examples
+    def send_welcome_email(user):
+        """Send welcome email to new user"""
+        send_templated_email(
+            template_name='welcome',
+            context={'user': user, 'site_name': 'Our Site'},
+            subject='Welcome to Our Site!',
+            to_emails=[user.email]
+        )
+    
+    def send_password_reset_email(user, reset_url):
+        """Send password reset email"""
+        send_templated_email(
+            template_name='password_reset',
+            context={
+                'user': user,
+                'reset_url': reset_url,
+                'site_name': 'Our Site'
+            },
+            subject='Password Reset Request',
+            to_emails=[user.email]
+        )
+    ```
+
+# Django Middleware - Complete Guide
+
+## Understanding Middleware
+
+80. **Middleware basics** - Middleware is a framework of hooks into Django's request/response processing.
+
+    ```python
+    # custom_middleware.py
+    from django.utils.deprecation import MiddlewareMixin
+    import time
+    import logging
+    
+    class TimingMiddleware(MiddlewareMixin):
+        """Middleware to track request processing time"""
+        
+        def process_request(self, request):
+            """Called before Django decides which view to execute"""
+            request.start_time = time.time()
+            return None  # Continue processing
+        
+        def process_view(self, request, view_func, view_args, view_kwargs):
+            """Called after Django determines which view to execute"""
+            print(f"About to execute view: {view_func.__name__}")
+            return None  # Continue processing
+        
+        def process_response(self, request, response):
+            """Called after view returns response"""
+            if hasattr(request, 'start_time'):
+                duration = time.time() - request.start_time
+                response['X-Response-Time'] = str(duration)
+                print(f"Request took {duration:.2f} seconds")
+            return response
+        
+        def process_exception(self, request, exception):
+            """Called when view raises an exception"""
+            print(f"Exception occurred: {exception}")
+            return None  # Let Django handle the exception
+    
+    # Function-based middleware (Django 1.10+)
+    def timing_middleware(get_response):
+        """Function-based middleware for timing requests"""
+        
+        def middleware(request):
+            # Code to be executed for each request before
+            # the view (and later middleware) are called
+            start_time = time.time()
+            
+            response = get_response(request)
+            
+            # Code to be executed for each request/response after
+            # the view is called
+            duration = time.time() - start_time
+            response['X-Response-Time'] = str(duration)
+            
+            return response
+        
+        return middleware
+    ```
+
+81. **Custom middleware examples** - Practical middleware for common use cases.
+
+    ```python
+    # security_middleware.py
+    import json
+    from django.http import JsonResponse
+    from django.core.cache import cache
+    
+    class RateLimitMiddleware:
+        """Rate limiting middleware"""
+        
+        def __init__(self, get_response):
+            self.get_response = get_response
+        
+        def __call__(self, request):
+            # Get client IP
+            ip = self.get_client_ip(request)
+            
+            # Create cache key
+            cache_key = f"rate_limit_{ip}"
+            
+            # Get current request count
+            request_count = cache.get(cache_key, 0)
+            
+            # Check if limit exceeded
+            if request_count >= 100:  # 100 requests per hour
+                return JsonResponse({
+                    'error': 'Rate limit exceeded'
+                }, status=429)
+            
+            # Increment counter
+            cache.set(cache_key, request_count + 1, 3600)  # 1 hour
+            
+            response = self.get_response(request)
+            return response
+        
+        def get_client_ip(self, request):
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                ip = x_forwarded_for.split(',')[0]
+            else:
+                ip = request.META.get('REMOTE_ADDR')
+            return ip
+    
+    class RequestLoggingMiddleware:
+        """Log all requests"""
+        
+        def __init__(self, get_response):
+            self.get_response = get_response
+        
+        def __call__(self, request):
+            # Log request
+            print(f"Request: {request.method} {request.get_full_path()}")
+            
+            if request.user.is_authenticated:
+                print(f"User: {request.user.username}")
+            
+            response = self.get_response(request)
+            
+            # Log response
+            print(f"Response: {response.status_code}")
+            
+            return response
+    
+    class CORSMiddleware:
+        """Custom CORS middleware"""
+        
+        def __init__(self, get_response):
+            self.get_response = get_response
+        
+        def __call__(self, request):
+            response = self.get_response(request)
+            
+            # Add CORS headers
+            response['Access-Control-Allow-Origin'] = '*'
+            response['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            response['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            
+            return response
+    ```
+
+82. **Middleware configuration and ordering** - Proper middleware setup and understanding execution order.
+
+    ```python
+    # settings.py - Middleware configuration
+    MIDDLEWARE = [
+        'django.middleware.security.SecurityMiddleware',
+        'django.contrib.sessions.middleware.SessionMiddleware',
+        'corsheaders.middleware.CorsMiddleware',  # Third-party CORS
+        'django.middleware.common.CommonMiddleware',
+        'django.middleware.csrf.CsrfViewMiddleware',
+        'django.contrib.auth.middleware.AuthenticationMiddleware',
+        'django.contrib.messages.middleware.MessageMiddleware',
+        'django.middleware.clickjacking.XFrameOptionsMiddleware',
+        
+        # Custom middleware
+        'myapp.middleware.TimingMiddleware',
+        'myapp.middleware.RateLimitMiddleware',
+        'myapp.middleware.RequestLoggingMiddleware',
+    ]
+    
+    # Middleware execution order:
+    # 1. Request flows DOWN the middleware stack
+    # 2. View is executed
+    # 3. Response flows UP the middleware stack
+    
+    # For example, with the above order:
+    # Request: Security -> Sessions -> CORS -> Common -> CSRF -> Auth -> Messages -> Clickjacking -> Timing -> RateLimit -> Logging -> VIEW
+    # Response: VIEW -> Logging -> RateLimit -> Timing -> Clickjacking -> Messages -> Auth -> CSRF -> Common -> CORS -> Sessions -> Security
+    ```
+
+# Django Management Commands - Complete Guide
+
+## Creating Custom Commands
+
+83. **Basic management command structure** - Create custom Django management commands for automated tasks.
+
+    ```python
+    # management/commands/hello_world.py
+    from django.core.management.base import BaseCommand
+    from django.contrib.auth.models import User
+    
+    class Command(BaseCommand):
+        help = 'Prints hello world message'
+        
+        def add_arguments(self, parser):
+            """Add command arguments"""
+            parser.add_argument(
+                '--name',
+                type=str,
+                help='Name to greet',
+                default='World'
+            )
+            parser.add_argument(
+                '--count',
+                type=int,
+                help='Number of times to greet',
+                default=1
+            )
+            parser.add_argument(
+                '--uppercase',
+                action='store_true',
+                help='Print in uppercase',
+            )
+        
+        def handle(self, *args, **options):
+            """Command logic"""
+            name = options['name']
+            count = options['count']
+            uppercase = options['uppercase']
+            
+            message = f"Hello, {name}!"
+            
+            if uppercase:
+                message = message.upper()
+            
+            for i in range(count):
+                self.stdout.write(
+                    self.style.SUCCESS(message)
+                )
+    
+    # Usage: python manage.py hello_world --name=Django --count=3 --uppercase
+    ```
+
+84. **Data management commands** - Commands for database operations and data processing.
+
+    ```python
+    # management/commands/cleanup_old_data.py
+    from django.core.management.base import BaseCommand
+    from django.utils import timezone
+    from datetime import timedelta
+    from myapp.models import Product, Order
+    
+    class Command(BaseCommand):
+        help = 'Clean up old data from the database'
+        
+        def add_arguments(self, parser):
+            parser.add_argument(
+                '--days',
+                type=int,
+                default=30,
+                help='Delete data older than X days'
+            )
+            parser.add_argument(
+                '--dry-run',
+                action='store_true',
+                help='Show what would be deleted without actually deleting'
+            )
+        
+        def handle(self, *args, **options):
+            days = options['days']
+            dry_run = options['dry_run']
+            
+            # Calculate cutoff date
+            cutoff_date = timezone.now() - timedelta(days=days)
+            
+            # Find old orders
+            old_orders = Order.objects.filter(created_at__lt=cutoff_date)
+            old_products = Product.objects.filter(
+                created_at__lt=cutoff_date,
+                is_active=False
+            )
+            
+            self.stdout.write(f"Found {old_orders.count()} old orders")
+            self.stdout.write(f"Found {old_products.count()} old inactive products")
+            
+            if dry_run:
+                self.stdout.write(
+                    self.style.WARNING("DRY RUN: No data will be deleted")
+                )
+                return
+            
+            # Delete data
+            if old_orders.exists():
+                deleted_orders = old_orders.delete()
+                self.stdout.write(
+                    self.style.SUCCESS(f"Deleted {deleted_orders[0]} orders")
+                )
+            
+            if old_products.exists():
+                deleted_products = old_products.delete()
+                self.stdout.write(
+                    self.style.SUCCESS(f"Deleted {deleted_products[0]} products")
+                )
+            
+            self.stdout.write(
+                self.style.SUCCESS("Cleanup completed successfully")
+            )
+    
+    # management/commands/import_data.py
+    import csv
+    from django.core.management.base import BaseCommand, CommandError
+    from django.db import transaction
+    from myapp.models import Product, Category
+    
+    class Command(BaseCommand):
+        help = 'Import products from CSV file'
+        
+        def add_arguments(self, parser):
+            parser.add_argument('csv_file', type=str, help='Path to CSV file')
+            parser.add_argument(
+                '--batch-size',
+                type=int,
+                default=1000,
+                help='Batch size for bulk operations'
+            )
+        
+        def handle(self, *args, **options):
+            csv_file = options['csv_file']
+            batch_size = options['batch_size']
+            
+            try:
+                with open(csv_file, 'r') as file:
+                    reader = csv.DictReader(file)
+                    products = []
+                    
+                    for i, row in enumerate(reader, 1):
+                        try:
+                            # Get or create category
+                            category, created = Category.objects.get_or_create(
+                                name=row['category']
+                            )
+                            
+                            # Create product
+                            product = Product(
+                                name=row['name'],
+                                description=row.get('description', ''),
+                                price=float(row['price']),
+                                category=category
+                            )
+                            products.append(product)
+                            
+                            # Bulk create in batches
+                            if len(products) >= batch_size:
+                                Product.objects.bulk_create(products)
+                                products = []
+                                self.stdout.write(f"Imported {i} products...")
+                        
+                        except Exception as e:
+                            self.stdout.write(
+                                self.style.WARNING(f"Error in row {i}: {e}")
+                            )
+                    
+                    # Create remaining products
+                    if products:
+                        Product.objects.bulk_create(products)
+                    
+                    self.stdout.write(
+                        self.style.SUCCESS(f"Successfully imported {i} products")
+                    )
+            
+            except FileNotFoundError:
+                raise CommandError(f"File '{csv_file}' not found")
+            except Exception as e:
+                raise CommandError(f"Error importing data: {e}")
+    ```
+
+85. **Advanced command features** - Commands with progress bars, user input, and error handling.
+
+    ```python
+    # management/commands/advanced_example.py
+    from django.core.management.base import BaseCommand, CommandError
+    from django.contrib.auth.models import User
+    import time
+    
+    class Command(BaseCommand):
+        help = 'Advanced command example with progress and user input'
+        
+        def add_arguments(self, parser):
+            parser.add_argument(
+                '--interactive',
+                action='store_true',
+                help='Run in interactive mode'
+            )
+            parser.add_argument(
+                '--verbosity',
+                type=int,
+                choices=[0, 1, 2, 3],
+                default=1,
+                help='Verbosity level'
+            )
+        
+        def handle(self, *args, **options):
+            interactive = options['interactive']
+            verbosity = options['verbosity']
+            
+            if interactive:
+                self.interactive_mode()
+            else:
+                self.batch_mode(verbosity)
+        
+        def interactive_mode(self):
+            """Interactive mode with user input"""
+            self.stdout.write("Running in interactive mode...")
+            
+            # Get user input
+            username = input("Enter username: ")
+            email = input("Enter email: ")
+            
+            # Confirm action
+            confirm = input(f"Create user '{username}' with email '{email}'? (y/N): ")
+            
+            if confirm.lower() == 'y':
+                try:
+                    user = User.objects.create_user(
+                        username=username,
+                        email=email,
+                        password='temporary_password'
+                    )
+                    self.stdout.write(
+                        self.style.SUCCESS(f"User '{username}' created successfully")
+                    )
+                except Exception as e:
+                    self.stdout.write(
+                        self.style.ERROR(f"Error creating user: {e}")
+                    )
+            else:
+                self.stdout.write("Operation cancelled")
+        
+        def batch_mode(self, verbosity):
+            """Batch mode with progress tracking"""
+            users = User.objects.all()
+            total_users = users.count()
+            
+            if verbosity >= 1:
+                self.stdout.write(f"Processing {total_users} users...")
+            
+            for i, user in enumerate(users, 1):
+                # Simulate processing
+                time.sleep(0.1)
+                
+                # Update user (example operation)
+                user.last_login = timezone.now()
+                user.save()
+                
+                # Show progress
+                if verbosity >= 2:
+                    progress = (i / total_users) * 100
+                    self.stdout.write(f"Progress: {progress:.1f}% ({i}/{total_users})")
+                elif verbosity >= 1 and i % 10 == 0:
+                    self.stdout.write(f"Processed {i}/{total_users} users")
+            
+            if verbosity >= 1:
+                self.stdout.write(
+                    self.style.SUCCESS(f"Successfully processed {total_users} users")
+                )
+    
+    # management/commands/send_notifications.py
+    from django.core.management.base import BaseCommand
+    from django.core.mail import send_mail
+    from django.template.loader import render_to_string
+    from django.contrib.auth.models import User
+    
+    class Command(BaseCommand):
+        help = 'Send notification emails to users'
+        
+        def add_arguments(self, parser):
+            parser.add_argument(
+                '--template',
+                type=str,
+                required=True,
+                help='Email template name'
+            )
+            parser.add_argument(
+                '--subject',
+                type=str,
+                required=True,
+                help='Email subject'
+            )
+            parser.add_argument(
+                '--users',
+                nargs='+',
+                type=str,
+                help='Specific usernames to send to'
+            )
+        
+        def handle(self, *args, **options):
+            template = options['template']
+            subject = options['subject']
+            usernames = options.get('users')
+            
+            # Get users to send to
+            if usernames:
+                users = User.objects.filter(username__in=usernames)
+            else:
+                users = User.objects.filter(is_active=True)
+            
+            sent_count = 0
+            error_count = 0
+            
+            for user in users:
+                try:
+                    # Render email content
+                    message = render_to_string(f'emails/{template}.txt', {
+                        'user': user,
+                        'site_name': 'Our Site'
+                    })
+                    
+                    # Send email
+                    send_mail(
+                        subject=subject,
+                        message=message,
+                        from_email='noreply@example.com',
+                        recipient_list=[user.email],
+                        fail_silently=False
+                    )
+                    
+                    sent_count += 1
+                    self.stdout.write(f"Sent email to {user.email}")
+                
+                except Exception as e:
+                    error_count += 1
+                    self.stdout.write(
+                        self.style.WARNING(f"Failed to send email to {user.email}: {e}")
+                    )
+            
+            self.stdout.write(
+                self.style.SUCCESS(f"Sent {sent_count} emails, {error_count} errors")
+            )
+    ```
+
 # Django REST Framework (DRF) Serializers - Complete Guide
 
 ## What are Serializers?
 
-39. **Serializers** convert complex Python objects (like Django model instances) into Python native data types (dict, list, etc.) that can then be easily rendered into JSON, XML or other content types. They also work in reverse - converting JSON/form data back into Python objects.
+86. **Serializers** convert complex Python objects (like Django model instances) into Python native data types (dict, list, etc.) that can then be easily rendered into JSON, XML or other content types. They also work in reverse - converting JSON/form data back into Python objects.
 
     ```python
     # Without serializers - manual and error-prone

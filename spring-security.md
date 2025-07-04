@@ -15,6 +15,8 @@
 12. [Database Setup (Postgres Example)](#database-setup-postgres-example)
 13. [Running Spring Boot JARs](#running-spring-boot-jars)
 14. [Running Code at Different Stages in Spring Boot](#running-code-at-different-stages-in-spring-boot)
+15. [CommandLineRunner and ApplicationRunner](#command-line-runner-and-application-runner)
+16. [Spring Boot Actuator and Actuator Endpoints](#spring-boot-actuator-and-actuator-endpoints)
 
 ---
 
@@ -1019,5 +1021,169 @@ Spring Boot provides several ways to run code at specific points in the applicat
       }
   }
   ```
+
+### Standard Way to Run Scheduled Tasks in Spring Boot
+
+Spring Boot makes it easy to run scheduled or periodic tasks using the `@Scheduled` annotation. Here's how to do it:
+
+#### 1. Enable Scheduling
+Add `@EnableScheduling` to your main application class or a configuration class:
+```java
+@SpringBootApplication
+@EnableScheduling
+public class MyApp {
+    public static void main(String[] args) {
+        SpringApplication.run(MyApp.class, args);
+    }
+}
+```
+
+#### 2. Create a Scheduled Task
+Annotate a method in a `@Component` class with `@Scheduled`:
+```java
+@Component
+public class MyScheduledTasks {
+    // Runs every 5 seconds (5000 ms)
+    @Scheduled(fixedRate = 5000)
+    public void runEveryFiveSeconds() {
+        System.out.println("Fixed rate task: " + System.currentTimeMillis());
+    }
+
+    // Runs 5 seconds after the previous execution finishes
+    @Scheduled(fixedDelay = 5000)
+    public void runWithFixedDelay() {
+        System.out.println("Fixed delay task: " + System.currentTimeMillis());
+    }
+
+    // Runs at 10:15 AM every day (cron expression)
+    @Scheduled(cron = "0 15 10 * * ?")
+    public void runWithCron() {
+        System.out.println("Cron task: " + System.currentTimeMillis());
+    }
+}
+```
+
+#### 3. Scheduling Options
+- `fixedRate`: Runs the method at a regular interval, measured from the start of each execution.
+- `fixedDelay`: Runs the method with a delay after the previous execution finishes.
+- `cron`: Uses a cron expression for flexible scheduling (e.g., "every Monday at 8am").
+
+#### 4. Configuring Scheduling Properties
+You can externalize intervals using properties:
+```java
+@Scheduled(fixedRateString = "${my.task.rate:10000}")
+public void runWithConfigurableRate() { ... }
+```
+And in `application.properties`:
+```
+my.task.rate=15000
+```
+
+#### 5. Customizing the Scheduler Thread Pool
+By default, all scheduled tasks share a single thread. To use a thread pool, define a `TaskScheduler` bean:
+```java
+@Configuration
+public class SchedulerConfig {
+    @Bean
+    public TaskScheduler taskScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(5);
+        return scheduler;
+    }
+}
+```
+
+---
+
+### CommandLineRunner and ApplicationRunner
+
+**CommandLineRunner** and **ApplicationRunner** are special interfaces in Spring Boot that let you run code right after the application context is loaded, but before the application is fully up and serving requests.
+
+- **When do they run?**
+  - After all beans are created and the context is ready.
+  - Before the application starts accepting web requests (if it's a web app).
+  - Useful for initialization, data loading, or startup checks.
+
+**CommandLineRunner Example:**
+```java
+@SpringBootApplication
+public class MyApp implements CommandLineRunner {
+    public static void main(String[] args) {
+        SpringApplication.run(MyApp.class, args);
+    }
+    @Override
+    public void run(String... args) {
+        System.out.println("CommandLineRunner: App started with args: " + Arrays.toString(args));
+    }
+}
+```
+
+**ApplicationRunner Example:**
+```java
+@Component
+public class MyRunner implements ApplicationRunner {
+    @Override
+    public void run(ApplicationArguments args) {
+        System.out.println("ApplicationRunner: App started with args: " + args.getOptionNames());
+    }
+}
+```
+- You can have multiple runners; their order can be set with `@Order`.
+
+---
+
+### Spring Boot Actuator and Actuator Endpoints
+
+**Spring Boot Actuator** is a module that adds production-ready features to your app, such as monitoring, metrics, health checks, and more.
+
+- **What does it provide?**
+  - Built-in endpoints for health, metrics, info, environment, beans, and more.
+  - Easy integration with monitoring tools (Prometheus, Grafana, etc.).
+
+**How to enable Actuator:**
+Add this to your `pom.xml`:
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+```
+
+**Default actuator endpoints:**
+- `/actuator/health` — Health status of your app
+- `/actuator/info` — Custom info (from properties)
+- `/actuator/metrics` — Metrics (memory, CPU, etc.)
+- `/actuator/env` — Environment properties
+- `/actuator/beans` — List of all beans
+- `/actuator` — List of all available endpoints
+
+**How to use and customize endpoints:**
+- By default, only `/actuator/health` and `/actuator/info` are exposed over HTTP.
+- To expose more endpoints, add to `application.properties`:
+  ```
+  management.endpoints.web.exposure.include=*
+  ```
+- To add custom info:
+  ```
+  management.info.app.name=MyApp
+  management.info.app.description=Demo Spring Boot app
+  ```
+- You can secure endpoints, change their paths, or add your own custom endpoints.
+
+**Example: Custom Health Indicator**
+```java
+@Component
+public class MyHealthIndicator implements HealthIndicator {
+    @Override
+    public Health health() {
+        // Custom health check logic
+        return Health.up().withDetail("custom", "All good!").build();
+    }
+}
+```
+
+**Summary:**
+- Actuator endpoints help you monitor and manage your app in production.
+- You can enable, secure, and customize them as needed.
 
 ---
