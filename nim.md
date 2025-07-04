@@ -16,7 +16,7 @@
    ```
 5. No semicolons needed unless you put multiple statements on same line.
 6. Comments start with `#` for single line or `#[` `]#` for multi-line.
-7. Nim is case and underscore insensitive. So `myVar`, `my_var`, and `myvar` are all the same identifier.
+7. Nim is case and underscore insensitive. So `myVar`, `my_var`, `myVar`, and `myvar` are all the same identifier. This means you can use any casing/underscore style consistently in your code, and it will work with libraries that use different styles.
 
 ## Types and Variables
 1. Basic types: `int`, `float`, `string`, `char`, `bool`
@@ -80,10 +80,13 @@
 4. `result` is a special variable that holds the return value. You can modify it instead of explicit return.
    ```nim
    proc factorial(n: int): int =
-     result = 1
+     result = 1  # result is automatically initialized to the default value of the return type
      for i in 1..n:
        result *= i
+   # The value of result is automatically returned at the end of the procedure
    ```
+   
+   The `result` variable is automatically created for any procedure that has a return type. It's initialized to the default value of that type (0 for int, "" for string, nil for ref types, etc.).
 
 ## Memory Management
 1. Nim has garbage collection by default, but you can disable it for real-time systems.
@@ -380,12 +383,64 @@ task greet, "Prints a greeting":
 | Search for packages   | `nimble search keyword` or visit nimble.directory   |
 
 ## Useful Libraries
-1. `strutils` - string manipulation functions
-2. `sequtils` - sequence/array utilities  
+
+Nim's standard library is comprehensive, and there are many third-party packages available through Nimble:
+
+### Standard Library (Built-in)
+1. `strutils` - string manipulation functions (split, join, replace, etc.)
+2. `sequtils` - sequence/array utilities (map, filter, fold, etc.)
 3. `json` - JSON parsing and generation
-4. `httpclient` - HTTP requests
-5. `asyncdispatch` - async/await support
-6. `unittest` - testing framework
+4. `httpclient` - HTTP requests and responses
+5. `asyncdispatch` - async/await support for non-blocking I/O
+6. `unittest` - testing framework for writing unit tests
+7. `os` - operating system interface (file paths, environment variables)
+8. `tables` - hash tables and dictionaries
+9. `sets` - hash sets for unique collections
+10. `times` - date and time handling
+11. `re` - regular expressions
+12. `math` - mathematical functions
+13. `random` - random number generation
+14. `logging` - logging facilities
+15. `uri` - URL parsing and manipulation
+
+### Popular Third-Party Libraries (install with `nimble install`)
+
+**Web Development:**
+- `jester` - lightweight web framework (like Flask)
+- `karax` - single-page application framework
+- `prologue` - full-featured web framework (like Django)
+
+**Database:**
+- `db_sqlite` - SQLite database support (standard library)
+- `db_postgres` - PostgreSQL support (standard library)
+- `redis` - Redis client
+- `norm` - ORM (Object-Relational Mapping)
+
+**Networking:**
+- `websocket` - WebSocket client and server
+- `smtp` - email sending
+- `net` - TCP/UDP networking (standard library)
+
+**Parsing and Serialization:**
+- `yaml` - YAML parsing
+- `xmlparser` - XML parsing (standard library)
+- `parsecfg` - configuration file parsing (standard library)
+
+**GUI:**
+- `nigui` - native GUI toolkit
+- `gintro` - GTK bindings
+- `wxnim` - wxWidgets bindings
+
+**Graphics and Games:**
+- `opengl` - OpenGL bindings
+- `sdl2` - SDL2 bindings for games
+- `raylib` - Raylib game development library
+
+**Utilities:**
+- `cligen` - command-line argument parsing
+- `chronicles` - structured logging
+- `nimpy` - Python interop
+- `regex` - advanced regular expressions
 
 ## Tips and Gotchas
 1. Nim is whitespace-sensitive like Python, but you can use `\` for line continuation.
@@ -398,6 +453,802 @@ task greet, "Prints a greeting":
 8. Nim can interface with C libraries easily - just write the function signatures.
 9. For performance-critical code, compile with `-d:danger` (removes all checks).
 10. Use `nim doc myfile.nim` to generate HTML documentation from your code comments.
+
+## Error Handling Patterns
+
+Nim provides several ways to handle errors. Here are the most common patterns developers use:
+
+### 1. Exceptions (Traditional)
+```nim
+proc readFile(filename: string): string =
+  if not fileExists(filename):
+    raise newException(IOError, "File not found: " & filename)
+  # read file content here
+  result = readFile(filename)
+
+try:
+  let content = readFile("data.txt")
+  echo content
+except IOError as e:
+  echo "Error: ", e.msg
+except Exception as e:
+  echo "Unexpected error: ", e.msg
+```
+
+### 2. Result Types (Modern, Preferred)
+```nim
+import std/options
+
+type
+  Result[T, E] = object
+    case isOk: bool
+    of true: value: T
+    of false: error: E
+
+proc parseInt(s: string): Result[int, string] =
+  try:
+    Result[int, string](isOk: true, value: parseInt(s))
+  except ValueError:
+    Result[int, string](isOk: false, error: "Invalid integer: " & s)
+
+# Usage
+let parseResult = parseInt("42")
+if parseResult.isOk:
+  echo "Number: ", parseResult.value
+else:
+  echo "Error: ", parseResult.error
+```
+
+### 3. Option Types for Nullable Values
+```nim
+import std/options
+
+proc findUser(id: int): Option[string] =
+  if id == 1:
+    some("Alice")  # some() wraps a value in an Option
+  else:
+    none(string)   # none() represents "no value"
+
+# Usage
+let user = findUser(1)
+if user.isSome:
+  echo "Found user: ", user.get()
+else:
+  echo "User not found"
+
+# Or use pattern matching
+case user:
+of Some(name): echo "Hello, ", name
+of None: echo "No user found"
+```
+
+### 4. Custom Error Types
+```nim
+type
+  AppError = object of CatchableError
+  NetworkError = object of AppError
+  DatabaseError = object of AppError
+
+proc fetchData(): string =
+  # This will raise a NetworkError
+  raise newException(NetworkError, "Connection failed")
+
+try:
+  let data = fetchData()
+except NetworkError as e:
+  echo "Network issue: ", e.msg
+except DatabaseError as e:
+  echo "Database issue: ", e.msg
+except AppError as e:
+  echo "App error: ", e.msg
+```
+
+## Generics (Templates for Types)
+
+Generics allow you to write code that works with different types. They're like templates in C++ or generics in Java/C#.
+
+### Basic Generic Procedures
+```nim
+proc swap[T](a, b: var T) =
+  let temp = a
+  a = b
+  b = temp
+
+var x = 10
+var y = 20
+swap(x, y)  # T is inferred as int
+echo x, " ", y  # prints "20 10"
+
+var s1 = "hello"
+var s2 = "world"
+swap(s1, s2)  # T is inferred as string
+echo s1, " ", s2  # prints "world hello"
+```
+
+### Generic Types
+```nim
+type
+  Stack[T] = object
+    items: seq[T]
+
+proc push[T](stack: var Stack[T], item: T) =
+  stack.items.add(item)
+
+proc pop[T](stack: var Stack[T]): T =
+  if stack.items.len > 0:
+    result = stack.items[^1]  # ^1 means last element
+    stack.items.setLen(stack.items.len - 1)
+  else:
+    raise newException(IndexDefect, "Stack is empty")
+
+proc isEmpty[T](stack: Stack[T]): bool =
+  stack.items.len == 0
+
+# Usage
+var intStack = Stack[int]()
+intStack.push(1)
+intStack.push(2)
+echo intStack.pop()  # prints 2
+
+var stringStack = Stack[string]()
+stringStack.push("hello")
+stringStack.push("world")
+echo stringStack.pop()  # prints "world"
+```
+
+### Generic Constraints
+```nim
+# Only allow types that support the + operator
+proc add[T: SomeNumber](a, b: T): T =
+  a + b
+
+# Only allow types that are ordinal (can be enumerated)
+proc next[T: Ordinal](x: T): T =
+  succ(x)
+
+# Multiple constraints
+proc compare[T: Ordinal and SomeNumber](a, b: T): int =
+  if a < b: -1
+  elif a > b: 1
+  else: 0
+```
+
+## Logging
+
+Nim has a built-in logging module that developers commonly use:
+
+```nim
+import std/logging
+
+# Create a logger that writes to console
+var logger = newConsoleLogger()
+addHandler(logger)
+
+# Different log levels
+debug("This is debug info")    # Only shows in debug builds
+info("Application started")
+warn("This is a warning")
+error("Something went wrong")
+fatal("Critical error!")
+
+# Custom formatting
+var fileLogger = newFileLogger("app.log", fmtStr = "$date $time - $levelname: $msg")
+addHandler(fileLogger)
+
+# Log with different levels
+setLogFilter(lvlInfo)  # Only log info and above
+info("This will be logged")
+debug("This will be ignored")
+```
+
+## Testing Framework
+
+Nim includes a unittest module for writing tests:
+
+```nim
+import unittest
+
+# Test suite
+suite "Math operations":
+  test "addition":
+    check(2 + 2 == 4)
+    check(5 + 3 == 8)
+  
+  test "division":
+    check(10 div 2 == 5)
+    expect(DivByZeroDefect):
+      discard 10 div 0  # This should raise an exception
+  
+  test "floating point":
+    check(1.0 + 2.0 == 3.0)
+    # For floating point comparisons with tolerance
+    check(abs(0.1 + 0.2 - 0.3) < 0.0001)
+
+# Run tests with: nim c -r test_file.nim
+```
+
+## Iterators (Custom Loops)
+
+Iterators are like Python generators - they yield values one at a time:
+
+```nim
+# Simple iterator
+iterator countdown(n: int): int =
+  var i = n
+  while i > 0:
+    yield i
+    dec i
+
+for num in countdown(5):
+  echo num  # prints 5, 4, 3, 2, 1
+
+# Iterator with multiple values
+iterator enumerate[T](s: seq[T]): tuple[index: int, value: T] =
+  for i, item in s:
+    yield (i, item)
+
+let names = @["Alice", "Bob", "Carol"]
+for i, name in enumerate(names):
+  echo i, ": ", name
+```
+
+## Operator Overloading
+
+You can define custom operators or overload existing ones:
+
+```nim
+type
+  Vector2 = object
+    x, y: float
+
+# Overload the + operator
+proc `+`(a, b: Vector2): Vector2 =
+  Vector2(x: a.x + b.x, y: a.y + b.y)
+
+# Overload the * operator for scalar multiplication
+proc `*`(v: Vector2, scalar: float): Vector2 =
+  Vector2(x: v.x * scalar, y: v.y * scalar)
+
+# Define a custom operator
+proc `**`(base: float, exponent: float): float =
+  # Custom power operator
+  pow(base, exponent)
+
+# Usage
+let v1 = Vector2(x: 1.0, y: 2.0)
+let v2 = Vector2(x: 3.0, y: 4.0)
+let v3 = v1 + v2  # Vector2(x: 4.0, y: 6.0)
+let v4 = v1 * 2.0  # Vector2(x: 2.0, y: 4.0)
+let result = 2.0 ** 3.0  # 8.0
+```
+
+## Async/Await Programming
+
+Nim has excellent support for asynchronous programming, similar to Python's asyncio or JavaScript's async/await:
+
+```nim
+import asyncdispatch, httpclient
+
+# Basic async procedure
+proc fetchData(url: string): Future[string] {.async.} =
+  let client = newAsyncHttpClient()
+  try:
+    let response = await client.get(url)
+    result = await response.body
+  finally:
+    client.close()
+
+# Async procedure that uses other async procedures
+proc processUrls(urls: seq[string]): Future[seq[string]] {.async.} =
+  result = @[]
+  for url in urls:
+    let data = await fetchData(url)
+    result.add(data)
+
+# Run async code
+proc main() {.async.} =
+  let urls = @["http://example.com", "http://google.com"]
+  let results = await processUrls(urls)
+  for i, result in results:
+    echo "URL ", i, ": ", result.len, " characters"
+
+# Start the async event loop
+waitFor main()
+```
+
+### Async Utilities
+```nim
+import asyncdispatch, times
+
+# Sleep without blocking
+proc delayedHello(): Future[void] {.async.} =
+  await sleepAsync(1000)  # Sleep for 1 second
+  echo "Hello after delay!"
+
+# Run multiple async operations concurrently
+proc concurrent(): Future[void] {.async.} =
+  let futures = @[
+    delayedHello(),
+    delayedHello(),
+    delayedHello()
+  ]
+  await all(futures)  # Wait for all to complete
+
+# Timeout for async operations
+proc withTimeout(): Future[void] {.async.} =
+  try:
+    await sleepAsync(5000).withTimeout(2000)  # 2 second timeout
+  except TimeoutError:
+    echo "Operation timed out!"
+```
+
+## String Formatting and Manipulation
+
+Nim provides several ways to work with strings:
+
+```nim
+import strutils, strformat
+
+# Basic string operations
+let name = "Alice"
+let age = 30
+
+# String interpolation with strformat
+let message = fmt"Hello, {name}! You are {age} years old."
+echo message
+
+# String interpolation with & operator
+let message2 = "Hello, " & name & "! You are " & $age & " years old."
+
+# String formatting with % operator
+let message3 = "Hello, $1! You are $2 years old." % [name, $age]
+
+# Multi-line strings
+let multiline = """
+This is a multi-line string.
+It preserves line breaks.
+Very useful for templates.
+"""
+
+# String manipulation
+let text = "  Hello World  "
+echo text.strip()           # "Hello World" (remove whitespace)
+echo text.toUpper()         # "  HELLO WORLD  "
+echo text.replace("World", "Nim")  # "  Hello Nim  "
+echo text.split()           # @["Hello", "World"]
+
+# String checking
+echo "Hello".startsWith("He")  # true
+echo "World".endsWith("ld")    # true
+echo "test" in "this is a test"  # true
+
+# String joining
+let words = @["Hello", "beautiful", "world"]
+echo words.join(" ")  # "Hello beautiful world"
+```
+
+## File I/O Operations
+
+```nim
+import std/os, std/streams
+
+# Reading files
+proc readTextFile(filename: string): string =
+  try:
+    result = readFile(filename)
+  except IOError as e:
+    echo "Error reading file: ", e.msg
+    result = ""
+
+# Writing files
+proc writeTextFile(filename: string, content: string) =
+  try:
+    writeFile(filename, content)
+  except IOError as e:
+    echo "Error writing file: ", e.msg
+
+# Line-by-line reading
+proc processFileLines(filename: string) =
+  try:
+    for line in lines(filename):
+      echo "Line: ", line
+  except IOError as e:
+    echo "Error reading file: ", e.msg
+
+# Working with directories
+proc listFiles(directory: string) =
+  try:
+    for kind, path in walkDir(directory):
+      case kind:
+      of pcFile:
+        echo "File: ", path
+      of pcDir:
+        echo "Directory: ", path
+      of pcLinkToFile, pcLinkToDir:
+        echo "Link: ", path
+  except OSError as e:
+    echo "Error accessing directory: ", e.msg
+
+# File streams for large files
+proc processLargeFile(filename: string) =
+  let fileStream = newFileStream(filename, fmRead)
+  if fileStream != nil:
+    try:
+      var line: string
+      while fileStream.readLine(line):
+        # Process line without loading entire file into memory
+        echo "Processing: ", line
+    finally:
+      fileStream.close()
+```
+
+## JSON Handling
+
+```nim
+import json, options
+
+# Creating JSON
+let jsonData = %* {
+  "name": "Alice",
+  "age": 30,
+  "hobbies": ["reading", "swimming"],
+  "address": {
+    "street": "123 Main St",
+    "city": "Anytown"
+  }
+}
+
+echo jsonData.pretty()  # Pretty print JSON
+
+# Parsing JSON from string
+let jsonString = """{"name": "Bob", "age": 25}"""
+let parsed = parseJson(jsonString)
+echo parsed["name"].getStr()  # "Bob"
+echo parsed["age"].getInt()   # 25
+
+# Safe JSON access
+if parsed.hasKey("email"):
+  echo "Email: ", parsed["email"].getStr()
+else:
+  echo "No email found"
+
+# Converting to Nim objects
+type
+  Person = object
+    name: string
+    age: int
+    email: Option[string]
+
+proc toPerson(json: JsonNode): Person =
+  Person(
+    name: json["name"].getStr(),
+    age: json["age"].getInt(),
+    email: if json.hasKey("email"): some(json["email"].getStr()) else: none(string)
+  )
+
+let person = toPerson(parsed)
+echo person.name, " is ", person.age, " years old"
+```
+
+## Cross-Compilation
+
+Nim makes it easy to compile for different platforms:
+
+```nim
+# Compile for Windows (from any platform)
+# nim c --cpu:amd64 --os:windows myapp.nim
+
+# Compile for Linux
+# nim c --cpu:amd64 --os:linux myapp.nim
+
+# Compile for macOS
+# nim c --cpu:amd64 --os:macosx myapp.nim
+
+# Compile for ARM (like Raspberry Pi)
+# nim c --cpu:arm --os:linux myapp.nim
+
+# Compile for WebAssembly
+# nim c -d:emscripten myapp.nim
+```
+
+You can also create conditional compilation:
+```nim
+when defined(windows):
+  proc platformSpecific() =
+    echo "Running on Windows"
+elif defined(linux):
+  proc platformSpecific() =
+    echo "Running on Linux"
+elif defined(macosx):
+  proc platformSpecific() =
+    echo "Running on macOS"
+else:
+  proc platformSpecific() =
+    echo "Running on unknown platform"
+```
+
+## Performance Optimization Tips
+
+```nim
+# 1. Use --opt:speed for optimized builds
+# nim c --opt:speed myapp.nim
+
+# 2. Use --gc:arc for deterministic memory management
+# nim c --gc:arc myapp.nim
+
+# 3. Use {.inline.} for small, frequently called procedures
+proc fastMath(x: float): float {.inline.} =
+  x * x + 2.0 * x + 1.0
+
+# 4. Use {.noinit.} to avoid zero-initialization
+var bigArray: array[1000000, int] {.noinit.}
+
+# 5. Use views for zero-copy string operations
+proc processString(s: openArray[char]) =
+  # Process string without copying
+  for c in s:
+    echo c
+
+# 6. Use compile-time evaluation
+const
+  fibonacci10 = block:
+    var a, b = 1
+    for i in 1..8:
+      let temp = a + b
+      a = b
+      b = temp
+    b
+
+# 7. Use packed objects for memory efficiency
+type
+  PackedData {.packed.} = object
+    flag: bool
+    value: int16
+    # No padding between fields
+
+# 8. Profile with --profiler:on
+# nim c --profiler:on myapp.nim
+```
+
+## Debugging Techniques
+
+```nim
+# 1. Use echo for basic debugging
+proc debugExample() =
+  let x = 42
+  echo "Debug: x = ", x
+  debugEcho "This goes to stderr"
+
+# 2. Use assert for runtime checks
+proc divide(a, b: int): int =
+  assert b != 0, "Division by zero"
+  a div b
+
+# 3. Use static assert for compile-time checks
+static:
+  assert sizeof(int) == 8, "This code requires 64-bit integers"
+
+# 4. Use when for conditional compilation
+when defined(debug):
+  proc debug(msg: string) =
+    echo "[DEBUG] ", msg
+else:
+  proc debug(msg: string) =
+    discard  # Do nothing in release builds
+
+# 5. Use --stackTrace:on for better error messages
+# nim c --stackTrace:on myapp.nim
+
+# 6. Use --lineTrace:on for line-by-line tracing
+# nim c --lineTrace:on myapp.nim
+
+# 7. Use gdb or lldb for native debugging
+# nim c --debugger:native myapp.nim
+```
+
+## Functional Programming Features
+
+```nim
+import sequtils, sugar
+
+# Higher-order functions
+let numbers = @[1, 2, 3, 4, 5]
+
+# Map: transform each element
+let doubled = numbers.map(x => x * 2)
+echo doubled  # @[2, 4, 6, 8, 10]
+
+# Filter: keep elements that match condition
+let evens = numbers.filter(x => x mod 2 == 0)
+echo evens  # @[2, 4]
+
+# Reduce: combine all elements into one value
+let sum = numbers.foldl(a + b)
+echo sum  # 15
+
+# Chain operations
+let result = numbers
+  .filter(x => x > 2)
+  .map(x => x * x)
+  .foldl(a + b)
+echo result  # 50 (3² + 4² + 5² = 9 + 16 + 25)
+
+# Custom higher-order functions
+proc applyTwice[T](fn: T -> T, value: T): T =
+  fn(fn(value))
+
+let double = (x: int) => x * 2
+echo applyTwice(double, 5)  # 20
+
+# Partial application
+proc add(x, y: int): int = x + y
+let addFive = (y: int) => add(5, y)
+echo addFive(10)  # 15
+
+# Currying
+proc multiply(x: int): int -> int =
+  result = (y: int) => x * y
+
+let multiplyByThree = multiply(3)
+echo multiplyByThree(7)  # 21
+```
+
+## Common Data Structures
+
+```nim
+# Hash tables (dictionaries)
+import tables
+
+var userAges = initTable[string, int]()
+userAges["Alice"] = 30
+userAges["Bob"] = 25
+
+# Or use table literals
+var scores = {"Alice": 100, "Bob": 85, "Carol": 92}.toTable()
+
+# Check if key exists
+if "Alice" in scores:
+  echo "Alice's score: ", scores["Alice"]
+
+# Iterate over table
+for name, score in scores:
+  echo name, ": ", score
+
+# Sets
+import sets
+
+var uniqueNumbers = initHashSet[int]()
+uniqueNumbers.incl(1)
+uniqueNumbers.incl(2)
+uniqueNumbers.incl(1)  # Duplicate, won't be added
+
+echo uniqueNumbers.len  # 2
+echo 1 in uniqueNumbers  # true
+
+# Queues and deques
+import deques
+
+var queue = initDeque[string]()
+queue.addLast("first")
+queue.addLast("second")
+queue.addFirst("zero")
+
+echo queue.popFirst()  # "zero"
+echo queue.popLast()   # "second"
+```
+
+## Development Environment Setup
+
+### Installing Nim
+```bash
+# Method 1: Using choosenim (recommended)
+curl https://nim-lang.org/choosenim/init.sh -sSf | sh
+choosenim stable  # Install latest stable version
+
+# Method 2: Package managers
+# macOS with Homebrew
+brew install nim
+
+# Ubuntu/Debian
+sudo apt-get install nim
+
+# Windows with Chocolatey
+choco install nim
+
+# Arch Linux
+sudo pacman -S nim
+```
+
+### IDE and Editor Support
+**VS Code (Most Popular):**
+- Install "Nim" extension by nimsaem
+- Provides syntax highlighting, IntelliSense, and debugging
+- Configure with nim-lsp for best experience
+
+**Vim/Neovim:**
+- Install nim.vim plugin
+- Use with coc.vim or nvim-lsp for language server support
+
+**Sublime Text:**
+- Install "Nim" package via Package Control
+
+**Emacs:**
+- Use nim-mode package
+
+**JetBrains IDEs:**
+- Install Nim plugin (community-developed)
+
+### Essential Tools
+```bash
+# Install nimlsp for IDE support
+nimble install nimlsp
+
+# Install nimfmt for code formatting
+nimble install nimfmt
+
+# Install testament for testing
+nimble install testament
+
+# Install nim-gdb for debugging
+nimble install nim-gdb
+```
+
+### Project Structure Best Practices
+```
+myproject/
+├── myproject.nimble       # Project configuration
+├── src/
+│   ├── myproject.nim      # Main module
+│   ├── myproject/
+│   │   ├── config.nim     # Configuration
+│   │   ├── utils.nim      # Utilities
+│   │   └── models.nim     # Data models
+├── tests/
+│   ├── test_config.nim    # Unit tests
+│   ├── test_utils.nim
+│   └── test_models.nim
+├── docs/                  # Documentation
+├── examples/              # Example usage
+└── README.md
+```
+
+### Configuration Files
+**nim.cfg** (project-specific compiler settings):
+```ini
+# Enable runtime checks in debug builds
+--checks:on
+--stackTrace:on
+--lineTrace:on
+
+# Optimize for release builds
+--opt:speed
+--gc:arc
+```
+
+**config.nims** (NimScript configuration):
+```nim
+# Configure search paths
+switch("path", "$projectDir/src")
+
+# Custom tasks
+task test, "Run tests":
+  exec "nim c -r tests/test_all.nim"
+
+task docs, "Generate documentation":
+  exec "nim doc --project --out:docs src/myproject.nim"
+```
+
+### Debugging Setup
+```bash
+# Compile with debugging symbols
+nim c --debugger:native --debugInfo myapp.nim
+
+# Use with GDB
+gdb ./myapp
+
+# Or with LLDB on macOS
+lldb ./myapp
+```
 
 ## Why Choose Nim?
 1. **Performance**: Compiles to C, so it's as fast as C/C++.
@@ -760,4 +1611,535 @@ This will:
 - You can add as many dependencies as needed in the `requires` field.
 - The code sample uses at least two dependencies (`strutils`, `jsony`, and `osproc`).
 - You can define more tasks for testing, cleaning, etc.
+
+## NimScript: Comprehensive Guide
+
+NimScript is much more than just Nimble tasks. It's a full scripting environment that allows you to write system scripts, configuration files, and automation tools using Nim syntax.
+
+### What is NimScript?
+
+NimScript is a subset of Nim that runs at compile-time or as a standalone script interpreter. It's designed for:
+- Build automation and configuration
+- System scripting (like Python or Bash scripts)
+- Cross-platform automation
+- CI/CD pipelines
+- Package management
+- Code generation
+
+### Standalone NimScript Files
+
+You can create standalone `.nims` files that run like traditional scripts:
+
+**hello.nims**
+```nim
+#!/usr/bin/env nim script
+# The shebang line makes it executable on Unix systems
+
+echo "Hello from NimScript!"
+echo "Arguments: "
+for i in 1..paramCount():
+  echo "  ", i, ": ", paramStr(i)
+```
+
+Run with:
+```bash
+nim script hello.nims arg1 arg2
+# or make it executable and run directly:
+chmod +x hello.nims
+./hello.nims arg1 arg2
+```
+
+### File and Directory Operations
+
+NimScript provides extensive file system operations:
+
+```nim
+import os, strutils, times
+
+# Create directories
+if not dirExists("build"):
+  createDir("build")
+  echo "Created build directory"
+
+# Copy files
+if fileExists("config.json"):
+  copyFile("config.json", "build/config.json")
+  echo "Copied config file"
+
+# List files with filtering
+echo "Source files:"
+for file in walkDirRec("src"):
+  if file.endsWith(".nim"):
+    echo "  ", file
+
+# File information
+let info = getFileInfo("script.nims")
+echo "Script size: ", info.size, " bytes"
+echo "Modified: ", info.lastWriteTime.format("yyyy-MM-dd HH:mm:ss")
+
+# Environment variables
+echo "HOME: ", getEnv("HOME", "not set")
+echo "PATH: ", getEnv("PATH")[0..50] & "..."
+
+# Cross-platform paths
+let configPath = getConfigDir() / "myapp" / "config.json"
+echo "Config path: ", configPath
+```
+
+### System Integration and Process Management
+
+```nim
+import osproc, strutils
+
+# Execute shell commands and capture output
+let (output, exitCode) = execCmdEx("git status --porcelain")
+if exitCode == 0:
+  if output.strip() == "":
+    echo "Git working directory is clean"
+  else:
+    echo "Git has uncommitted changes:"
+    echo output
+else:
+  echo "Git command failed"
+
+# Run commands with real-time output
+echo "Running tests..."
+let testProcess = startProcess("nim", args=["c", "-r", "tests/test_all.nim"])
+let testOutput = testProcess.outputStream.readAll()
+testProcess.close()
+echo testOutput
+
+# Platform-specific commands
+when defined(windows):
+  exec "dir"
+else:
+  exec "ls -la"
+
+# Check if programs exist
+if findExe("git") != "":
+  echo "Git is available"
+else:
+  echo "Git not found in PATH"
+```
+
+### Configuration Management
+
+NimScript is excellent for configuration files:
+
+**config.nims**
+```nim
+# Project configuration script
+import os, strutils
+
+# Set compiler flags based on environment
+when defined(debug):
+  switch("stackTrace", "on")
+  switch("lineTrace", "on")
+  switch("checks", "on")
+  echo "Debug mode enabled"
+else:
+  switch("opt", "speed")
+  switch("gc", "arc")
+  echo "Release mode enabled"
+
+# Platform-specific settings
+when defined(windows):
+  switch("passL", "-lws2_32")  # Windows Sockets
+elif defined(macosx):
+  switch("passL", "-framework CoreFoundation")
+elif defined(linux):
+  switch("passL", "-lpthread")
+
+# Custom paths
+switch("path", "src")
+switch("path", "libs")
+
+# Version information
+const
+  version = "1.0.0"
+  gitHash = staticExec("git rev-parse --short HEAD").strip()
+  buildDate = staticExec("date").strip()
+
+switch("define", "version:" & version)
+switch("define", "gitHash:" & gitHash)
+switch("define", "buildDate:" & buildDate)
+```
+
+### Advanced Build Automation
+
+**build.nims**
+```nim
+import os, strutils, times
+
+# Build configuration
+const
+  srcDir = "src"
+  binDir = "bin"
+  testDir = "tests"
+
+# Helper procedures
+proc runCmd(cmd: string) =
+  echo "Running: ", cmd
+  let exitCode = execShellCmd(cmd)
+  if exitCode != 0:
+    echo "Command failed with exit code: ", exitCode
+    quit(1)
+
+proc buildTarget(target: string, flags: string = "") =
+  let outputPath = binDir / target
+  if not dirExists(binDir):
+    createDir(binDir)
+  
+  let cmd = "nim c " & flags & " -o:" & outputPath & " " & srcDir / target & ".nim"
+  runCmd(cmd)
+
+# Tasks (can be called from command line)
+task clean, "Clean build artifacts":
+  if dirExists(binDir):
+    removeDir(binDir)
+    echo "Cleaned build directory"
+
+task build, "Build the application":
+  buildTarget("myapp", "--opt:speed")
+  echo "Build completed successfully"
+
+task debug, "Build debug version":
+  buildTarget("myapp", "--stackTrace:on --lineTrace:on")
+  echo "Debug build completed"
+
+task test, "Run tests":
+  for testFile in walkFiles(testDir / "test_*.nim"):
+    echo "Running test: ", testFile
+    runCmd("nim c -r " & testFile)
+
+task release, "Build release version":
+  buildTarget("myapp", "--opt:speed --gc:arc -d:release")
+  echo "Release build completed"
+  
+  # Create distribution package
+  let distDir = "dist"
+  if dirExists(distDir):
+    removeDir(distDir)
+  createDir(distDir)
+  
+  when defined(windows):
+    copyFile(binDir / "myapp.exe", distDir / "myapp.exe")
+  else:
+    copyFile(binDir / "myapp", distDir / "myapp")
+  
+  copyFile("README.md", distDir / "README.md")
+  echo "Distribution package created in ", distDir
+
+task install, "Install the application":
+  when defined(windows):
+    let installDir = getEnv("PROGRAMFILES") / "MyApp"
+  else:
+    let installDir = "/usr/local/bin"
+  
+  echo "Installing to: ", installDir
+  # Implementation depends on your needs
+```
+
+### Package Management Scripts
+
+**setup.nims**
+```nim
+# Project setup script
+import os, osproc, strutils
+
+proc installDependency(package: string, version: string = "") =
+  let cmd = if version != "": 
+    "nimble install " & package & "@" & version
+  else:
+    "nimble install " & package
+  
+  echo "Installing: ", package
+  let exitCode = execShellCmd(cmd)
+  if exitCode != 0:
+    echo "Failed to install: ", package
+    quit(1)
+
+proc checkNimVersion() =
+  let (output, exitCode) = execCmdEx("nim --version")
+  if exitCode != 0:
+    echo "Nim is not installed or not in PATH"
+    quit(1)
+  
+  let firstLine = output.splitLines()[0]
+  echo "Found: ", firstLine
+
+proc main() =
+  echo "Setting up development environment..."
+  
+  # Check prerequisites
+  checkNimVersion()
+  
+  # Install dependencies
+  let dependencies = [
+    ("jester", "0.5.0"),
+    ("norm", ""),
+    ("chronicles", ""),
+    ("yaml", "")
+  ]
+  
+  for (pkg, ver) in dependencies:
+    installDependency(pkg, ver)
+  
+  # Create project structure
+  let dirs = ["src", "tests", "docs", "examples"]
+  for dir in dirs:
+    if not dirExists(dir):
+      createDir(dir)
+      echo "Created directory: ", dir
+  
+  # Create initial files
+  if not fileExists("src/main.nim"):
+    writeFile("src/main.nim", """
+echo "Hello, World!"
+""")
+    echo "Created src/main.nim"
+  
+  echo "Setup completed successfully!"
+
+main()
+```
+
+### CI/CD Integration
+
+**ci.nims**
+```nim
+# Continuous Integration script
+import os, osproc, strutils, times
+
+proc runTests(): bool =
+  echo "Running test suite..."
+  let startTime = now()
+  
+  for testFile in walkFiles("tests/test_*.nim"):
+    echo "Running: ", testFile
+    let exitCode = execShellCmd("nim c -r " & testFile)
+    if exitCode != 0:
+      echo "Test failed: ", testFile
+      return false
+  
+  let duration = now() - startTime
+  echo "All tests passed in ", duration.inMilliseconds, "ms"
+  return true
+
+proc checkCodeStyle(): bool =
+  echo "Checking code style..."
+  let exitCode = execShellCmd("nimfmt --check src/")
+  if exitCode != 0:
+    echo "Code style check failed"
+    return false
+  
+  echo "Code style check passed"
+  return true
+
+proc buildDocumentation() =
+  echo "Building documentation..."
+  if not dirExists("docs"):
+    createDir("docs")
+  
+  let exitCode = execShellCmd("nim doc --project --out:docs src/main.nim")
+  if exitCode != 0:
+    echo "Documentation build failed"
+    quit(1)
+  
+  echo "Documentation built successfully"
+
+proc main() =
+  echo "Starting CI pipeline..."
+  
+  if not checkCodeStyle():
+    quit(1)
+  
+  if not runTests():
+    quit(1)
+  
+  buildDocumentation()
+  
+  echo "CI pipeline completed successfully!"
+
+main()
+```
+
+### Cross-Platform Scripting
+
+**deploy.nims**
+```nim
+# Deployment script that works on Windows, macOS, and Linux
+import os, strutils, osproc
+
+proc detectOS(): string =
+  when defined(windows):
+    return "windows"
+  elif defined(macosx):
+    return "macos"
+  elif defined(linux):
+    return "linux"
+  else:
+    return "unknown"
+
+proc getPlatformExe(name: string): string =
+  when defined(windows):
+    return name & ".exe"
+  else:
+    return name
+
+proc deployTo(target: string) =
+  let platform = detectOS()
+  let exeName = getPlatformExe("myapp")
+  
+  echo "Deploying to ", target, " on ", platform
+  
+  case target:
+  of "local":
+    let homeDir = getHomeDir()
+    let binDir = homeDir / "bin"
+    if not dirExists(binDir):
+      createDir(binDir)
+    copyFile("bin" / exeName, binDir / exeName)
+    echo "Deployed to: ", binDir / exeName
+    
+  of "system":
+    when defined(windows):
+      let systemDir = getEnv("SYSTEMROOT") / "System32"
+      copyFile("bin" / exeName, systemDir / exeName)
+    else:
+      let systemDir = "/usr/local/bin"
+      copyFile("bin" / exeName, systemDir / exeName)
+    echo "Deployed to system directory"
+    
+  of "docker":
+    runCmd("docker build -t myapp .")
+    echo "Docker image built"
+    
+  else:
+    echo "Unknown deployment target: ", target
+    quit(1)
+
+proc runCmd(cmd: string) =
+  echo "Running: ", cmd
+  let exitCode = execShellCmd(cmd)
+  if exitCode != 0:
+    echo "Command failed"
+    quit(1)
+
+# Main deployment logic
+if paramCount() == 0:
+  echo "Usage: nim script deploy.nims <target>"
+  echo "Targets: local, system, docker"
+  quit(1)
+
+let target = paramStr(1)
+deployTo(target)
+```
+
+### Environment and Configuration Detection
+
+**env.nims**
+```nim
+# Environment detection and configuration
+import os, strutils, osproc
+
+proc detectEnvironment(): string =
+  # Check for common CI environment variables
+  if getEnv("CI") != "":
+    return "ci"
+  elif getEnv("GITHUB_ACTIONS") != "":
+    return "github_actions"
+  elif getEnv("GITLAB_CI") != "":
+    return "gitlab_ci"
+  elif getEnv("DEVELOPMENT") != "":
+    return "development"
+  else:
+    return "production"
+
+proc getSystemInfo() =
+  echo "System Information:"
+  echo "  OS: ", detectOS()
+  echo "  Environment: ", detectEnvironment()
+  echo "  CPU Count: ", countProcessors()
+  echo "  Current Dir: ", getCurrentDir()
+  echo "  Home Dir: ", getHomeDir()
+  echo "  Temp Dir: ", getTempDir()
+  
+  # Git information
+  if findExe("git") != "":
+    let (branch, _) = execCmdEx("git branch --show-current")
+    let (hash, _) = execCmdEx("git rev-parse --short HEAD")
+    echo "  Git Branch: ", branch.strip()
+    echo "  Git Hash: ", hash.strip()
+
+proc configureForEnvironment() =
+  let env = detectEnvironment()
+  
+  case env:
+  of "ci":
+    echo "Configuring for CI environment"
+    putEnv("NIM_OPTS", "--hints:off --verbosity:0")
+  of "development":
+    echo "Configuring for development"
+    putEnv("NIM_OPTS", "--stackTrace:on --lineTrace:on")
+  of "production":
+    echo "Configuring for production"
+    putEnv("NIM_OPTS", "--opt:speed --gc:arc")
+  else:
+    echo "Using default configuration"
+
+# Main execution
+getSystemInfo()
+configureForEnvironment()
+```
+
+### Tips for Effective NimScript Usage
+
+1. **Use .nims files for reusable scripts** - They can be version controlled and shared across projects
+2. **Leverage cross-platform compatibility** - NimScript handles path separators and platform differences
+3. **Error handling** - Always check return codes and handle failures gracefully
+4. **Modular design** - Break large scripts into smaller, focused procedures
+5. **Documentation** - Comment your scripts well, especially complex build logic
+6. **Testing** - Test your scripts on different platforms and environments
+7. **Version control** - Keep build scripts in version control alongside your code
+
+### Common NimScript Patterns
+
+```nim
+# Pattern 1: Safe command execution
+proc safeExec(cmd: string): bool =
+  echo "Executing: ", cmd
+  let exitCode = execShellCmd(cmd)
+  if exitCode != 0:
+    echo "Command failed with exit code: ", exitCode
+    return false
+  return true
+
+# Pattern 2: File operations with error handling
+proc safeCopyFile(src, dst: string): bool =
+  try:
+    copyFile(src, dst)
+    echo "Copied: ", src, " -> ", dst
+    return true
+  except:
+    echo "Failed to copy: ", src, " -> ", dst
+    return false
+
+# Pattern 3: Environment-based configuration
+proc getConfig(key: string, default: string = ""): string =
+  let envValue = getEnv(key)
+  if envValue != "":
+    return envValue
+  return default
+
+# Pattern 4: Conditional execution
+proc runIfExists(exe: string, args: string = ""): bool =
+  if findExe(exe) != "":
+    return safeExec(exe & " " & args)
+  else:
+    echo "Executable not found: ", exe
+    return false
+```
+
+NimScript is a powerful tool that bridges the gap between simple build scripts and complex automation systems. It provides the expressiveness of Nim with the practicality of scripting languages, making it ideal for modern development workflows.
 

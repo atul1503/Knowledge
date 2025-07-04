@@ -3277,9 +3277,1308 @@ Notes:
             return instance
     ```
 
+# Django REST Framework (DRF) Authentication & Permissions - Complete Guide
+
+## Custom Authentication Classes
+
+87. **Creating custom authentication classes** - Implement your own authentication logic for APIs.
+
+    ```python
+    # authentication.py
+    from rest_framework import authentication
+    from rest_framework import exceptions
+    from django.contrib.auth.models import User
+    from django.conf import settings
+    import jwt
+    import redis
+    
+    class CustomTokenAuthentication(authentication.BaseAuthentication):
+        """
+        Custom token authentication using JWT tokens
+        """
+        
+        def authenticate(self, request):
+            """
+            Returns a two-tuple of (user, token) if authentication succeeds,
+            or None otherwise.
+            """
+            auth_header = authentication.get_authorization_header(request).split()
+            
+            if not auth_header or auth_header[0].lower() != b'bearer':
+                return None
+            
+            if len(auth_header) == 1:
+                msg = 'Invalid token header. No credentials provided.'
+                raise exceptions.AuthenticationFailed(msg)
+            elif len(auth_header) > 2:
+                msg = 'Invalid token header. Token string should not contain spaces.'
+                raise exceptions.AuthenticationFailed(msg)
+            
+            try:
+                token = auth_header[1].decode('utf-8')
+            except UnicodeError:
+                msg = 'Invalid token header. Token string should not contain invalid characters.'
+                raise exceptions.AuthenticationFailed(msg)
+            
+            return self.authenticate_credentials(token)
+        
+        def authenticate_credentials(self, token):
+            """
+            Authenticate the token and return user
+            """
+            try:
+                payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+            except jwt.ExpiredSignatureError:
+                raise exceptions.AuthenticationFailed('Token has expired')
+            except jwt.InvalidTokenError:
+                raise exceptions.AuthenticationFailed('Invalid token')
+            
+            try:
+                user = User.objects.get(id=payload['user_id'])
+            except User.DoesNotExist:
+                raise exceptions.AuthenticationFailed('Invalid token')
+            
+            if not user.is_active:
+                raise exceptions.AuthenticationFailed('User inactive or deleted')
+            
+            return (user, token)
+        
+        def authenticate_header(self, request):
+            """
+            Return a string to be used as the value of the WWW-Authenticate
+            header in a 401 Unauthenticated response.
+            """
+            return 'Bearer'
+    
+    class ApiKeyAuthentication(authentication.BaseAuthentication):
+        """
+        API Key authentication for machine-to-machine communication
+        """
+        
+        def authenticate(self, request):
+            api_key = request.META.get('HTTP_X_API_KEY')
+            
+            if not api_key:
+                return None
+            
+            try:
+                user = User.objects.get(profile__api_key=api_key)
+            except User.DoesNotExist:
+                raise exceptions.AuthenticationFailed('Invalid API key')
+            
+            if not user.is_active:
+                raise exceptions.AuthenticationFailed('User inactive')
+            
+            return (user, api_key)
+    
+    class SessionTokenAuthentication(authentication.BaseAuthentication):
+        """
+        Hybrid authentication using both session and token
+        """
+        
+        def authenticate(self, request):
+            # Try session authentication first
+            if hasattr(request, 'user') and request.user.is_authenticated:
+                return (request.user, None)
+            
+            # Fall back to token authentication
+            token_auth = CustomTokenAuthentication()
+            return token_auth.authenticate(request)
+    ```
+
+88. **Advanced authentication patterns** - Implement complex authentication scenarios with caching and validation.
+
+    ```python
+    # advanced_authentication.py
+    import redis
+    import json
+    from datetime import datetime, timedelta
+    from django.core.cache import cache
+    from rest_framework import authentication, exceptions
+    from django.contrib.auth.models import User
+    
+    class RedisTokenAuthentication(authentication.BaseAuthentication):
+        """
+        Token authentication with Redis storage for fast lookup
+        """
+        
+        def __init__(self):
+            self.redis_client = redis.Redis(host='localhost', port=6379, db=1)
+        
+        def authenticate(self, request):
+            token = self.get_token_from_request(request)
+            if not token:
+                return None
+            
+            return self.authenticate_credentials(token)
+        
+        def get_token_from_request(self, request):
+            """Extract token from various locations"""
+            # Try Authorization header first
+            auth_header = authentication.get_authorization_header(request).split()
+            if auth_header and auth_header[0].lower() == b'bearer':
+                if len(auth_header) == 2:
+                    return auth_header[1].decode('utf-8')
+            
+            # Try query parameter
+            token = request.query_params.get('token')
+            if token:
+                return token
+            
+            # Try custom header
+            token = request.META.get('HTTP_X_AUTH_TOKEN')
+            if token:
+                return token
+            
+            return None
+        
+        def authenticate_credentials(self, token):
+            """Validate token against Redis cache"""
+            try:
+                # Check Redis for token
+                user_data = self.redis_client.get(f"auth_token:{token}")
+                if not user_data:
+                    raise exceptions.AuthenticationFailed('Invalid or expired token')
+                
+                user_info = json.loads(user_data)
+                
+                # Check token expiry
+                expires_at = datetime.fromisoformat(user_info['expires_at'])
+                if datetime.now() > expires_at:
+                    self.redis_client.delete(f"auth_token:{token}")
+                    raise exceptions.AuthenticationFailed('Token has expired')
+                
+                # Get user from database
+                user = User.objects.get(id=user_info['user_id'])
+                
+                if not user.is_active:
+                    raise exceptions.AuthenticationFailed('User account is disabled')
+                
+                # Update last activity
+                self.redis_client.hset(f"auth_token:{token}", "last_activity", datetime.now().isoformat())
+                
+                return (user, token)
+                
+            except User.DoesNotExist:
+                raise exceptions.AuthenticationFailed('Invalid token')
+            except Exception as e:
+                raise exceptions.AuthenticationFailed(f'Authentication failed: {str(e)}')
+        
+        def create_token(self, user):
+            """Create a new token for user"""
+            import uuid
+            token = str(uuid.uuid4())
+            
+            expires_at = datetime.now() + timedelta(hours=24)
+            
+            token_data = {
+                'user_id': user.id,
+                'username': user.username,
+                'created_at': datetime.now().isoformat(),
+                'expires_at': expires_at.isoformat(),
+                'last_activity': datetime.now().isoformat()
+            }
+            
+            # Store in Redis with expiration
+            self.redis_client.setex(
+                f"auth_token:{token}",
+                timedelta(hours=24),
+                json.dumps(token_data)
+            )
+            
+            return token
+    
+    class TwoFactorAuthentication(authentication.BaseAuthentication):
+        """
+        Two-factor authentication requiring both password and OTP
+        """
+        
+        def authenticate(self, request):
+            username = request.data.get('username')
+            password = request.data.get('password')
+            otp_code = request.data.get('otp_code')
+            
+            if not all([username, password, otp_code]):
+                return None
+            
+            # Authenticate with username/password
+            user = authenticate(username=username, password=password)
+            if not user:
+                raise exceptions.AuthenticationFailed('Invalid credentials')
+            
+            # Verify OTP
+            if not self.verify_otp(user, otp_code):
+                raise exceptions.AuthenticationFailed('Invalid OTP code')
+            
+            return (user, None)
+        
+        def verify_otp(self, user, otp_code):
+            """Verify OTP code (implement your OTP logic)"""
+            # This is a simplified example
+            # In production, use libraries like pyotp
+            stored_otp = cache.get(f"otp_{user.id}")
+            return stored_otp == otp_code
+    ```
+
+## Custom Permission Classes
+
+89. **Basic custom permission classes** - Create permission classes for different access control scenarios.
+
+    ```python
+    # permissions.py
+    from rest_framework import permissions
+    from django.contrib.auth.models import Group
+    from datetime import datetime
+    
+    class IsOwnerOrReadOnly(permissions.BasePermission):
+        """
+        Custom permission to only allow owners of an object to edit it.
+        """
+        
+        def has_object_permission(self, request, view, obj):
+            # Read permissions for any request,
+            # so we'll always allow GET, HEAD or OPTIONS requests.
+            if request.method in permissions.SAFE_METHODS:
+                return True
+            
+            # Write permissions are only for the owner of the object.
+            return obj.owner == request.user
+    
+    class IsAuthorOrReadOnly(permissions.BasePermission):
+        """
+        Permission class for blog posts, articles, etc.
+        """
+        
+        def has_permission(self, request, view):
+            # Authenticated users can view, only authenticated can create
+            if request.method in permissions.SAFE_METHODS:
+                return True
+            return request.user.is_authenticated
+        
+        def has_object_permission(self, request, view, obj):
+            # Read permissions for any request
+            if request.method in permissions.SAFE_METHODS:
+                return True
+            
+            # Write permissions only for the author
+            return obj.author == request.user
+    
+    class IsInGroupPermission(permissions.BasePermission):
+        """
+        Permission class to check if user belongs to specific group
+        """
+        required_groups = []
+        
+        def has_permission(self, request, view):
+            if not request.user.is_authenticated:
+                return False
+            
+            # Check if user belongs to any of the required groups
+            user_groups = request.user.groups.values_list('name', flat=True)
+            return any(group in user_groups for group in self.required_groups)
+    
+    class IsManagerPermission(IsInGroupPermission):
+        """Specific permission for managers"""
+        required_groups = ['Managers', 'Administrators']
+    
+    class IsEditorPermission(IsInGroupPermission):
+        """Specific permission for editors"""
+        required_groups = ['Editors', 'Managers', 'Administrators']
+    
+    class TimeBoundPermission(permissions.BasePermission):
+        """
+        Permission that allows access only during business hours
+        """
+        
+        def has_permission(self, request, view):
+            if not request.user.is_authenticated:
+                return False
+            
+            # Allow superusers anytime
+            if request.user.is_superuser:
+                return True
+            
+            # Check business hours (9 AM to 6 PM)
+            current_hour = datetime.now().hour
+            return 9 <= current_hour <= 18
+    
+    class RateLimitedPermission(permissions.BasePermission):
+        """
+        Permission that implements rate limiting
+        """
+        
+        def has_permission(self, request, view):
+            if not request.user.is_authenticated:
+                return False
+            
+            # Check rate limit
+            from django.core.cache import cache
+            
+            cache_key = f"rate_limit_{request.user.id}"
+            current_requests = cache.get(cache_key, 0)
+            
+            # Allow 100 requests per hour
+            if current_requests >= 100:
+                return False
+            
+            # Increment counter
+            cache.set(cache_key, current_requests + 1, 3600)
+            return True
+    ```
+
+90. **Advanced permission patterns** - Complex permission logic with dynamic checks and conditions.
+
+    ```python
+    # advanced_permissions.py
+    from rest_framework import permissions
+    from django.db.models import Q
+    from django.conf import settings
+    
+    class DynamicPermission(permissions.BasePermission):
+        """
+        Permission that changes based on object state and user attributes
+        """
+        
+        def has_permission(self, request, view):
+            return request.user.is_authenticated
+        
+        def has_object_permission(self, request, view, obj):
+            user = request.user
+            
+            # Superusers can do anything
+            if user.is_superuser:
+                return True
+            
+            # Object-specific logic
+            if hasattr(obj, 'status'):
+                # Draft objects can only be edited by author
+                if obj.status == 'draft':
+                    return obj.author == user
+                
+                # Published objects can be edited by author or editors
+                elif obj.status == 'published':
+                    if request.method in permissions.SAFE_METHODS:
+                        return True
+                    return (obj.author == user or 
+                           user.groups.filter(name='Editors').exists())
+                
+                # Archived objects are read-only except for admins
+                elif obj.status == 'archived':
+                    if request.method in permissions.SAFE_METHODS:
+                        return True
+                    return user.groups.filter(name='Administrators').exists()
+            
+            return False
+    
+    class SubscriptionBasedPermission(permissions.BasePermission):
+        """
+        Permission based on user subscription level
+        """
+        
+        def has_permission(self, request, view):
+            if not request.user.is_authenticated:
+                return False
+            
+            # Check if user has active subscription
+            if not hasattr(request.user, 'subscription'):
+                return False
+            
+            subscription = request.user.subscription
+            
+            # Check subscription status
+            if not subscription.is_active():
+                return False
+            
+            # Check subscription level for specific actions
+            if view.action in ['create', 'update', 'partial_update']:
+                return subscription.plan in ['premium', 'enterprise']
+            
+            # Basic plans can only read
+            return subscription.plan in ['basic', 'premium', 'enterprise']
+    
+    class FieldLevelPermission(permissions.BasePermission):
+        """
+        Permission class that controls access to specific fields
+        """
+        
+        def has_permission(self, request, view):
+            return request.user.is_authenticated
+        
+        def has_object_permission(self, request, view, obj):
+            user = request.user
+            
+            # Define field access rules
+            if request.method in ['PUT', 'PATCH']:
+                restricted_fields = self.get_restricted_fields(user, obj)
+                
+                # Check if user is trying to modify restricted fields
+                for field in restricted_fields:
+                    if field in request.data:
+                        return False
+            
+            return True
+        
+        def get_restricted_fields(self, user, obj):
+            """Define which fields are restricted for this user"""
+            restricted_fields = []
+            
+            # Non-owners can't change ownership
+            if obj.owner != user:
+                restricted_fields.extend(['owner', 'created_by'])
+            
+            # Only admins can change status
+            if not user.groups.filter(name='Administrators').exists():
+                restricted_fields.append('status')
+            
+            # Only managers can change sensitive fields
+            if not user.groups.filter(name__in=['Managers', 'Administrators']).exists():
+                restricted_fields.extend(['price', 'commission_rate'])
+            
+            return restricted_fields
+    
+    class IPWhitelistPermission(permissions.BasePermission):
+        """
+        Permission that restricts access based on IP address
+        """
+        
+        def has_permission(self, request, view):
+            # Get client IP
+            ip = self.get_client_ip(request)
+            
+            # Check against whitelist
+            whitelist = getattr(settings, 'API_IP_WHITELIST', [])
+            
+            if whitelist and ip not in whitelist:
+                return False
+            
+            return True
+        
+        def get_client_ip(self, request):
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                ip = x_forwarded_for.split(',')[0]
+            else:
+                ip = request.META.get('REMOTE_ADDR')
+            return ip
+    
+    class ConditionalPermission(permissions.BasePermission):
+        """
+        Permission that applies different rules based on conditions
+        """
+        
+        def has_permission(self, request, view):
+            user = request.user
+            
+            if not user.is_authenticated:
+                return False
+            
+            # Different rules for different view actions
+            if view.action == 'list':
+                # Anyone can list, but results will be filtered
+                return True
+            
+            elif view.action == 'create':
+                # Only premium users can create
+                return self.is_premium_user(user)
+            
+            elif view.action in ['update', 'partial_update', 'destroy']:
+                # Will be checked at object level
+                return True
+            
+            return False
+        
+        def has_object_permission(self, request, view, obj):
+            user = request.user
+            
+            # Owners can always access their objects
+            if hasattr(obj, 'owner') and obj.owner == user:
+                return True
+            
+            # Shared objects have different rules
+            if hasattr(obj, 'shared_with'):
+                if user in obj.shared_with.all():
+                    # Shared users can read but not modify
+                    return request.method in permissions.SAFE_METHODS
+            
+            # Team members can access team objects
+            if hasattr(obj, 'team') and hasattr(user, 'teams'):
+                if obj.team in user.teams.all():
+                    return True
+            
+            return False
+        
+        def is_premium_user(self, user):
+            """Check if user has premium subscription"""
+            return (hasattr(user, 'subscription') and 
+                   user.subscription.is_active() and 
+                   user.subscription.plan in ['premium', 'enterprise'])
+    ```
+
+## Understanding Base Class Methods
+
+89. **BaseAuthentication class methods** - Complete reference of methods provided by the authentication base class.
+
+    ```python
+    # rest_framework/authentication.py
+    from rest_framework import authentication, exceptions
+    
+    class BaseAuthentication:
+        """
+        All authentication classes should extend BaseAuthentication.
+        """
+        
+        def authenticate(self, request):
+            """
+            Authenticate the request and return a two-tuple of (user, token).
+            
+            This is the MAIN method you must implement in your custom auth class.
+            
+            Args:
+                request: The incoming HTTP request object
+                
+            Returns:
+                - None: If this authentication method doesn't apply to this request
+                - (user, token): Two-tuple if authentication succeeds
+                - Raises AuthenticationFailed: If authentication fails
+                
+            Example implementations:
+            """
+            # Return None if this auth method doesn't apply
+            if not self.should_authenticate(request):
+                return None
+                
+            # Extract credentials from request
+            credentials = self.get_credentials(request)
+            if not credentials:
+                return None
+                
+            # Authenticate and return user, token
+            try:
+                user = self.authenticate_credentials(credentials)
+                return (user, credentials)
+            except Exception:
+                raise exceptions.AuthenticationFailed('Invalid credentials')
+        
+        def authenticate_header(self, request):
+            """
+            Return a string to be used as the value of the `WWW-Authenticate`
+            header in a `401 Unauthenticated` response.
+            
+            This method is OPTIONAL but recommended for proper HTTP compliance.
+            
+            Args:
+                request: The incoming HTTP request object
+                
+            Returns:
+                String: The WWW-Authenticate header value
+                None: If no header should be returned
+                
+            Examples:
+            """
+            return 'Bearer'  # For token auth
+            return 'Basic'   # For basic auth
+            return 'Bearer realm="api"'  # With realm
+            return None      # No header
+        
+        def authenticate_credentials(self, credentials):
+            """
+            Helper method to authenticate extracted credentials.
+            
+            This method is OPTIONAL - you can implement it separately
+            or include the logic in authenticate().
+            
+            Args:
+                credentials: The extracted credentials (token, username/password, etc.)
+                
+            Returns:
+                User object if authentication succeeds
+                
+            Raises:
+                AuthenticationFailed: If credentials are invalid
+            """
+            # Your credential validation logic here
+            pass
+    
+    # Complete example showing all methods
+    class ComprehensiveAuthentication(BaseAuthentication):
+        """
+        Example showing all BaseAuthentication methods
+        """
+        
+        def authenticate(self, request):
+            """
+            Main authentication method - REQUIRED
+            """
+            # Check if we should handle this request
+            token = self.get_token_from_request(request)
+            if not token:
+                return None  # Let other auth methods try
+            
+            # Validate token and return user
+            try:
+                user = self.authenticate_credentials(token)
+                return (user, token)
+            except exceptions.AuthenticationFailed:
+                # Re-raise authentication errors
+                raise
+            except Exception as e:
+                # Convert other exceptions to auth failed
+                raise exceptions.AuthenticationFailed(f'Authentication error: {str(e)}')
+        
+        def authenticate_header(self, request):
+            """
+            WWW-Authenticate header - OPTIONAL but recommended
+            """
+            return 'Bearer realm="API"'
+        
+        def authenticate_credentials(self, token):
+            """
+            Validate token and return user - OPTIONAL helper method
+            """
+            # Decode/validate token
+            try:
+                user_id = self.decode_token(token)
+                user = User.objects.get(id=user_id, is_active=True)
+                return user
+            except (User.DoesNotExist, ValueError):
+                raise exceptions.AuthenticationFailed('Invalid token')
+        
+        def get_token_from_request(self, request):
+            """
+            Extract token from request - CUSTOM helper method
+            """
+            auth_header = authentication.get_authorization_header(request)
+            if auth_header.startswith(b'Bearer '):
+                return auth_header[7:].decode('utf-8')
+            return None
+        
+        def decode_token(self, token):
+            """
+            Decode token to get user ID - CUSTOM helper method
+            """
+            # Your token decoding logic
+            pass
+    ```
+
+90. **BasePermission class methods** - Complete reference of methods provided by the permission base class.
+
+    ```python
+    # rest_framework/permissions.py
+    from rest_framework import permissions
+    
+    class BasePermission:
+        """
+        A base class from which all permission classes should inherit.
+        """
+        
+        def has_permission(self, request, view):
+            """
+            Return `True` if permission is granted for the request, `False` otherwise.
+            
+            This method is called BEFORE the view is executed and BEFORE
+            has_object_permission() is called.
+            
+            Args:
+                request: The incoming HTTP request object
+                view: The view being accessed
+                
+            Returns:
+                Boolean: True if permission granted, False otherwise
+                
+            Use cases:
+            - Check if user is authenticated
+            - Check user roles/groups
+            - Check request method (GET, POST, etc.)
+            - Check global permissions
+            - Rate limiting
+            - IP restrictions
+            """
+            return True  # Default allows all
+        
+        def has_object_permission(self, request, view, obj):
+            """
+            Return `True` if permission is granted for the object, `False` otherwise.
+            
+            This method is called AFTER has_permission() passes and ONLY
+            for detail views (retrieve, update, destroy).
+            
+            Args:
+                request: The incoming HTTP request object
+                view: The view being accessed
+                obj: The specific object being accessed
+                
+            Returns:
+                Boolean: True if permission granted, False otherwise
+                
+            Use cases:
+            - Check if user owns the object
+            - Check object-specific permissions
+            - Check object state/status
+            - Check user relationship to object
+            """
+            return True  # Default allows all
+    
+    # Complete example showing all methods
+    class ComprehensivePermission(BasePermission):
+        """
+        Example showing all BasePermission methods and common patterns
+        """
+        
+        def has_permission(self, request, view):
+            """
+            Global permission check - ALWAYS called first
+            """
+            # 1. Check authentication
+            if not request.user.is_authenticated:
+                return False
+            
+            # 2. Check HTTP method permissions
+            if request.method in permissions.SAFE_METHODS:
+                # GET, HEAD, OPTIONS are generally allowed
+                return True
+            
+            # 3. Check view-specific permissions
+            if view.action == 'create':
+                return self.can_create(request.user)
+            elif view.action in ['update', 'partial_update', 'destroy']:
+                # Will be checked in has_object_permission
+                return True
+            elif view.action == 'list':
+                return self.can_list(request.user)
+            
+            # 4. Check user roles/groups
+            if request.user.groups.filter(name='Editors').exists():
+                return True
+            
+            # 5. Default fallback
+            return False
+        
+        def has_object_permission(self, request, view, obj):
+            """
+            Object-level permission check - called AFTER has_permission
+            """
+            # 1. Superusers can do anything
+            if request.user.is_superuser:
+                return True
+            
+            # 2. Check ownership
+            if hasattr(obj, 'owner') and obj.owner == request.user:
+                return True
+            
+            # 3. Check read-only access
+            if request.method in permissions.SAFE_METHODS:
+                return self.can_read_object(request.user, obj)
+            
+            # 4. Check specific actions
+            if view.action == 'update':
+                return self.can_update_object(request.user, obj)
+            elif view.action == 'destroy':
+                return self.can_delete_object(request.user, obj)
+            
+            # 5. Check object state
+            if hasattr(obj, 'status'):
+                if obj.status == 'published':
+                    return self.can_modify_published(request.user, obj)
+                elif obj.status == 'draft':
+                    return self.can_modify_draft(request.user, obj)
+            
+            return False
+        
+        def can_create(self, user):
+            """CUSTOM helper method for creation permission"""
+            return user.groups.filter(name__in=['Editors', 'Authors']).exists()
+        
+        def can_list(self, user):
+            """CUSTOM helper method for listing permission"""
+            return True  # All authenticated users can list
+        
+        def can_read_object(self, user, obj):
+            """CUSTOM helper method for read permission"""
+            # Check if object is public or user has access
+            if hasattr(obj, 'is_public') and obj.is_public:
+                return True
+            return hasattr(obj, 'shared_with') and user in obj.shared_with.all()
+        
+        def can_update_object(self, user, obj):
+            """CUSTOM helper method for update permission"""
+            # Only owner or editors can update
+            if hasattr(obj, 'owner') and obj.owner == user:
+                return True
+            return user.groups.filter(name='Editors').exists()
+        
+        def can_delete_object(self, user, obj):
+            """CUSTOM helper method for delete permission"""
+            # Only owner or admins can delete
+            if hasattr(obj, 'owner') and obj.owner == user:
+                return True
+            return user.groups.filter(name='Administrators').exists()
+        
+        def can_modify_published(self, user, obj):
+            """CUSTOM helper method for published object modification"""
+            # Only editors can modify published content
+            return user.groups.filter(name__in=['Editors', 'Administrators']).exists()
+        
+        def can_modify_draft(self, user, obj):
+            """CUSTOM helper method for draft object modification"""
+            # Authors can modify their own drafts
+            return hasattr(obj, 'author') and obj.author == user
+    ```
+
+91. **Method execution flow and best practices** - Understanding when and how methods are called.
+
+    ```python
+    # Method execution flow documentation
+    
+    """
+    AUTHENTICATION FLOW:
+    ===================
+    
+    1. Django REST Framework calls each authentication class in order
+    2. For each auth class, authenticate() is called
+    3. If authenticate() returns None, try next auth class
+    4. If authenticate() returns (user, token), authentication succeeds
+    5. If authenticate() raises AuthenticationFailed, authentication fails
+    6. If no auth class returns a user, request.user = AnonymousUser
+    
+    PERMISSION FLOW:
+    ===============
+    
+    1. has_permission() is called for ALL requests
+    2. If has_permission() returns False, request is denied (403)
+    3. If has_permission() returns True, continue to view
+    4. For detail views (get_object() is called), has_object_permission() is called
+    5. If has_object_permission() returns False, request is denied (403)
+    6. If has_object_permission() returns True, request proceeds
+    
+    MULTIPLE PERMISSION CLASSES:
+    ===========================
+    
+    When multiple permission classes are used, ALL must return True.
+    If ANY permission class returns False, the request is denied.
+    """
+    
+    # Example showing method call order
+    class DebuggingAuthentication(BaseAuthentication):
+        """Authentication class that logs method calls"""
+        
+        def authenticate(self, request):
+            print(f"🔐 authenticate() called for {request.path}")
+            
+            # Your authentication logic here
+            token = request.META.get('HTTP_AUTHORIZATION')
+            if not token:
+                print("❌ No token found, returning None")
+                return None
+            
+            try:
+                user = self.get_user_from_token(token)
+                print(f"✅ Authentication successful for user: {user.username}")
+                return (user, token)
+            except Exception as e:
+                print(f"❌ Authentication failed: {e}")
+                raise exceptions.AuthenticationFailed('Invalid token')
+        
+        def authenticate_header(self, request):
+            print(f"🔗 authenticate_header() called for {request.path}")
+            return 'Bearer'
+    
+    class DebuggingPermission(BasePermission):
+        """Permission class that logs method calls"""
+        
+        def has_permission(self, request, view):
+            print(f"🛡️  has_permission() called for {request.path}")
+            print(f"   User: {request.user}")
+            print(f"   Method: {request.method}")
+            print(f"   View: {view.__class__.__name__}")
+            print(f"   Action: {getattr(view, 'action', 'N/A')}")
+            
+            # Your permission logic here
+            result = request.user.is_authenticated
+            print(f"   Result: {result}")
+            return result
+        
+        def has_object_permission(self, request, view, obj):
+            print(f"🎯 has_object_permission() called for {request.path}")
+            print(f"   User: {request.user}")
+            print(f"   Object: {obj}")
+            print(f"   Object ID: {getattr(obj, 'id', 'N/A')}")
+            
+            # Your object permission logic here
+            result = True  # Your logic here
+            print(f"   Result: {result}")
+            return result
+    
+    # Best practices for implementing methods
+    class BestPracticeExample:
+        """
+        AUTHENTICATION BEST PRACTICES:
+        =============================
+        
+        1. authenticate() should:
+           - Return None if this auth method doesn't apply
+           - Return (user, token) if authentication succeeds
+           - Raise AuthenticationFailed if authentication fails
+           - Never return False or True
+        
+        2. authenticate_header() should:
+           - Return appropriate WWW-Authenticate header
+           - Return None if no header needed
+           - Be consistent with your auth scheme
+        
+        3. Always handle exceptions gracefully:
+           - Catch specific exceptions
+           - Log security-relevant events
+           - Don't expose sensitive information in error messages
+        
+        PERMISSION BEST PRACTICES:
+        =========================
+        
+        1. has_permission() should:
+           - Check global permissions first
+           - Return True/False only
+           - Be fast (avoid expensive queries)
+           - Check authentication state
+        
+        2. has_object_permission() should:
+           - Check object-specific permissions
+           - Only be called for detail views
+           - Assume has_permission() already passed
+           - Use select_related/prefetch_related for efficiency
+        
+        3. Design patterns:
+           - Use helper methods for complex logic
+           - Cache expensive permission checks
+           - Consider using mixins for shared logic
+           - Document your permission requirements
+        """
+        pass
+    ```
+
+## Combining Authentication and Permissions
+
+92. **Using custom auth and permissions together** - Practical examples of combining authentication and permission classes.
+
+    ```python
+    # views.py
+    from rest_framework import viewsets, status
+    from rest_framework.decorators import action
+    from rest_framework.response import Response
+    from .authentication import CustomTokenAuthentication, ApiKeyAuthentication
+    from .permissions import IsOwnerOrReadOnly, IsManagerPermission, SubscriptionBasedPermission
+    
+    class ProductViewSet(viewsets.ModelViewSet):
+        """
+        Product viewset with custom authentication and permissions
+        """
+        authentication_classes = [CustomTokenAuthentication, ApiKeyAuthentication]
+        permission_classes = [IsOwnerOrReadOnly]
+        
+        def get_permissions(self):
+            """
+            Instantiate and return the list of permissions required for this view.
+            """
+            if self.action == 'list':
+                permission_classes = [permissions.IsAuthenticated]
+            elif self.action == 'create':
+                permission_classes = [SubscriptionBasedPermission]
+            elif self.action in ['update', 'partial_update', 'destroy']:
+                permission_classes = [IsOwnerOrReadOnly]
+            elif self.action == 'set_featured':
+                permission_classes = [IsManagerPermission]
+            else:
+                permission_classes = [permissions.IsAuthenticated]
+            
+            return [permission() for permission in permission_classes]
+        
+        def get_authenticators(self):
+            """
+            Return different authentication for different actions
+            """
+            if self.action == 'webhook':
+                # Webhooks use API key only
+                return [ApiKeyAuthentication()]
+            else:
+                # Regular API uses token auth
+                return [CustomTokenAuthentication()]
+        
+        @action(detail=True, methods=['post'])
+        def set_featured(self, request, pk=None):
+            """Only managers can feature products"""
+            product = self.get_object()
+            product.is_featured = True
+            product.save()
+            return Response({'status': 'featured'})
+        
+        @action(detail=False, methods=['post'])
+        def webhook(self, request):
+            """Webhook endpoint for external systems"""
+            # Process webhook data
+            return Response({'status': 'processed'})
+    
+    # Custom permission combinations
+    class MultiplePermissionViewSet(viewsets.ModelViewSet):
+        """
+        ViewSet that uses multiple permission classes
+        """
+        
+        def get_permissions(self):
+            """
+            Apply multiple permissions that all must pass
+            """
+            base_permissions = [permissions.IsAuthenticated]
+            
+            if self.action == 'create':
+                # User must be authenticated AND have subscription AND be in group
+                base_permissions.extend([
+                    SubscriptionBasedPermission(),
+                    IsEditorPermission(),
+                    TimeBoundPermission()
+                ])
+            elif self.action in ['update', 'partial_update']:
+                base_permissions.extend([
+                    IsOwnerOrReadOnly(),
+                    DynamicPermission()
+                ])
+            
+            return base_permissions
+    ```
+
+93. **Complete authentication and permission setup** - Full implementation example with login, logout, and protected endpoints.
+
+    ```python
+    # auth_views.py
+    from rest_framework import status
+    from rest_framework.decorators import api_view, permission_classes
+    from rest_framework.permissions import AllowAny
+    from rest_framework.response import Response
+    from django.contrib.auth import authenticate
+    from .authentication import RedisTokenAuthentication
+    
+    @api_view(['POST'])
+    @permission_classes([AllowAny])
+    def login(request):
+        """
+        Login endpoint that returns custom token
+        """
+        username = request.data.get('username')
+        password = request.data.get('password')
+        
+        if not username or not password:
+            return Response({
+                'error': 'Username and password required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        user = authenticate(username=username, password=password)
+        if not user:
+            return Response({
+                'error': 'Invalid credentials'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        if not user.is_active:
+            return Response({
+                'error': 'Account is disabled'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # Create custom token
+        auth = RedisTokenAuthentication()
+        token = auth.create_token(user)
+        
+        return Response({
+            'token': token,
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'groups': list(user.groups.values_list('name', flat=True))
+            }
+        })
+    
+    @api_view(['POST'])
+    def logout(request):
+        """
+        Logout endpoint that invalidates token
+        """
+        auth = RedisTokenAuthentication()
+        token = auth.get_token_from_request(request)
+        
+        if token:
+            # Delete token from Redis
+            auth.redis_client.delete(f"auth_token:{token}")
+        
+        return Response({'message': 'Logged out successfully'})
+    
+    @api_view(['GET'])
+    def profile(request):
+        """
+        Protected endpoint that returns user profile
+        """
+        return Response({
+            'user': {
+                'id': request.user.id,
+                'username': request.user.username,
+                'email': request.user.email,
+                'is_staff': request.user.is_staff,
+                'groups': list(request.user.groups.values_list('name', flat=True)),
+                'permissions': list(request.user.user_permissions.values_list('codename', flat=True))
+            }
+        })
+    
+    # settings.py configuration
+    REST_FRAMEWORK = {
+        'DEFAULT_AUTHENTICATION_CLASSES': [
+            'myapp.authentication.CustomTokenAuthentication',
+            'rest_framework.authentication.SessionAuthentication',
+        ],
+        'DEFAULT_PERMISSION_CLASSES': [
+            'rest_framework.permissions.IsAuthenticated',
+        ],
+        'DEFAULT_RENDERER_CLASSES': [
+            'rest_framework.renderers.JSONRenderer',
+        ],
+        'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+        'PAGE_SIZE': 20
+    }
+    
+    # urls.py
+    from django.urls import path, include
+    from rest_framework.routers import DefaultRouter
+    from . import auth_views, views
+    
+    router = DefaultRouter()
+    router.register(r'products', views.ProductViewSet)
+    
+    urlpatterns = [
+        path('api/auth/login/', auth_views.login, name='api_login'),
+        path('api/auth/logout/', auth_views.logout, name='api_logout'),
+        path('api/auth/profile/', auth_views.profile, name='api_profile'),
+        path('api/', include(router.urls)),
+    ]
+    ```
+
 ## Best Practices
 
-57. **Optimize database queries** - Use `select_related()` and `prefetch_related()` to avoid N+1 query problems when using nested serializers.
+94. **Security best practices** - Essential security considerations for custom authentication and permissions.
+
+    ```python
+    # security_utils.py
+    import hashlib
+    import hmac
+    import secrets
+    from django.conf import settings
+    from django.core.cache import cache
+    
+    class SecurityMixin:
+        """Mixin for adding security features to auth classes"""
+        
+        def is_request_secure(self, request):
+            """Check if request is over HTTPS in production"""
+            if settings.DEBUG:
+                return True
+            return request.is_secure()
+        
+        def log_authentication_attempt(self, request, success=True, user=None):
+            """Log authentication attempts for security monitoring"""
+            import logging
+            logger = logging.getLogger('security')
+            
+            ip_address = self.get_client_ip(request)
+            user_agent = request.META.get('HTTP_USER_AGENT', '')
+            
+            log_data = {
+                'ip_address': ip_address,
+                'user_agent': user_agent,
+                'success': success,
+                'timestamp': timezone.now().isoformat()
+            }
+            
+            if user:
+                log_data['user_id'] = user.id
+                log_data['username'] = user.username
+            
+            if success:
+                logger.info(f"Authentication successful: {log_data}")
+            else:
+                logger.warning(f"Authentication failed: {log_data}")
+        
+        def check_brute_force_protection(self, request, identifier):
+            """Implement brute force protection"""
+            cache_key = f"failed_attempts_{identifier}"
+            failed_attempts = cache.get(cache_key, 0)
+            
+            if failed_attempts >= 5:  # Max 5 attempts
+                return False
+            
+            return True
+        
+        def record_failed_attempt(self, identifier):
+            """Record failed authentication attempt"""
+            cache_key = f"failed_attempts_{identifier}"
+            failed_attempts = cache.get(cache_key, 0)
+            cache.set(cache_key, failed_attempts + 1, 3600)  # 1 hour lockout
+        
+        def clear_failed_attempts(self, identifier):
+            """Clear failed attempts on successful auth"""
+            cache_key = f"failed_attempts_{identifier}"
+            cache.delete(cache_key)
+    
+    # Secure token generation
+    def generate_secure_token():
+        """Generate cryptographically secure token"""
+        return secrets.token_urlsafe(32)
+    
+    def hash_token(token):
+        """Hash token for storage"""
+        return hashlib.sha256(token.encode()).hexdigest()
+    
+    # Secure permission checking
+    class SecurePermissionMixin:
+        """Mixin for adding security to permission classes"""
+        
+        def has_permission(self, request, view):
+            # Always check HTTPS in production
+            if not self.is_secure_request(request):
+                return False
+            
+            # Check rate limiting
+            if not self.check_rate_limit(request):
+                return False
+            
+            return super().has_permission(request, view)
+        
+        def is_secure_request(self, request):
+            """Ensure request is secure"""
+            if settings.DEBUG:
+                return True
+            
+            if not request.is_secure():
+                return False
+            
+            # Check for secure headers
+            if request.META.get('HTTP_X_FORWARDED_PROTO') != 'https':
+                return False
+            
+            return True
+        
+        def check_rate_limit(self, request):
+            """Check rate limiting per user/IP"""
+            if request.user.is_authenticated:
+                identifier = f"user_{request.user.id}"
+            else:
+                identifier = f"ip_{self.get_client_ip(request)}"
+            
+            cache_key = f"rate_limit_{identifier}"
+            current_requests = cache.get(cache_key, 0)
+            
+            if current_requests >= 1000:  # 1000 requests per hour
+                return False
+            
+            cache.set(cache_key, current_requests + 1, 3600)
+            return True
+    ```
+
+## Best Practices
+
+95. **Optimize database queries** - Use `select_related()` and `prefetch_related()` to avoid N+1 query problems when using nested serializers.
 
     ```python
     # In your views - optimize queries before serializing
