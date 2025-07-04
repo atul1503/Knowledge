@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+This "Knowledge" folder includes notes of some technologies related to coding. These notes are in .md file. Each file should describe the technology using well documented examples. Examples include different use cases of the technology or while using the technology. Examples should document each and every property, method, argument or keywords used for the first time in the whole document. Example should fully explain these constructs in the most basic manner. The style of language should be very basic english. Any term or new concept used in an example should be explained completely such that the whole example can be understood by the user who is reading the document from top to bottom. Before making any changes any file, try to find the right place for the change to live and then make the change.
