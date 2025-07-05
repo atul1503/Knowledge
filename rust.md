@@ -2838,6 +2838,574 @@ my_project/
 
 Cargo simplifies Rust development by handling the complex tasks of building, testing, and managing dependencies. It follows conventions that make Rust projects consistent and easy to work with.
 
+## Interoperability with C and Other Languages
+
+Rust has excellent support for interoperating with C and other languages. This makes it easy to integrate Rust into existing projects, use existing C libraries, or create libraries that can be called from other languages.
+
+### Foreign Function Interface (FFI)
+
+FFI allows Rust to call functions written in other languages (primarily C) and allows other languages to call Rust functions.
+
+#### Calling C Functions from Rust
+
+```rust
+// Declare external C functions
+extern "C" {
+    fn abs(input: i32) -> i32;
+    fn sqrt(input: f64) -> f64;
+    fn strlen(s: *const i8) -> usize;
+}
+
+fn main() {
+    let x = -42;
+    let result = unsafe { abs(x) };
+    println!("abs({}) = {}", x, result);
+    
+    let num = 16.0;
+    let result = unsafe { sqrt(num) };
+    println!("sqrt({}) = {}", num, result);
+}
+```
+
+- `extern "C"` declares functions from C libraries
+- `abs`, `sqrt`, `strlen` are standard C library functions
+- `unsafe` blocks are required when calling C functions
+- C functions don't provide Rust's safety guarantees
+
+#### Using C Libraries with Cargo
+
+Create a `build.rs` file to link C libraries:
+
+```rust
+// build.rs
+fn main() {
+    println!("cargo:rustc-link-lib=m");  // Link math library
+    println!("cargo:rustc-link-search=native=/usr/lib");
+}
+```
+
+In `Cargo.toml`:
+
+```toml
+[build-dependencies]
+cc = "1.0"
+```
+
+Example using a custom C library:
+
+```rust
+// src/lib.rs
+extern "C" {
+    fn custom_add(a: i32, b: i32) -> i32;
+}
+
+pub fn safe_add(a: i32, b: i32) -> i32 {
+    unsafe { custom_add(a, b) }
+}
+```
+
+```c
+// custom.c
+int custom_add(int a, int b) {
+    return a + b;
+}
+```
+
+```rust
+// build.rs
+use cc;
+
+fn main() {
+    cc::Build::new()
+        .file("custom.c")
+        .compile("libcustom.a");
+}
+```
+
+#### Working with C Data Types
+
+Rust provides types that correspond to C types:
+
+```rust
+use std::os::raw::{c_char, c_int, c_double, c_void};
+use std::ffi::{CStr, CString};
+
+extern "C" {
+    fn c_function(
+        number: c_int,
+        text: *const c_char,
+        data: *mut c_void,
+        size: usize,
+    ) -> c_int;
+}
+
+fn main() {
+    let number = 42;
+    let text = CString::new("Hello from Rust").unwrap();
+    let mut buffer = vec![0u8; 100];
+    
+    let result = unsafe {
+        c_function(
+            number,
+            text.as_ptr(),
+            buffer.as_mut_ptr() as *mut c_void,
+            buffer.len(),
+        )
+    };
+    
+    println!("C function returned: {}", result);
+}
+```
+
+- `c_int`, `c_char`, etc. are C-compatible types
+- `CString` converts Rust strings to C strings
+- `CStr` converts C strings to Rust strings
+- Raw pointers (`*const`, `*mut`) interface with C pointers
+
+#### String Handling Between Rust and C
+
+```rust
+use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
+
+extern "C" {
+    fn process_string(s: *const c_char) -> *mut c_char;
+    fn free_string(s: *mut c_char);
+}
+
+fn main() {
+    // Rust string to C string
+    let rust_string = "Hello, C!";
+    let c_string = CString::new(rust_string).unwrap();
+    
+    unsafe {
+        // Call C function
+        let result_ptr = process_string(c_string.as_ptr());
+        
+        // Convert C string back to Rust string
+        let result_cstr = CStr::from_ptr(result_ptr);
+        let result_string = result_cstr.to_str().unwrap();
+        
+        println!("Result from C: {}", result_string);
+        
+        // Free the C-allocated string
+        free_string(result_ptr);
+    }
+}
+```
+
+- `CString::new()` creates a null-terminated C string
+- `CStr::from_ptr()` wraps a C string pointer
+- Always free C-allocated memory properly
+- Handle encoding issues between Rust UTF-8 and C strings
+
+### Creating C-Compatible Libraries
+
+You can create Rust libraries that can be called from C and other languages.
+
+#### Creating a Dynamic Library
+
+```rust
+// src/lib.rs
+use std::os::raw::c_int;
+
+#[no_mangle]
+pub extern "C" fn add(a: c_int, b: c_int) -> c_int {
+    a + b
+}
+
+#[no_mangle]
+pub extern "C" fn multiply(a: c_int, b: c_int) -> c_int {
+    a * b
+}
+
+#[no_mangle]
+pub extern "C" fn fibonacci(n: c_int) -> c_int {
+    match n {
+        0 => 0,
+        1 => 1,
+        _ => fibonacci(n - 1) + fibonacci(n - 2),
+    }
+}
+```
+
+```toml
+# Cargo.toml
+[package]
+name = "mathlib"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+```
+
+- `#[no_mangle]` prevents name mangling so C can find the function
+- `pub extern "C"` makes the function callable from C
+- `cdylib` creates a C-compatible dynamic library
+
+#### Creating a Header File
+
+```c
+// mathlib.h
+#ifndef MATHLIB_H
+#define MATHLIB_H
+
+extern int add(int a, int b);
+extern int multiply(int a, int b);
+extern int fibonacci(int n);
+
+#endif
+```
+
+#### Using the Library from C
+
+```c
+// main.c
+#include <stdio.h>
+#include "mathlib.h"
+
+int main() {
+    int result = add(5, 3);
+    printf("5 + 3 = %d\n", result);
+    
+    result = multiply(4, 6);
+    printf("4 * 6 = %d\n", result);
+    
+    result = fibonacci(10);
+    printf("fibonacci(10) = %d\n", result);
+    
+    return 0;
+}
+```
+
+Compile and link:
+
+```bash
+# Build the Rust library
+cargo build --release
+
+# Compile and link the C program
+gcc -o main main.c -L./target/release -lmathlib
+```
+
+#### Working with Complex Data Structures
+
+```rust
+use std::os::raw::{c_char, c_int};
+use std::ffi::{CStr, CString};
+
+#[repr(C)]
+pub struct Person {
+    name: *mut c_char,
+    age: c_int,
+}
+
+#[no_mangle]
+pub extern "C" fn create_person(name: *const c_char, age: c_int) -> *mut Person {
+    let c_str = unsafe { CStr::from_ptr(name) };
+    let rust_str = c_str.to_str().unwrap();
+    let owned_name = CString::new(rust_str).unwrap();
+    
+    let person = Person {
+        name: owned_name.into_raw(),
+        age,
+    };
+    
+    Box::into_raw(Box::new(person))
+}
+
+#[no_mangle]
+pub extern "C" fn get_person_name(person: *const Person) -> *const c_char {
+    let person = unsafe { &*person };
+    person.name
+}
+
+#[no_mangle]
+pub extern "C" fn get_person_age(person: *const Person) -> c_int {
+    let person = unsafe { &*person };
+    person.age
+}
+
+#[no_mangle]
+pub extern "C" fn free_person(person: *mut Person) {
+    if !person.is_null() {
+        unsafe {
+            let person = Box::from_raw(person);
+            CString::from_raw(person.name);
+        }
+    }
+}
+```
+
+- `#[repr(C)]` ensures C-compatible memory layout
+- `Box::into_raw()` converts to raw pointer for C
+- `Box::from_raw()` converts back to owned value for cleanup
+- Always provide cleanup functions for complex data
+
+### Interfacing with Other Languages
+
+#### Python Integration
+
+Using PyO3 to create Python extensions:
+
+```toml
+# Cargo.toml
+[dependencies]
+pyo3 = { version = "0.17", features = ["extension-module"] }
+
+[lib]
+crate-type = ["cdylib"]
+```
+
+```rust
+// src/lib.rs
+use pyo3::prelude::*;
+
+#[pyfunction]
+fn add(a: usize, b: usize) -> PyResult<usize> {
+    Ok(a + b)
+}
+
+#[pyfunction]
+fn process_list(list: Vec<i32>) -> PyResult<Vec<i32>> {
+    Ok(list.iter().map(|x| x * 2).collect())
+}
+
+#[pymodule]
+fn mymodule(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(add, m)?)?;
+    m.add_function(wrap_pyfunction!(process_list, m)?)?;
+    Ok(())
+}
+```
+
+```python
+# test.py
+import mymodule
+
+result = mymodule.add(5, 3)
+print(f"5 + 3 = {result}")
+
+numbers = [1, 2, 3, 4, 5]
+doubled = mymodule.process_list(numbers)
+print(f"Doubled: {doubled}")
+```
+
+#### JavaScript Integration (WebAssembly)
+
+```rust
+// src/lib.rs
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+pub fn greet(name: &str) -> String {
+    format!("Hello, {}!", name)
+}
+
+#[wasm_bindgen]
+pub fn fibonacci(n: u32) -> u32 {
+    match n {
+        0 => 0,
+        1 => 1,
+        _ => fibonacci(n - 1) + fibonacci(n - 2),
+    }
+}
+```
+
+```toml
+# Cargo.toml
+[dependencies]
+wasm-bindgen = "0.2"
+
+[lib]
+crate-type = ["cdylib"]
+```
+
+```javascript
+// index.js
+import { greet, fibonacci } from './pkg/mylib.js';
+
+console.log(greet('WebAssembly'));
+console.log(`fibonacci(10) = ${fibonacci(10)}`);
+```
+
+### Safety Considerations
+
+#### Unsafe Code Guidelines
+
+```rust
+use std::slice;
+
+// BAD: Potential undefined behavior
+unsafe fn bad_example(ptr: *const i32, len: usize) -> i32 {
+    let slice = slice::from_raw_parts(ptr, len);
+    slice.iter().sum()
+}
+
+// GOOD: Proper safety checks
+unsafe fn good_example(ptr: *const i32, len: usize) -> Option<i32> {
+    if ptr.is_null() || len == 0 {
+        return None;
+    }
+    
+    let slice = slice::from_raw_parts(ptr, len);
+    Some(slice.iter().sum())
+}
+
+// BETTER: Safe wrapper
+fn safe_sum(data: &[i32]) -> i32 {
+    data.iter().sum()
+}
+```
+
+#### Memory Management Across FFI
+
+```rust
+use std::ffi::CString;
+use std::os::raw::c_char;
+
+// Rust allocates, C frees
+#[no_mangle]
+pub extern "C" fn rust_allocate_string() -> *mut c_char {
+    let s = CString::new("Hello from Rust").unwrap();
+    s.into_raw()
+}
+
+// C allocates, Rust frees
+#[no_mangle]
+pub extern "C" fn rust_free_string(s: *mut c_char) {
+    if !s.is_null() {
+        unsafe { CString::from_raw(s) };
+    }
+}
+
+// Always document ownership rules
+/// Caller must free the returned string with rust_free_string
+#[no_mangle]
+pub extern "C" fn get_message() -> *mut c_char {
+    let msg = CString::new("Remember to free me!").unwrap();
+    msg.into_raw()
+}
+```
+
+### Best Practices
+
+#### Error Handling in FFI
+
+```rust
+use std::os::raw::c_int;
+
+// Return codes for error handling
+const SUCCESS: c_int = 0;
+const ERROR_NULL_POINTER: c_int = -1;
+const ERROR_INVALID_INPUT: c_int = -2;
+
+#[no_mangle]
+pub extern "C" fn safe_divide(a: c_int, b: c_int, result: *mut c_int) -> c_int {
+    if result.is_null() {
+        return ERROR_NULL_POINTER;
+    }
+    
+    if b == 0 {
+        return ERROR_INVALID_INPUT;
+    }
+    
+    unsafe {
+        *result = a / b;
+    }
+    
+    SUCCESS
+}
+```
+
+#### Documentation and Testing
+
+```rust
+/// Adds two integers safely
+/// 
+/// # Safety
+/// 
+/// This function is safe to call from C code.
+/// 
+/// # Arguments
+/// 
+/// * `a` - First integer
+/// * `b` - Second integer
+/// 
+/// # Returns
+/// 
+/// The sum of `a` and `b`
+#[no_mangle]
+pub extern "C" fn add_safe(a: i32, b: i32) -> i32 {
+    a.saturating_add(b)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_add_safe() {
+        assert_eq!(add_safe(2, 3), 5);
+        assert_eq!(add_safe(i32::MAX, 1), i32::MAX);
+    }
+}
+```
+
+### Tools and Utilities
+
+#### Bindgen for Automatic Bindings
+
+```toml
+# Cargo.toml
+[build-dependencies]
+bindgen = "0.60"
+```
+
+```rust
+// build.rs
+use bindgen;
+
+fn main() {
+    let bindings = bindgen::Builder::default()
+        .header("wrapper.h")
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .generate()
+        .expect("Unable to generate bindings");
+    
+    let out_path = std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap());
+    bindings
+        .write_to_file(out_path.join("bindings.rs"))
+        .expect("Couldn't write bindings!");
+}
+```
+
+#### cbindgen for C Header Generation
+
+```toml
+# Cargo.toml
+[build-dependencies]
+cbindgen = "0.20"
+```
+
+```rust
+// build.rs
+use cbindgen;
+
+fn main() {
+    let crate_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    
+    cbindgen::Builder::new()
+        .with_crate(crate_dir)
+        .generate()
+        .expect("Unable to generate bindings")
+        .write_to_file("target/mylib.h");
+}
+```
+
+Rust's FFI capabilities make it an excellent choice for integrating with existing systems, creating high-performance libraries for other languages, and gradually migrating legacy code to Rust. The combination of safety and performance makes Rust particularly valuable for creating reliable system interfaces.
+
 ## Conclusion
 
 Rust is a powerful systems programming language that provides memory safety without garbage collection. Its ownership system, type system, and error handling make it excellent for building reliable and efficient software. The examples in this document demonstrate the fundamental concepts needed to start programming in Rust.
