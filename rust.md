@@ -1261,6 +1261,167 @@ fn main() {
 
 ## Memory Management
 
+Memory management is one of Rust's most important features. Unlike languages with garbage collection (like Java or Python) or manual memory management (like C or C++), Rust uses a unique ownership system to manage memory safely and efficiently without runtime overhead.
+
+### The Ownership System
+
+The ownership system is Rust's approach to memory management. It prevents memory leaks, double-free errors, and use-after-free bugs at compile time.
+
+#### The Three Rules of Ownership
+
+1. **Each value in Rust has a single owner**
+2. **There can only be one owner at a time**
+3. **When the owner goes out of scope, the value is dropped**
+
+#### Basic Ownership Example
+
+```rust
+fn main() {
+    let s1 = String::from("hello");  // s1 owns the string
+    let s2 = s1;                     // Ownership moves to s2
+    
+    // println!("{}", s1);           // ERROR: s1 no longer owns the string
+    println!("{}", s2);              // OK: s2 owns the string
+}  // s2 goes out of scope, string is dropped
+```
+
+- `String::from("hello")` allocates memory on the heap
+- When `s1` is assigned to `s2`, ownership is **moved** (not copied)
+- `s1` is no longer valid after the move
+- When `s2` goes out of scope, the memory is automatically freed
+
+#### Move Semantics
+
+```rust
+fn main() {
+    let s1 = String::from("hello");
+    let s2 = s1;  // s1 is moved to s2
+    
+    // s1 is no longer valid
+    
+    let s3 = String::from("world");
+    take_ownership(s3);  // s3 is moved into the function
+    
+    // s3 is no longer valid
+}
+
+fn take_ownership(s: String) {
+    println!("I own: {}", s);
+}  // s goes out of scope and is dropped
+```
+
+- Moving prevents double-free errors
+- Only one variable can own a value at a time
+- The owner is responsible for cleaning up the memory
+
+#### Clone vs Move
+
+```rust
+fn main() {
+    let s1 = String::from("hello");
+    let s2 = s1.clone();  // Creates a deep copy
+    
+    println!("s1: {}, s2: {}", s1, s2);  // Both are valid
+    
+    // For simple types, copy happens automatically
+    let x = 5;
+    let y = x;  // x is copied, not moved
+    
+    println!("x: {}, y: {}", x, y);  // Both are valid
+}
+```
+
+- `clone()` creates a deep copy of heap data
+- Types that implement `Copy` trait are copied instead of moved
+- Simple types like integers implement `Copy`
+
+#### Ownership in Functions
+
+```rust
+fn main() {
+    let s = String::from("hello");
+    
+    // s is moved into the function
+    let len = calculate_length_move(s);
+    
+    // s is no longer valid here
+    println!("Length: {}", len);
+}
+
+fn calculate_length_move(s: String) -> usize {
+    let length = s.len();
+    length
+}  // s goes out of scope and is dropped
+```
+
+### Borrowing and References
+
+Borrowing allows you to use a value without taking ownership of it.
+
+#### Immutable References
+
+```rust
+fn main() {
+    let s = String::from("hello");
+    
+    // Borrow s instead of moving it
+    let len = calculate_length(&s);
+    
+    // s is still valid here
+    println!("The length of '{}' is {}.", s, len);
+}
+
+fn calculate_length(s: &String) -> usize {
+    s.len()
+}  // s goes out of scope, but it doesn't own the data, so nothing is dropped
+```
+
+- `&s` creates an immutable reference to `s`
+- The function borrows the value but doesn't own it
+- The original owner remains valid
+
+#### Mutable References
+
+```rust
+fn main() {
+    let mut s = String::from("hello");
+    
+    change_string(&mut s);
+    
+    println!("{}", s);  // s has been modified
+}
+
+fn change_string(s: &mut String) {
+    s.push_str(", world");
+}
+```
+
+- `&mut s` creates a mutable reference
+- The function can modify the borrowed value
+- Only one mutable reference can exist at a time
+
+#### Borrowing Rules
+
+```rust
+fn main() {
+    let mut s = String::from("hello");
+    
+    // Multiple immutable references are OK
+    let r1 = &s;
+    let r2 = &s;
+    println!("{} and {}", r1, r2);
+    
+    // But you can't have immutable and mutable references together
+    let r3 = &mut s;  // OK because r1 and r2 are no longer used
+    println!("{}", r3);
+}
+```
+
+**The borrowing rules:**
+1. You can have either one mutable reference OR any number of immutable references
+2. References must always be valid (no dangling pointers)
+3. These rules prevent data races at compile time
+
 ### Stack vs Heap
 
 ```rust
@@ -1278,12 +1439,403 @@ fn main() {
 }
 ```
 
-- Stack: Fast, fixed size, automatically managed
-- Heap: Slower, dynamic size, manually managed (but Rust handles this)
-- Simple types like integers go on the stack
-- Complex types like String and Vec use the heap
+**Stack characteristics:**
+- Fast allocation and deallocation
+- Fixed size known at compile time
+- Automatic memory management (LIFO - Last In, First Out)
+- Used for local variables and function parameters
+
+**Heap characteristics:**
+- Slower allocation and deallocation
+- Dynamic size, can grow or shrink
+- Requires explicit management (Rust handles this through ownership)
+- Used for data that needs to persist beyond function scope
+
+### Smart Pointers
+
+Smart pointers are data structures that act like pointers but have additional capabilities and metadata. They help manage memory in more complex scenarios.
+
+#### Box<T> - Heap Allocation
+
+```rust
+fn main() {
+    let b = Box::new(5);  // Allocate an integer on the heap
+    println!("b = {}", b);
+    
+    // Useful for large data or recursive types
+    let large_array = Box::new([0; 1000]);
+    
+    // Box is automatically cleaned up when it goes out of scope
+}
+```
+
+- `Box<T>` allocates data on the heap
+- Useful for large data structures
+- Required for recursive types
+- Implements `Drop` trait for automatic cleanup
+
+#### Rc<T> - Reference Counting
+
+```rust
+use std::rc::Rc;
+
+fn main() {
+    let data = Rc::new(String::from("shared data"));
+    
+    let reference1 = Rc::clone(&data);
+    let reference2 = Rc::clone(&data);
+    
+    println!("Reference count: {}", Rc::strong_count(&data));
+    
+    // Data is cleaned up when the last reference is dropped
+}
+```
+
+- `Rc<T>` allows multiple owners of the same data
+- Uses reference counting to track owners
+- Data is cleaned up when count reaches zero
+- Only for single-threaded scenarios
+
+#### Arc<T> - Atomic Reference Counting
+
+```rust
+use std::sync::Arc;
+use std::thread;
+
+fn main() {
+    let data = Arc::new(String::from("shared data"));
+    
+    let data_clone = Arc::clone(&data);
+    
+    let handle = thread::spawn(move || {
+        println!("Thread: {}", data_clone);
+    });
+    
+    println!("Main: {}", data);
+    
+    handle.join().unwrap();
+}
+```
+
+- `Arc<T>` is like `Rc<T>` but thread-safe
+- Uses atomic operations for reference counting
+- Can be shared between threads
+- Slightly more overhead than `Rc<T>`
+
+### RAII (Resource Acquisition Is Initialization)
+
+Rust uses RAII to manage all resources, not just memory.
+
+#### Automatic Resource Management
+
+```rust
+use std::fs::File;
+use std::io::Write;
+
+fn main() {
+    {
+        let mut file = File::create("example.txt").unwrap();
+        file.write_all(b"Hello, world!").unwrap();
+    }  // File is automatically closed here
+    
+    // File is guaranteed to be closed, even if an error occurs
+}
+```
+
+- Resources are tied to object lifetimes
+- Cleanup happens automatically when objects go out of scope
+- Works for files, network connections, mutexes, etc.
+
+#### Custom Drop Implementation
+
+```rust
+struct CustomResource {
+    name: String,
+}
+
+impl Drop for CustomResource {
+    fn drop(&mut self) {
+        println!("Dropping resource: {}", self.name);
+    }
+}
+
+fn main() {
+    let resource = CustomResource {
+        name: String::from("My Resource"),
+    };
+    
+    // Resource cleanup happens automatically
+}  // "Dropping resource: My Resource" is printed
+```
+
+- Implement `Drop` trait for custom cleanup
+- `drop()` method is called automatically
+- Guaranteed to run even if panics occur
+
+### Memory Safety Guarantees
+
+Rust provides strong memory safety guarantees without runtime overhead.
+
+#### Prevention of Common Bugs
+
+```rust
+fn main() {
+    // 1. No null pointer dereferences
+    let s: Option<String> = None;
+    match s {
+        Some(string) => println!("{}", string),
+        None => println!("No string"),
+    }
+    
+    // 2. No buffer overflows
+    let arr = [1, 2, 3, 4, 5];
+    // let x = arr[10];  // This would panic, not corrupt memory
+    
+    // 3. No use-after-free
+    let s = String::from("hello");
+    let r = &s;
+    // drop(s);  // This would be a compile error
+    println!("{}", r);
+    
+    // 4. No double-free
+    let s = String::from("hello");
+    // drop(s);
+    // drop(s);  // This would be a compile error
+}
+```
+
+#### Zero-Cost Abstractions
+
+```rust
+fn main() {
+    // High-level code...
+    let numbers = vec![1, 2, 3, 4, 5];
+    let doubled: Vec<i32> = numbers
+        .iter()
+        .map(|x| x * 2)
+        .collect();
+    
+    // ...compiles to efficient machine code
+    // No runtime overhead for safety
+}
+```
+
+- Memory safety checks happen at compile time
+- No runtime garbage collector
+- No performance penalty for safety
+
+### Comparison with Other Languages
+
+#### C/C++ - Manual Memory Management
+
+```c
+// C code - manual memory management
+char* get_string() {
+    char* str = malloc(20);
+    strcpy(str, "hello");
+    return str;  // Caller must remember to free()
+}
+
+int main() {
+    char* s = get_string();
+    printf("%s\n", s);
+    free(s);  // Easy to forget!
+    return 0;
+}
+```
+
+**Problems:**
+- Memory leaks if `free()` is forgotten
+- Double-free errors if `free()` is called twice
+- Use-after-free if memory is accessed after `free()`
+
+#### Java/Python - Garbage Collection
+
+```java
+// Java code - garbage collected
+public class Example {
+    public static void main(String[] args) {
+        String s = new String("hello");
+        // Memory is automatically cleaned up by GC
+    }
+}
+```
+
+**Trade-offs:**
+- Automatic memory management
+- Runtime overhead for garbage collection
+- Unpredictable pause times
+- Higher memory usage
+
+#### Rust - Ownership System
+
+```rust
+// Rust code - ownership system
+fn main() {
+    let s = String::from("hello");
+    // Memory is automatically cleaned up
+    // No runtime overhead
+    // Deterministic cleanup
+}
+```
+
+**Benefits:**
+- Memory safety without garbage collection
+- Zero runtime overhead
+- Deterministic resource cleanup
+- Prevents data races
+
+### Best Practices for Memory Management
+
+#### Use References When Possible
+
+```rust
+fn process_string(s: &str) {  // Better: borrow instead of own
+    println!("Processing: {}", s);
+}
+
+fn process_string_bad(s: String) {  // Takes ownership unnecessarily
+    println!("Processing: {}", s);
+}
+
+fn main() {
+    let s = String::from("hello");
+    process_string(&s);     // s is still usable
+    process_string(&s);     // Can call multiple times
+}
+```
+
+#### Use Smart Pointers for Complex Scenarios
+
+```rust
+use std::rc::Rc;
+use std::cell::RefCell;
+
+fn main() {
+    // Shared ownership with interior mutability
+    let data = Rc::new(RefCell::new(String::from("shared")));
+    
+    let reference1 = Rc::clone(&data);
+    let reference2 = Rc::clone(&data);
+    
+    // Modify through one reference
+    reference1.borrow_mut().push_str(" data");
+    
+    // Access through another reference
+    println!("{}", reference2.borrow());
+}
+```
+
+#### Minimize Cloning
+
+```rust
+fn main() {
+    let s = String::from("hello");
+    
+    // Good: pass by reference
+    print_string(&s);
+    
+    // Avoid: unnecessary cloning
+    // print_string_bad(s.clone());
+}
+
+fn print_string(s: &str) {
+    println!("{}", s);
+}
+```
+
+Rust's memory management system provides safety without sacrificing performance. The ownership system, borrowing rules, and smart pointers work together to prevent common memory bugs while maintaining zero-cost abstractions. This makes Rust ideal for system programming where both safety and performance are critical.
 
 ### Lifetimes
+
+**What are lifetimes and why do they exist?**
+
+Lifetimes are Rust's way of ensuring that references (pointers to data) are always valid and never point to memory that has been freed. This prevents crashes, security vulnerabilities, and unpredictable behavior that plague other systems programming languages.
+
+#### The Problem Lifetimes Solve
+
+In languages like C or C++, you can create "dangling pointers" - pointers that point to memory that has been freed:
+
+```c
+// This is C code that would crash
+char* get_string() {
+    char local_string[20] = "Hello";
+    return local_string;  // DANGER: returning pointer to local variable!
+}
+// When this function ends, local_string is destroyed,
+// but we returned a pointer to it!
+```
+
+Rust prevents this entirely through its lifetime system.
+
+#### Understanding the Lifetime Problem with Examples
+
+Let's see what would happen if Rust didn't have lifetimes (this code won't compile):
+
+```rust
+fn main() {
+    let result;
+    {
+        let string1 = String::from("hello");
+        result = &string1;  // ERROR: string1 doesn't live long enough
+    }  // string1 goes out of scope here and is dropped
+    
+    println!("{}", result);  // result would be pointing to freed memory!
+}
+```
+
+- `result` is declared in the outer scope
+- `string1` is created in the inner scope `{}`
+- We try to store a reference to `string1` in `result`
+- When the inner scope ends, `string1` is destroyed
+- `result` would be pointing to freed memory (dangling pointer)
+- Rust prevents this at compile time
+
+#### How Lifetimes Work
+
+Lifetimes are annotations that tell Rust how long references should remain valid:
+
+```rust
+fn main() {
+    let string1 = String::from("hello");
+    let string2 = String::from("world");
+    
+    // Both strings live for the same duration
+    let result = longest(&string1, &string2);
+    println!("Longest: {}", result);
+}  // Both string1 and string2 are dropped here
+
+fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
+    if x.len() > y.len() {
+        x
+    } else {
+        y
+    }
+}
+```
+
+**Breaking down the lifetime annotation:**
+- `<'a>` declares a lifetime parameter called `'a` (you can name it anything)
+- `&'a str` means "a reference to a string that lives for at least lifetime 'a"
+- The return type `&'a str` means "returns a reference that lives for lifetime 'a"
+- This tells Rust: "the returned reference will be valid as long as both input references are valid"
+
+#### Why This Function Needs Lifetime Annotations
+
+Without lifetimes, Rust doesn't know which reference we're returning:
+
+```rust
+// This won't compile - Rust doesn't know the lifetime of the return value
+fn longest_broken(x: &str, y: &str) -> &str {
+    if x.len() > y.len() {
+        x  // Could be returning x
+    } else {
+        y  // Or could be returning y
+    }
+}
+```
+
+With lifetimes, we tell Rust: "the returned reference has the same lifetime as the input references":
 
 ```rust
 fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
@@ -1293,20 +1845,202 @@ fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
         y
     }
 }
+```
 
+#### Different Lifetime Scenarios
+
+**Scenario 1: References with different lifetimes**
+
+```rust
 fn main() {
-    let string1 = String::from("long string");
-    let string2 = String::from("short");
+    let string1 = String::from("long string is long");
+    let result;
     
-    let result = longest(&string1, &string2);
-    println!("Longest string: {}", result);
+    {
+        let string2 = String::from("short");
+        result = longest(&string1, &string2);
+        println!("Longest: {}", result);  // OK - used while both are valid
+    }  // string2 is dropped here
+    
+    // println!("{}", result);  // ERROR: string2 is gone, so result is invalid
 }
 ```
 
-- `<'a>` declares a lifetime parameter
-- `&'a str` means the reference lives for lifetime 'a
-- Lifetimes ensure references are valid
-- The compiler usually infers lifetimes automatically
+- `string1` lives for the entire main function
+- `string2` only lives within the inner scope
+- The lifetime `'a` is the shorter of the two (string2's lifetime)
+- `result` can only be used while both strings are alive
+
+**Scenario 2: One reference outlives the other**
+
+```rust
+fn main() {
+    let string1 = String::from("long string is long");
+    
+    {
+        let string2 = String::from("short");
+        let result = longest(&string1, &string2);
+        println!("Longest: {}", result);  // OK - both are alive here
+    }  // string2 and result are dropped here
+    
+    // string1 is still alive, but result is gone
+}
+```
+
+#### Lifetime Elision (When You Don't Need to Write Lifetimes)
+
+Rust can often infer lifetimes automatically. These three functions are equivalent:
+
+```rust
+// 1. Explicit lifetime (what the compiler sees)
+fn first_word_explicit<'a>(s: &'a str) -> &'a str {
+    let bytes = s.as_bytes();
+    for (i, &item) in bytes.iter().enumerate() {
+        if item == b' ' {
+            return &s[0..i];
+        }
+    }
+    &s[..]
+}
+
+// 2. Elided lifetime (what you can write)
+fn first_word(s: &str) -> &str {
+    let bytes = s.as_bytes();
+    for (i, &item) in bytes.iter().enumerate() {
+        if item == b' ' {
+            return &s[0..i];
+        }
+    }
+    &s[..]
+}
+
+// 3. They work the same way
+fn main() {
+    let sentence = String::from("hello world");
+    let word = first_word(&sentence);
+    println!("First word: {}", word);
+}
+```
+
+**Lifetime elision rules:**
+1. Each parameter gets its own lifetime
+2. If there's exactly one input lifetime, it's assigned to all outputs
+3. If there's a `&self` parameter, its lifetime is assigned to all outputs
+
+#### Lifetimes in Structs
+
+Structs can hold references, but they need lifetime annotations:
+
+```rust
+// This struct holds a reference to a string
+struct ImportantExcerpt<'a> {
+    part: &'a str,
+}
+
+fn main() {
+    let novel = String::from("Call me Ishmael. Some years ago...");
+    let first_sentence = novel.split('.').next().expect("Could not find a '.'");
+    
+    let excerpt = ImportantExcerpt {
+        part: first_sentence,
+    };
+    
+    println!("Excerpt: {}", excerpt.part);
+}  // excerpt and novel are both dropped here
+```
+
+- `ImportantExcerpt<'a>` means the struct needs a lifetime parameter
+- `part: &'a str` means the reference inside must live for lifetime `'a`
+- The struct cannot outlive the data it references
+
+#### Multiple Lifetimes
+
+Sometimes you need multiple lifetime parameters:
+
+```rust
+fn compare_strings<'a, 'b>(x: &'a str, y: &'b str) -> bool {
+    x.len() > y.len()
+}
+
+fn main() {
+    let string1 = String::from("long");
+    {
+        let string2 = String::from("short");
+        let is_longer = compare_strings(&string1, &string2);
+        println!("Is longer: {}", is_longer);
+    }
+}
+```
+
+- `'a` and `'b` are different lifetimes
+- The parameters can have different lifetimes
+- The return type `bool` is not a reference, so no lifetime needed
+
+#### Static Lifetime
+
+The `'static` lifetime means the reference lives for the entire program:
+
+```rust
+fn main() {
+    let s: &'static str = "I live for the entire program";
+    println!("{}", s);
+}
+```
+
+- String literals have `'static` lifetime
+- They're stored in the program's binary
+- Available for the entire program execution
+
+#### Common Lifetime Patterns
+
+**Pattern 1: Returning one of the input references**
+
+```rust
+fn choose_first<'a>(x: &'a str, y: &str) -> &'a str {
+    x  // Always return the first one
+}
+```
+
+**Pattern 2: Creating new data (no lifetime needed)**
+
+```rust
+fn create_greeting(name: &str) -> String {
+    format!("Hello, {}!", name)  // Returns owned String, not reference
+}
+```
+
+**Pattern 3: Methods on structs**
+
+```rust
+struct Person<'a> {
+    name: &'a str,
+}
+
+impl<'a> Person<'a> {
+    fn get_name(&self) -> &str {
+        self.name  // Lifetime is inferred from &self
+    }
+}
+```
+
+#### Why Lifetimes Are Important
+
+1. **Memory Safety**: Prevents dangling pointers and use-after-free bugs
+2. **No Runtime Cost**: All checking happens at compile time
+3. **No Garbage Collector**: Manual memory management without the dangers
+4. **Predictable Performance**: No unexpected pauses for garbage collection
+5. **Catch Bugs Early**: Memory errors found at compile time, not runtime
+
+#### Summary
+
+- **Lifetimes ensure references are always valid**
+- **They prevent dangling pointers and memory bugs**
+- **Rust infers most lifetimes automatically**
+- **You only need to write them when Rust can't figure them out**
+- **They have zero runtime cost - all checking is at compile time**
+- **They're what makes Rust memory-safe without garbage collection**
+
+The key insight is: lifetimes are not about managing memory directly, but about ensuring that references (pointers) always point to valid memory. This is what makes Rust both safe and fast.
 
 ## Advanced Features
 
@@ -1414,6 +2148,591 @@ fn circle_area(radius: f64) -> f64 {
 - Include examples in documentation
 - `cargo doc` generates HTML documentation
 - Good documentation helps other developers
+
+## Cargo and Project Management
+
+Cargo is Rust's package manager and build system. It handles project creation, dependency management, building, testing, and publishing. Cargo makes Rust development much easier by automating common tasks.
+
+### Creating a New Project
+
+#### Creating a Binary Project (Executable)
+
+```bash
+cargo new hello_world
+cd hello_world
+```
+
+The `cargo new` command creates a new project. `hello_world` is the project name. `cd` changes into the project directory.
+
+This creates the following structure:
+```
+hello_world/
+├── Cargo.toml
+├── src/
+│   └── main.rs
+└── .gitignore
+```
+
+- `Cargo.toml` is the project configuration file
+- `src/main.rs` is the main source file for executables
+- `.gitignore` ignores build artifacts in version control
+
+#### Creating a Library Project
+
+```bash
+cargo new my_library --lib
+cd my_library
+```
+
+The `--lib` flag creates a library project instead of an executable.
+
+This creates:
+```
+my_library/
+├── Cargo.toml
+├── src/
+│   └── lib.rs
+└── .gitignore
+```
+
+- `src/lib.rs` is the main source file for libraries
+- Libraries are code that other programs can use
+
+### Understanding Cargo.toml
+
+The `Cargo.toml` file contains project metadata and dependencies:
+
+```toml
+[package]
+name = "hello_world"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+```
+
+- `[package]` section contains project information
+- `name` is the project name
+- `version` follows semantic versioning (major.minor.patch)
+- `edition` specifies which Rust edition to use
+- `[dependencies]` section lists external packages
+
+### Building and Running Projects
+
+#### Building a Project
+
+```bash
+cargo build
+```
+
+The `cargo build` command compiles the project. It creates a `target/debug/` directory with the compiled executable.
+
+#### Running a Project
+
+```bash
+cargo run
+```
+
+The `cargo run` command builds and runs the project in one step. This is faster than separate build and run commands.
+
+#### Building for Release
+
+```bash
+cargo build --release
+```
+
+The `--release` flag creates an optimized build. The executable goes in `target/release/`. Release builds are slower to compile but run faster.
+
+### Managing Dependencies
+
+#### Adding Dependencies
+
+To add a dependency, edit `Cargo.toml`:
+
+```toml
+[dependencies]
+rand = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+```
+
+- `rand = "0.8"` adds the rand crate version 0.8.x
+- `serde = { version = "1.0", features = ["derive"] }` adds serde with specific features
+- `features` are optional parts of a crate you can enable
+
+#### Using Dependencies in Code
+
+```rust
+use rand::Rng;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
+struct Person {
+    name: String,
+    age: u32,
+}
+
+fn main() {
+    let mut rng = rand::thread_rng();
+    let random_number = rng.gen_range(1..=100);
+    
+    let person = Person {
+        name: String::from("Alice"),
+        age: random_number,
+    };
+    
+    println!("Random person: {} is {} years old", person.name, person.age);
+}
+```
+
+- `use` brings external crate items into scope
+- `#[derive(Serialize, Deserialize)]` automatically implements traits
+- External crates work just like built-in Rust code
+
+#### Updating Dependencies
+
+```bash
+cargo update
+```
+
+The `cargo update` command updates dependencies to their latest compatible versions. It respects version constraints in `Cargo.toml`.
+
+### Workspaces
+
+Workspaces allow you to manage multiple related packages together.
+
+#### Creating a Workspace
+
+Create a `Cargo.toml` file in the root directory:
+
+```toml
+[workspace]
+members = [
+    "my_app",
+    "my_library",
+    "shared_utils",
+]
+```
+
+- `[workspace]` defines a workspace
+- `members` lists all packages in the workspace
+- Each member has its own `Cargo.toml` file
+
+#### Workspace Structure
+
+```
+my_workspace/
+├── Cargo.toml          # Workspace configuration
+├── my_app/
+│   ├── Cargo.toml
+│   └── src/
+│       └── main.rs
+├── my_library/
+│   ├── Cargo.toml
+│   └── src/
+│       └── lib.rs
+└── shared_utils/
+    ├── Cargo.toml
+    └── src/
+        └── lib.rs
+```
+
+#### Using Workspace Dependencies
+
+In `my_app/Cargo.toml`:
+
+```toml
+[dependencies]
+my_library = { path = "../my_library" }
+shared_utils = { path = "../shared_utils" }
+```
+
+- `path` specifies the location of local dependencies
+- Workspace members can depend on each other
+
+### Modules and Code Organization
+
+#### Single File Modules
+
+```rust
+// In src/main.rs or src/lib.rs
+mod utils {
+    pub fn add(a: i32, b: i32) -> i32 {
+        a + b
+    }
+    
+    pub fn multiply(a: i32, b: i32) -> i32 {
+        a * b
+    }
+}
+
+fn main() {
+    let sum = utils::add(5, 3);
+    let product = utils::multiply(4, 6);
+    
+    println!("Sum: {}, Product: {}", sum, product);
+}
+```
+
+- `mod utils` declares a module named `utils`
+- `pub` makes functions public (accessible from outside the module)
+- `utils::add()` calls a function from the module
+
+#### Separate File Modules
+
+Create `src/utils.rs`:
+
+```rust
+pub fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+pub fn multiply(a: i32, b: i32) -> i32 {
+    a * b
+}
+```
+
+In `src/main.rs`:
+
+```rust
+mod utils;
+
+fn main() {
+    let sum = utils::add(5, 3);
+    let product = utils::multiply(4, 6);
+    
+    println!("Sum: {}, Product: {}", sum, product);
+}
+```
+
+- `mod utils;` tells Rust to look for `utils.rs` file
+- The module functions are defined in the separate file
+
+#### Directory Modules
+
+Create `src/math/` directory with `src/math/mod.rs`:
+
+```rust
+pub mod basic;
+pub mod advanced;
+```
+
+Create `src/math/basic.rs`:
+
+```rust
+pub fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+pub fn subtract(a: i32, b: i32) -> i32 {
+    a - b
+}
+```
+
+Create `src/math/advanced.rs`:
+
+```rust
+pub fn power(base: i32, exponent: u32) -> i32 {
+    base.pow(exponent)
+}
+
+pub fn factorial(n: u32) -> u32 {
+    match n {
+        0 | 1 => 1,
+        _ => n * factorial(n - 1),
+    }
+}
+```
+
+In `src/main.rs`:
+
+```rust
+mod math;
+
+fn main() {
+    let sum = math::basic::add(5, 3);
+    let power = math::advanced::power(2, 3);
+    let fact = math::advanced::factorial(5);
+    
+    println!("Sum: {}, Power: {}, Factorial: {}", sum, power, fact);
+}
+```
+
+- `mod.rs` defines the module structure
+- `pub mod basic;` makes the submodule public
+- `math::basic::add()` accesses nested module functions
+
+### Building Libraries
+
+#### Library Structure
+
+A library project has this structure:
+
+```
+my_library/
+├── Cargo.toml
+├── src/
+│   ├── lib.rs
+│   ├── utils.rs
+│   └── models/
+│       ├── mod.rs
+│       ├── user.rs
+│       └── product.rs
+├── tests/
+│   └── integration_tests.rs
+└── examples/
+    └── basic_usage.rs
+```
+
+#### src/lib.rs
+
+```rust
+pub mod utils;
+pub mod models;
+
+pub use models::user::User;
+pub use models::product::Product;
+
+pub fn library_version() -> &'static str {
+    "1.0.0"
+}
+```
+
+- `pub mod` exposes modules to library users
+- `pub use` re-exports items for easier access
+- `pub fn` exposes functions to library users
+
+#### Publishing Configuration
+
+In `Cargo.toml`:
+
+```toml
+[package]
+name = "my_awesome_library"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <your.email@example.com>"]
+description = "A library that does awesome things"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/yourusername/my_awesome_library"
+homepage = "https://github.com/yourusername/my_awesome_library"
+documentation = "https://docs.rs/my_awesome_library"
+readme = "README.md"
+keywords = ["awesome", "library", "rust"]
+categories = ["development-tools"]
+
+[dependencies]
+```
+
+- `authors` lists the package authors
+- `description` describes what the library does
+- `license` specifies the license type
+- `repository` points to the source code
+- `keywords` help users find the library
+- `categories` classify the library type
+
+### Testing
+
+#### Unit Tests
+
+```rust
+// In src/lib.rs
+pub fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_add() {
+        assert_eq!(add(2, 3), 5);
+        assert_eq!(add(-1, 1), 0);
+        assert_eq!(add(0, 0), 0);
+    }
+    
+    #[test]
+    fn test_add_negative() {
+        assert_eq!(add(-2, -3), -5);
+    }
+}
+```
+
+#### Integration Tests
+
+Create `tests/integration_tests.rs`:
+
+```rust
+use my_library::add;
+
+#[test]
+fn test_library_integration() {
+    let result = add(10, 20);
+    assert_eq!(result, 30);
+}
+```
+
+#### Running Tests
+
+```bash
+cargo test
+```
+
+- Runs all unit tests and integration tests
+- Shows which tests pass or fail
+
+```bash
+cargo test test_add
+```
+
+- Runs only tests matching the name pattern
+
+### Documentation
+
+#### Writing Documentation
+
+```rust
+/// Adds two numbers together
+/// 
+/// # Arguments
+/// 
+/// * `a` - The first number
+/// * `b` - The second number
+/// 
+/// # Examples
+/// 
+/// ```
+/// use my_library::add;
+/// 
+/// let result = add(5, 3);
+/// assert_eq!(result, 8);
+/// ```
+/// 
+/// # Panics
+/// 
+/// This function does not panic.
+/// 
+/// # Errors
+/// 
+/// This function does not return errors.
+pub fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+```
+
+#### Generating Documentation
+
+```bash
+cargo doc
+```
+
+- Generates HTML documentation from doc comments
+- Creates documentation in `target/doc/`
+
+```bash
+cargo doc --open
+```
+
+- Generates and opens documentation in your browser
+
+### Publishing to crates.io
+
+#### Preparing for Publishing
+
+1. Create account on crates.io
+2. Generate API token
+3. Configure authentication:
+
+```bash
+cargo login your_api_token_here
+```
+
+#### Publishing
+
+```bash
+cargo publish
+```
+
+- Uploads your crate to crates.io
+- Makes it available for others to use
+
+#### Versioning
+
+```bash
+cargo publish --dry-run
+```
+
+- Tests the publishing process without actually publishing
+- Useful for checking everything is correct
+
+### Common Cargo Commands
+
+#### Development Commands
+
+```bash
+cargo new project_name          # Create new project
+cargo new --lib lib_name        # Create new library
+cargo build                     # Build project
+cargo run                       # Build and run
+cargo check                     # Check code without building
+cargo test                      # Run tests
+cargo doc                       # Generate documentation
+```
+
+#### Dependency Management
+
+```bash
+cargo update                    # Update dependencies
+cargo tree                      # Show dependency tree
+cargo outdated                  # Show outdated dependencies (requires cargo-outdated)
+```
+
+#### Maintenance Commands
+
+```bash
+cargo clean                     # Remove build artifacts
+cargo fmt                       # Format code (requires rustfmt)
+cargo clippy                    # Lint code (requires clippy)
+```
+
+### Best Practices
+
+#### Project Structure
+
+```
+my_project/
+├── Cargo.toml
+├── README.md
+├── src/
+│   ├── lib.rs or main.rs
+│   ├── utils.rs
+│   └── models/
+│       ├── mod.rs
+│       └── user.rs
+├── tests/
+│   └── integration_tests.rs
+├── examples/
+│   └── basic_usage.rs
+└── docs/
+    └── user_guide.md
+```
+
+#### Dependency Management
+
+- Use specific version numbers for important dependencies
+- Group related dependencies together
+- Use `dev-dependencies` for testing and development tools
+- Keep dependencies up to date
+
+#### Code Organization
+
+- Use modules to organize related functionality
+- Keep modules focused on single responsibilities
+- Use `pub` carefully to control the public API
+- Write comprehensive documentation
+- Include examples in documentation
+
+Cargo simplifies Rust development by handling the complex tasks of building, testing, and managing dependencies. It follows conventions that make Rust projects consistent and easy to work with.
 
 ## Conclusion
 
