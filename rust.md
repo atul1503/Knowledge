@@ -40,6 +40,327 @@ fn main() {
 - `"Hello, world!"` is a string literal enclosed in double quotes
 - `;` semicolon ends the statement
 
+### When to Use Curly Braces `{}`
+
+Curly braces `{}` are used in many different contexts in Rust. Here are all the main cases:
+
+#### 1. Function Bodies
+```rust
+fn my_function() {
+    println!("This is inside a function body");
+}
+```
+- `{}` contain all the code that runs when the function is called
+- Everything between the braces is the function's implementation
+
+#### 2. Struct Definitions
+```rust
+struct Person {
+    name: String,
+    age: u32,
+}
+```
+- `{}` define the fields that belong to the struct
+- Each field is listed with its name and type
+
+#### 3. Struct Instantiation
+```rust
+let person = Person {
+    name: String::from("Alice"),
+    age: 25,
+};
+```
+- `{}` create a new instance of the struct
+- You provide values for each field inside the braces
+
+#### 4. Enum Definitions
+```rust
+enum Color {
+    Red,
+    Green,
+    Blue,
+}
+```
+- `{}` contain all the possible variants of the enum
+- Each variant is a possible value the enum can have
+
+#### 5. Control Flow Blocks
+```rust
+if condition {
+    println!("True case");
+} else {
+    println!("False case");
+}
+
+loop {
+    println!("This loops forever");
+    break;
+}
+
+while counter < 10 {
+    counter += 1;
+}
+
+for item in collection {
+    println!("Item: {}", item);
+}
+```
+- `{}` contain the code that runs for each control flow statement
+- Each block defines what happens in that case
+
+#### 6. Match Arms
+```rust
+match value {
+    1 => println!("One"),
+    2 => println!("Two"),
+    _ => println!("Other"),
+}
+```
+- `{}` contain all the possible patterns and their actions
+- Each arm specifies what to do for different values
+
+#### 7. Module Definitions
+```rust
+mod my_module {
+    pub fn public_function() {
+        println!("This is public");
+    }
+}
+```
+- `{}` contain all the code that belongs to the module
+- Functions, structs, and other items go inside
+
+#### 8. Implementation Blocks
+```rust
+impl Person {
+    fn new(name: String, age: u32) -> Person {
+        Person { name, age }
+    }
+}
+```
+- `{}` contain methods and associated functions for a type
+- All the behavior for the type is defined inside
+
+#### 9. Trait Definitions
+```rust
+trait Printable {
+    fn print(&self);
+}
+```
+- `{}` contain the method signatures that types must implement
+- May also contain default implementations
+
+#### 10. Macro Definitions
+```rust
+macro_rules! my_macro {
+    () => {
+        println!("Hello from macro!");
+    };
+    ($name:expr) => {
+        println!("Hello, {}!", $name);
+    };
+}
+```
+- The outer `{}` contain all the macro rules (the entire macro definition)
+- Inside, you see pattern matching arms that look like functions but aren't
+- `() => { }` is a macro arm where:
+  - `()` is the pattern (what input the macro matches)
+  - `=>` is the arrow that separates pattern from expansion
+  - `{}` after the arrow contains the code that gets generated
+- `($name:expr) => { }` is another arm that:
+  - `($name:expr)` matches an expression and captures it as `$name`
+  - `{}` contains the code that uses the captured `$name`
+- Each arm is like a different "version" of the macro for different inputs
+- The `{}` after `=>` contain the actual Rust code that replaces the macro call
+
+Here's how this macro works when used:
+```rust
+fn main() {
+    my_macro!();           // Uses the first arm () => { }
+    my_macro!("World");    // Uses the second arm ($name:expr) => { }
+}
+```
+- `my_macro!()` matches the `()` pattern and expands to `println!("Hello from macro!");`
+- `my_macro!("World")` matches `($name:expr)` pattern, captures `"World"` as `$name`, and expands to `println!("Hello, {}!", "World");`
+- The function-like syntax is actually pattern matching, not function definitions
+
+#### Different Types of Macro Arms and Matching Patterns
+
+Here's a comprehensive example showing various types of macro matching patterns:
+
+```rust
+macro_rules! advanced_macro {
+    // 1. Literal matching - matches exact text
+    (hello) => {
+        println!("You said hello!");
+    };
+    
+    // 2. Expression matching - matches any expression
+    (print $expr:expr) => {
+        println!("Expression value: {}", $expr);
+    };
+    
+    // 3. Identifier matching - matches variable or function names
+    // "create_var" is not a special keyword in Rust. It is just a custom pattern name for this macro arm.
+    // You can use any name you want here; it is only used to match the macro call.
+    (create_var $name:ident) => {
+        // $name:ident means this pattern matches an identifier (like a variable or function name)
+        let $name = 42;
+        println!("Created variable {} with value {}", stringify!($name), $name);
+    };
+    
+    // 4. Type matching - matches type names
+    (create_vec $type:ty) => {
+        let mut vec: Vec<$type> = Vec::new();
+        println!("Created vector of type {}", stringify!($type));
+    };
+    
+    // 5. Multiple parameters - matches several things
+    (add $a:expr, $b:expr) => {
+        println!("{} + {} = {}", $a, $b, $a + $b);
+    };
+    
+    // 6. Repetition patterns - matches multiple items
+    (sum $($num:expr),*) => {
+        {
+            let mut total = 0;
+            $(
+                total += $num;
+            )*
+            println!("Sum of all numbers: {}", total);
+            total
+        }
+    };
+    
+    // 7. Optional patterns - matches with or without something
+    (greet $name:expr $(, $title:expr)?) => {
+        match stringify!($($title)?).is_empty() {
+            true => println!("Hello, {}!", $name),
+            false => println!("Hello, {} {}!", $($title,)? $name),
+        }
+    };
+    
+    // 8. Block matching - matches code blocks
+    (if_debug $code:block) => {
+        #[cfg(debug_assertions)]
+        $code
+    };
+}
+```
+
+**Explanation of each pattern type:**
+
+1. **Literal matching `(hello)`**: 
+   - Matches exactly the word "hello"
+   - No variables captured, just exact text matching
+
+2. **Expression matching `$expr:expr`**:
+   - `$expr` is the variable name to capture into
+   - `:expr` means it matches any valid Rust expression
+   - Can be numbers, variables, function calls, etc.
+
+3. **Identifier matching `$name:ident`**:
+   - `:ident` matches identifiers (variable names, function names)
+   - `stringify!` converts the identifier to a string
+
+4. **Type matching `$type:ty`**:
+   - `:ty` matches type names like `i32`, `String`, `Vec<i32>`
+   - Used when you want to work with types in macros
+
+5. **Multiple parameters `$a:expr, $b:expr`**:
+   - Comma separates multiple captures
+   - Each parameter can be a different type of match
+
+6. **Repetition patterns `$($num:expr),*`**:
+   - `$( )` creates a repetition group
+   - `$num:expr` is repeated for each item
+   - `,*` means "separated by commas, zero or more times"
+   - `*` means zero or more, `+` means one or more
+
+7. **Optional patterns `$($title:expr)?`**:
+   - `$( )?` means the pattern inside is optional
+   - `?` means zero or one occurrence
+
+8. **Block matching `$code:block`**:
+   - `:block` matches code blocks `{ }`
+   - Useful for conditional compilation or wrapping code
+
+**Using these different patterns:**
+
+```rust
+fn main() {
+    // Literal matching
+    advanced_macro!(hello);
+    
+    // Expression matching
+    advanced_macro!(print 5 + 3);
+    advanced_macro!(print "Hello world");
+    
+    // Identifier matching
+    advanced_macro!(create_var my_number);
+    
+    // Type matching
+    advanced_macro!(create_vec i32);
+    advanced_macro!(create_vec String);
+    
+    // Multiple parameters
+    advanced_macro!(add 10, 20);
+    
+    // Repetition patterns
+    advanced_macro!(sum 1, 2, 3, 4, 5);
+    advanced_macro!(sum 10, 20);
+    
+    // Optional patterns
+    advanced_macro!(greet "Alice");
+    advanced_macro!(greet "Bob", "Dr.");
+    
+    // Block matching
+    advanced_macro!(if_debug {
+        println!("This only prints in debug mode");
+    });
+}
+```
+
+**Common pattern types summary:**
+- `:expr` - expressions (values, calculations)
+- `:ident` - identifiers (names)
+- `:ty` - types (i32, String, etc.)
+- `:block` - code blocks { }
+- `:stmt` - statements
+- `:pat` - patterns for matching
+- `:path` - paths like `std::vec::Vec`
+- `:tt` - token trees (any single token)
+- `:literal` - literal values only
+
+#### 11. String Formatting Placeholders
+```rust
+println!("Hello, {}!", name);
+println!("The value is: {}", value);
+```
+- `{}` act as placeholders in format strings
+- They get replaced with the values you provide
+- This is different from the other uses - here `{}` are inside strings
+
+#### 12. Scope and Code Blocks
+```rust
+{
+    let x = 5;
+    println!("x is: {}", x);
+} // x goes out of scope here
+```
+- `{}` create a new scope for variables
+- Variables defined inside are only available within the block
+- Used for controlling variable lifetimes
+
+#### Summary of `{}` Usage
+- **Code containers**: Function bodies, control flow blocks, modules
+- **Data structures**: Struct definitions and instantiation, enum definitions
+- **Pattern matching**: Match expressions with multiple arms
+- **Implementations**: Impl blocks for methods, trait definitions
+- **Macros**: Macro rule definitions and expansions
+- **Formatting**: Placeholders in strings (different context)
+- **Scoping**: Creating new variable scopes
+
 To compile and run:
 
 ```bash
