@@ -1314,6 +1314,110 @@ fn take_ownership(s: String) {
 - Only one variable can own a value at a time
 - The owner is responsible for cleaning up the memory
 
+#### Mutable Variables Can Be Reassigned After Moves
+
+```rust
+fn main() {
+    let mut s = String::from("hello");
+    println!("s: {}", s);
+    
+    // s loses ownership through a move
+    let s2 = s;
+    
+    // s is no longer valid for "hello"
+    // println!("s: {}", s);  // ERROR: s has been moved
+    
+    // BUT: s can be assigned a new value and gain ownership again
+    s = String::from("world");
+    println!("s: {}", s);  // OK: s now owns "world"
+    
+    // s can be moved again
+    take_ownership(s);
+    
+    // And can be reassigned again
+    s = String::from("rust");
+    println!("s: {}", s);  // OK: s now owns "rust"
+}
+
+fn take_ownership(s: String) {
+    println!("Function received: {}", s);
+}  // s goes out of scope and is dropped
+```
+
+- `mut` variables can be reassigned even after losing ownership
+- Each assignment gives the variable ownership of a new value
+- The variable binding itself is not consumed, only the value it held
+- This allows mutable variables to be reused throughout their scope
+
+#### Understanding Variable Bindings vs Values
+
+```rust
+fn main() {
+    let mut container = String::from("first");
+    
+    // container owns "first"
+    println!("1. container: {}", container);
+    
+    // Move the value out of container
+    let moved_value = container;
+    
+    // container no longer owns "first", but the binding still exists
+    // println!("2. container: {}", container);  // ERROR: moved
+    
+    // Assign a new value to the same binding
+    container = String::from("second");
+    
+    // container now owns "second"
+    println!("3. container: {}", container);
+    
+    // The binding can be reused multiple times
+    container = String::from("third");
+    println!("4. container: {}", container);
+}
+```
+
+- The **variable binding** (like `container`) is different from the **value** it holds
+- When ownership is moved, the old value becomes inaccessible
+- The variable binding can be assigned a new value
+- Each assignment creates a new ownership relationship
+
+#### Practical Example: Reusing Variables
+
+```rust
+fn main() {
+    let mut data = Vec::new();
+    
+    // Build first vector
+    data.push(1);
+    data.push(2);
+    data.push(3);
+    println!("First vector: {:?}", data);
+    
+    // Move the vector to a function
+    process_vector(data);
+    
+    // data is no longer valid, but can be reassigned
+    data = vec![4, 5, 6];  // Create new vector
+    println!("Second vector: {:?}", data);
+    
+    // Move again
+    let final_data = data;
+    
+    // Reassign again
+    data = vec![7, 8, 9];
+    println!("Third vector: {:?}", data);
+    println!("Final vector: {:?}", final_data);
+}
+
+fn process_vector(v: Vec<i32>) {
+    println!("Processing: {:?}", v);
+}  // v is dropped here
+```
+
+- Mutable variables can be reused for different values
+- Each reassignment creates a new owned value
+- This pattern is useful for resource management and data transformation
+
 #### Clone vs Move
 
 ```rust
