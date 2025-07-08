@@ -1850,6 +1850,577 @@ fn print_string(s: &str) {
 
 Rust's memory management system provides safety without sacrificing performance. The ownership system, borrowing rules, and smart pointers work together to prevent common memory bugs while maintaining zero-cost abstractions. This makes Rust ideal for system programming where both safety and performance are critical.
 
+### Comprehensive Borrowing and Move Semantics Rules
+
+Understanding when values are moved, copied, or borrowed is crucial for writing effective Rust code. This section covers all the detailed rules and edge cases you need to know.
+
+#### Move Semantics Rules
+
+**Rule 1: Default behavior is move for non-Copy types**
+
+```rust
+fn main() {
+    let s1 = String::from("hello");
+    let s2 = s1;  // s1 is moved to s2
+    
+    // println!("{}", s1);  // ERROR: s1 has been moved
+    println!("{}", s2);     // OK: s2 owns the value
+}
+```
+
+- `String` does not implement `Copy` trait
+- Assignment moves ownership, not copies data
+- The original variable becomes invalid after move
+
+**Rule 2: Copy types are copied, not moved**
+
+```rust
+fn main() {
+    let x = 5;      // i32 implements Copy
+    let y = x;      // x is copied, not moved
+    
+    println!("x: {}, y: {}", x, y);  // Both are valid
+    
+    // Other Copy types
+    let a = true;           // bool implements Copy
+    let b = a;              // a is copied
+    
+    let c = 'A';            // char implements Copy
+    let d = c;              // c is copied
+    
+    let e = 3.14;           // f64 implements Copy
+    let f = e;              // e is copied
+    
+    println!("All original variables still valid: {}, {}, {}, {}", a, b, c, d);
+}
+```
+
+**Copy types include:**
+- All integer types (`i8`, `i16`, `i32`, `i64`, `i128`, `isize`, `u8`, `u16`, `u32`, `u64`, `u128`, `usize`)
+- Floating point types (`f32`, `f64`)
+- `bool` and `char`
+- Tuples containing only Copy types
+- Arrays of Copy types with fixed size
+
+**Rule 3: Structs and enums are moved unless they implement Copy**
+
+```rust
+#[derive(Clone)]
+struct Person {
+    name: String,
+    age: u32,
+}
+
+// This struct implements Copy because all fields are Copy
+#[derive(Copy, Clone)]
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+fn main() {
+    let person1 = Person {
+        name: String::from("Alice"),
+        age: 25,
+    };
+    
+    let person2 = person1;  // person1 is moved
+    // println!("{}", person1.name);  // ERROR: person1 has been moved
+    
+    let point1 = Point { x: 1, y: 2 };
+    let point2 = point1;  // point1 is copied because Point implements Copy
+    
+    println!("point1: ({}, {})", point1.x, point1.y);  // OK: Copy type
+    println!("point2: ({}, {})", point2.x, point2.y);  // OK: Copy type
+}
+```
+
+**Rule 4: Function parameters follow move/copy rules**
+
+```rust
+fn take_ownership(s: String) {
+    println!("I own: {}", s);
+}  // s is dropped here
+
+fn take_copy(x: i32) {
+    println!("I have a copy: {}", x);
+}  // x goes out of scope, but it's just a copy
+
+fn main() {
+    let string = String::from("hello");
+    take_ownership(string);  // string is moved into function
+    // println!("{}", string);  // ERROR: string has been moved
+    
+    let number = 42;
+    take_copy(number);  // number is copied into function
+    println!("{}", number);  // OK: number is still valid
+}
+```
+
+**Rule 5: Function return values can move ownership**
+
+```rust
+fn create_string() -> String {
+    String::from("hello")  // Ownership is transferred to caller
+}
+
+fn create_and_return(input: String) -> String {
+    input  // Ownership is transferred back to caller
+}
+
+fn main() {
+    let s1 = create_string();           // s1 owns the returned value
+    let s2 = create_and_return(s1);     // s1 is moved in, s2 gets ownership back
+    
+    println!("{}", s2);  // OK: s2 owns the value
+    // println!("{}", s1);  // ERROR: s1 has been moved
+}
+```
+
+**Rule 6: Partial moves in structs and tuples**
+
+```rust
+struct Person {
+    name: String,
+    age: u32,
+}
+
+fn main() {
+    let person = Person {
+        name: String::from("Alice"),
+        age: 25,
+    };
+    
+    let name = person.name;  // Only name field is moved
+    let age = person.age;    // age is copied (u32 implements Copy)
+    
+    // println!("{}", person.name);  // ERROR: name field has been moved
+    println!("{}", person.age);      // OK: age field is still valid
+    // println!("{:?}", person);     // ERROR: person is partially moved
+    
+    // Tuple partial moves
+    let tuple = (String::from("hello"), 42, true);
+    let (s, num, flag) = tuple;  // All fields are moved/copied
+    
+    // println!("{:?}", tuple);  // ERROR: tuple has been moved
+    println!("{}, {}, {}", s, num, flag);  // OK: new variables own the values
+}
+```
+
+#### Borrowing Rules
+
+**Rule 1: Immutable references don't prevent reading**
+
+```rust
+fn main() {
+    let s = String::from("hello");
+    let r1 = &s;
+    let r2 = &s;
+    let r3 = &s;  // Multiple immutable references are OK
+    
+    println!("{}, {}, {}", r1, r2, r3);  // All can be used simultaneously
+    println!("{}", s);  // Original owner can still be read
+}
+```
+
+**Rule 2: Mutable references are exclusive**
+
+```rust
+fn main() {
+    let mut s = String::from("hello");
+    
+    let r1 = &mut s;
+    // let r2 = &mut s;  // ERROR: Cannot have two mutable references
+    // let r3 = &s;      // ERROR: Cannot have immutable ref while mutable ref exists
+    
+    r1.push_str(" world");
+    println!("{}", r1);  // OK: Only one mutable reference
+}
+```
+
+**Rule 3: References cannot outlive the data they reference**
+
+```rust
+fn main() {
+    let r;
+    {
+        let s = String::from("hello");
+        r = &s;  // ERROR: s doesn't live long enough
+    }  // s goes out of scope here
+    
+    // println!("{}", r);  // ERROR: r would be a dangling reference
+}
+```
+
+**Rule 4: Mutable references end when last used (Non-Lexical Lifetimes)**
+
+```rust
+fn main() {
+    let mut s = String::from("hello");
+    
+    let r1 = &s;
+    let r2 = &s;
+    println!("{} and {}", r1, r2);  // r1 and r2 are last used here
+    
+    let r3 = &mut s;  // OK: r1 and r2 are no longer used
+    r3.push_str(" world");
+    println!("{}", r3);
+}
+```
+
+**Rule 5: Borrowing in function parameters**
+
+```rust
+fn read_string(s: &String) {
+    println!("Reading: {}", s);
+}
+
+fn modify_string(s: &mut String) {
+    s.push_str(" modified");
+}
+
+fn main() {
+    let mut s = String::from("hello");
+    
+    read_string(&s);      // Immutable borrow
+    read_string(&s);      // Can borrow immutably multiple times
+    
+    modify_string(&mut s);  // Mutable borrow
+    // modify_string(&mut s);  // ERROR: Cannot borrow mutably while another mutable borrow exists
+    
+    println!("{}", s);  // OK: All borrows have ended
+}
+```
+
+**Rule 6: Borrowing with method calls**
+
+```rust
+fn main() {
+    let mut s = String::from("hello");
+    
+    let len = s.len();        // Immutable borrow for method call
+    println!("Length: {}", len);
+    
+    s.push_str(" world");     // Mutable borrow for method call
+    println!("String: {}", s);
+    
+    let r = &s;
+    let len2 = r.len();       // Method call through reference
+    println!("Length: {}", len2);
+}
+```
+
+#### Rules for Collections
+
+**Rule 1: Moving elements out of collections**
+
+```rust
+fn main() {
+    let mut vec = vec![
+        String::from("hello"),
+        String::from("world"),
+    ];
+    
+    // These moves make the vector partially uninitialized
+    let first = vec.remove(0);   // Moves first element out
+    let second = vec.pop().unwrap();  // Moves last element out
+    
+    println!("First: {}, Second: {}", first, second);
+    println!("Vector is now: {:?}", vec);  // Vector is now empty
+}
+```
+
+**Rule 2: Borrowing elements from collections**
+
+```rust
+fn main() {
+    let vec = vec![
+        String::from("hello"),
+        String::from("world"),
+    ];
+    
+    let first_ref = &vec[0];     // Immutable borrow of first element
+    let second_ref = &vec[1];    // Immutable borrow of second element
+    
+    println!("First: {}, Second: {}", first_ref, second_ref);
+    
+    // vec.push(String::from("!")); // ERROR: Cannot modify while borrowed
+    
+    // OK after borrows end
+    drop(first_ref);
+    drop(second_ref);
+    // vec.push(String::from("!"));  // Would be OK here
+}
+```
+
+**Rule 3: Mutable borrowing of collection elements**
+
+```rust
+fn main() {
+    let mut vec = vec![
+        String::from("hello"),
+        String::from("world"),
+    ];
+    
+    let first_ref = &mut vec[0];  // Mutable borrow of first element
+    first_ref.push_str("!");
+    
+    // let second_ref = &mut vec[1];  // ERROR: Cannot have multiple mutable borrows
+    
+    println!("Modified first: {}", first_ref);
+    
+    // After first_ref ends, we can borrow mutably again
+    drop(first_ref);
+    let second_ref = &mut vec[1];
+    second_ref.push_str("?");
+    
+    println!("Vector: {:?}", vec);
+}
+```
+
+#### Rules for Structs and Enums
+
+**Rule 1: Borrowing struct fields**
+
+```rust
+struct Person {
+    name: String,
+    age: u32,
+}
+
+fn main() {
+    let person = Person {
+        name: String::from("Alice"),
+        age: 25,
+    };
+    
+    let name_ref = &person.name;
+    let age_ref = &person.age;
+    
+    println!("Name: {}, Age: {}", name_ref, age_ref);
+    
+    // Can borrow multiple fields simultaneously
+    let name_ref2 = &person.name;
+    println!("Name again: {}", name_ref2);
+}
+```
+
+**Rule 2: Mutable borrowing of struct fields**
+
+```rust
+struct Person {
+    name: String,
+    age: u32,
+}
+
+fn main() {
+    let mut person = Person {
+        name: String::from("Alice"),
+        age: 25,
+    };
+    
+    let name_ref = &mut person.name;
+    name_ref.push_str(" Smith");
+    
+    // let age_ref = &mut person.age;  // ERROR: Cannot borrow another field mutably
+    
+    // But this works after the first borrow ends
+    drop(name_ref);
+    let age_ref = &mut person.age;
+    *age_ref += 1;
+    
+    println!("Person: {} is {} years old", person.name, person.age);
+}
+```
+
+**Rule 3: Borrowing with pattern matching**
+
+```rust
+enum Message {
+    Text(String),
+    Number(i32),
+}
+
+fn main() {
+    let msg = Message::Text(String::from("hello"));
+    
+    match &msg {
+        Message::Text(text) => println!("Text: {}", text),
+        Message::Number(num) => println!("Number: {}", num),
+    }
+    
+    // msg is still valid because we matched on &msg
+    match msg {
+        Message::Text(text) => println!("Moved text: {}", text),
+        Message::Number(num) => println!("Copied number: {}", num),
+    }
+    
+    // msg is now moved and invalid
+}
+```
+
+#### Rules for Closures
+
+**Rule 1: Closures can capture by reference**
+
+```rust
+fn main() {
+    let x = 5;
+    let print_x = || println!("x: {}", x);  // Captures x by reference
+    
+    print_x();
+    print_x();  // Can call multiple times
+    
+    println!("x is still: {}", x);  // x is still valid
+}
+```
+
+**Rule 2: Closures can capture by mutable reference**
+
+```rust
+fn main() {
+    let mut x = 5;
+    let mut modify_x = || {
+        x += 1;
+        println!("x: {}", x);
+    };
+    
+    modify_x();
+    modify_x();
+    
+    println!("Final x: {}", x);
+}
+```
+
+**Rule 3: Closures can capture by move**
+
+```rust
+fn main() {
+    let x = String::from("hello");
+    let take_x = move || println!("x: {}", x);  // Captures x by move
+    
+    take_x();
+    // println!("{}", x);  // ERROR: x has been moved into closure
+}
+```
+
+**Rule 4: Closures and function parameters**
+
+```rust
+fn call_closure<F>(f: F) where F: Fn() {
+    f();
+}
+
+fn call_closure_once<F>(f: F) where F: FnOnce() {
+    f();
+}
+
+fn main() {
+    let x = String::from("hello");
+    
+    // This closure only borrows x
+    let print_x = || println!("x: {}", x);
+    call_closure(print_x);
+    
+    // This closure takes ownership of x
+    let take_x = move || println!("x: {}", x);
+    call_closure_once(take_x);
+    
+    // println!("{}", x);  // ERROR: x has been moved
+}
+```
+
+#### Advanced Rules and Edge Cases
+
+**Rule 1: Reborrowing**
+
+```rust
+fn main() {
+    let mut s = String::from("hello");
+    let r1 = &mut s;
+    let r2 = &mut *r1;  // Reborrow r1 to create r2
+    
+    r2.push_str(" world");
+    // r1 is not usable until r2 ends
+    
+    println!("{}", r2);
+    // Now r1 can be used again
+}
+```
+
+**Rule 2: References in data structures**
+
+```rust
+fn main() {
+    let s1 = String::from("hello");
+    let s2 = String::from("world");
+    
+    let refs = vec![&s1, &s2];  // Vector of references
+    
+    for r in &refs {
+        println!("{}", r);
+    }
+    
+    // s1 and s2 must outlive refs
+    drop(refs);
+    println!("{} {}", s1, s2);  // OK: refs is gone
+}
+```
+
+**Rule 3: Mutable references to different parts**
+
+```rust
+fn main() {
+    let mut arr = [1, 2, 3, 4, 5];
+    
+    // This works because we're borrowing different parts
+    let (first_half, second_half) = arr.split_at_mut(2);
+    
+    first_half[0] = 10;
+    second_half[0] = 20;
+    
+    println!("Array: {:?}", arr);
+}
+```
+
+**Rule 4: Interior mutability**
+
+```rust
+use std::cell::RefCell;
+
+fn main() {
+    let data = RefCell::new(String::from("hello"));
+    
+    let r1 = data.borrow();      // Immutable borrow
+    let r2 = data.borrow();      // Multiple immutable borrows OK
+    
+    println!("{} {}", r1, r2);
+    
+    drop(r1);
+    drop(r2);
+    
+    let mut r3 = data.borrow_mut();  // Mutable borrow
+    r3.push_str(" world");
+    
+    println!("{}", r3);
+}
+```
+
+#### Summary of Key Rules
+
+1. **Move by default** for non-Copy types
+2. **Copy for Copy types** (integers, booleans, chars, etc.)
+3. **One mutable reference OR multiple immutable references** at any time
+4. **References must not outlive** the data they reference
+5. **Partial moves** invalidate the whole struct/tuple
+6. **Closures capture** by reference, mutable reference, or move
+7. **Function parameters** follow move/copy rules based on type
+8. **Collections** can be borrowed partially or wholly
+9. **Pattern matching** can borrow or move depending on the pattern
+10. **Reborrowing** allows creating new references from existing ones
+
+These rules ensure memory safety while allowing efficient, zero-cost abstractions. The Rust compiler enforces these rules at compile time, preventing common programming errors like use-after-free, double-free, and data races.
+
 ### Lifetimes
 
 **What are lifetimes and why do they exist?**
@@ -2510,6 +3081,306 @@ fn main() {
 
 - `mod utils;` tells Rust to look for `utils.rs` file
 - The module functions are defined in the separate file
+
+#### Understanding Module Declarations: Files vs Inline
+
+**Key Concept: File-based modules vs Inline modules**
+
+There are two ways to declare modules in Rust:
+
+**1. Inline Modules (with `{}` braces)**
+
+```rust
+// In src/main.rs
+mod utils {
+    pub fn add(a: i32, b: i32) -> i32 {
+        a + b
+    }
+    
+    pub fn multiply(a: i32, b: i32) -> i32 {
+        a * b
+    }
+}
+
+fn main() {
+    let sum = utils::add(5, 3);
+    println!("Sum: {}", sum);
+}
+```
+
+- `mod utils { }` declares a module named `utils` with code inside the braces
+- All the module code is written directly in the same file
+- The braces `{}` contain the module's contents
+
+**2. File-based Modules (with `;` semicolon)**
+
+```rust
+// In src/main.rs
+mod utils;  // Notice the semicolon instead of braces
+
+fn main() {
+    let sum = utils::add(5, 3);
+    println!("Sum: {}", sum);
+}
+```
+
+```rust
+// In src/utils.rs (separate file)
+pub fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+pub fn multiply(a: i32, b: i32) -> i32 {
+    a * b
+}
+```
+
+- `mod utils;` tells Rust to look for a file named `utils.rs` or a directory named `utils/mod.rs`
+- The **file itself becomes the module body** - you don't need `mod utils {}` inside the file
+- The semicolon `;` indicates that the module content is in a separate file
+
+**Why no `mod utils` inside utils.rs?**
+
+When you create a separate file like `utils.rs`, the **entire file content automatically becomes the module body**. It's as if Rust takes everything in `utils.rs` and puts it inside the `{}` braces of an inline module.
+
+Think of it this way:
+```rust
+// This inline module:
+mod utils {
+    pub fn add(a: i32, b: i32) -> i32 { a + b }
+    pub fn multiply(a: i32, b: i32) -> i32 { a * b }
+}
+
+// Is equivalent to this file-based module:
+// main.rs: mod utils;
+// utils.rs: pub fn add(a: i32, b: i32) -> i32 { a + b }
+//           pub fn multiply(a: i32, b: i32) -> i32 { a * b }
+```
+
+#### Module Search Rules
+
+When Rust sees `mod utils;`, it searches for the module in this order:
+
+1. **`utils.rs`** file in the same directory
+2. **`utils/mod.rs`** file (directory-based module)
+
+**Example of both approaches:**
+
+```rust
+// Approach 1: File-based
+// src/main.rs
+mod utils;
+mod database;
+
+// src/utils.rs
+pub fn helper_function() {}
+
+// src/database.rs  
+pub fn connect() {}
+```
+
+```rust
+// Approach 2: Directory-based
+// src/main.rs
+mod utils;
+mod database;
+
+// src/utils/mod.rs
+pub fn helper_function() {}
+
+// src/database/mod.rs
+pub fn connect() {}
+```
+
+Both approaches work identically - choose based on whether you need multiple files in the module.
+
+#### Making Modules Public for Other Crates
+
+**In a Library Crate (src/lib.rs):**
+
+```rust
+// src/lib.rs
+pub mod utils;    // Makes utils module public
+pub mod database; // Makes database module public
+
+// Re-export specific items for easier access
+pub use utils::helper_function;
+pub use database::connect;
+
+// Direct public function
+pub fn library_main_function() {
+    println!("This is the library's main function");
+}
+```
+
+```rust
+// src/utils.rs
+pub fn helper_function() {
+    println!("This is a helper function");
+}
+
+pub fn internal_function() {
+    println!("This is internal to the utils module");
+}
+```
+
+```rust
+// src/database.rs
+pub fn connect() {
+    println!("Connecting to database");
+}
+
+fn internal_connection_helper() {
+    println!("This is private to the database module");
+}
+```
+
+**Key points about `pub`:**
+- `pub mod utils;` makes the entire module accessible from outside the crate
+- `pub fn helper_function()` makes individual functions public
+- Functions without `pub` are private to their module
+- `pub use` re-exports items to make them available at the crate root
+
+#### Importing Modules from Other Crates
+
+**In Cargo.toml:**
+
+```toml
+[dependencies]
+my_library = "0.1.0"
+serde = { version = "1.0", features = ["derive"] }
+```
+
+**Using modules from other crates:**
+
+```rust
+// Import the entire module
+use my_library::utils;
+use my_library::database;
+
+// Import specific functions
+use my_library::utils::helper_function;
+use my_library::database::connect;
+
+// Import re-exported items (available at crate root)
+use my_library::helper_function;  // Available due to pub use
+use my_library::connect;          // Available due to pub use
+
+// Import from external crates
+use serde::{Deserialize, Serialize};
+
+fn main() {
+    // Using full module path
+    my_library::utils::helper_function();
+    my_library::database::connect();
+    
+    // Using imported functions
+    helper_function();
+    connect();
+    
+    // Using the library's main function
+    my_library::library_main_function();
+}
+```
+
+#### Complete Example: Multi-Crate Setup
+
+**Library Crate (my_library):**
+
+```rust
+// my_library/src/lib.rs
+pub mod auth;
+pub mod user;
+
+// Re-export for convenience
+pub use auth::login;
+pub use user::User;
+
+pub fn init_library() {
+    println!("Library initialized");
+}
+```
+
+```rust
+// my_library/src/auth.rs
+pub fn login(username: &str, password: &str) -> bool {
+    println!("Logging in user: {}", username);
+    validate_credentials(username, password)
+}
+
+fn validate_credentials(username: &str, password: &str) -> bool {
+    // Private function, not accessible outside this module
+    username == "admin" && password == "secret"
+}
+```
+
+```rust
+// my_library/src/user.rs
+pub struct User {
+    pub name: String,
+    pub email: String,
+}
+
+impl User {
+    pub fn new(name: String, email: String) -> User {
+        User { name, email }
+    }
+    
+    pub fn display_info(&self) {
+        println!("User: {} <{}>", self.name, self.email);
+    }
+}
+```
+
+**Application Crate (my_app):**
+
+```rust
+// my_app/Cargo.toml
+[dependencies]
+my_library = { path = "../my_library" }  // Local dependency
+```
+
+```rust
+// my_app/src/main.rs
+// Different ways to import from other crates
+use my_library::auth;              // Import module
+use my_library::user::User;        // Import specific item
+use my_library::login;             // Import re-exported item
+
+fn main() {
+    // Initialize the library
+    my_library::init_library();
+    
+    // Use imported module
+    let success = auth::login("admin", "secret");
+    
+    // Use re-exported function (same as auth::login)
+    let success2 = login("admin", "secret");
+    
+    // Use imported struct
+    let user = User::new(
+        String::from("Alice"),
+        String::from("alice@example.com")
+    );
+    
+    user.display_info();
+}
+```
+
+#### Summary of Module Declaration Rules
+
+1. **Inline modules**: `mod name { code }` - code goes inside braces
+2. **File-based modules**: `mod name;` - code goes in `name.rs` or `name/mod.rs`
+3. **No `mod` declaration needed inside separate files** - the file content IS the module
+4. **`pub mod`** makes modules accessible from outside the crate
+5. **`pub use`** re-exports items for easier access
+6. **`use`** imports modules/items from other crates or modules
+7. **Module search**: `name.rs` first, then `name/mod.rs`
+
+**When to use each approach:**
+- **Single file modules**: Use `name.rs` for simple modules
+- **Directory modules**: Use `name/mod.rs` when you need multiple files in one module
+- **Inline modules**: Use `mod name {}` for small, simple modules that don't need separate files
 
 #### Directory Modules
 
