@@ -3871,6 +3871,322 @@ fn main() {
 - `pub mod basic;` makes the submodule public
 - `math::basic::add()` accesses nested module functions
 
+### Finding Modules in Rust Projects (Java Developer's Guide)
+
+Coming from Java, you're used to a predictable directory structure where packages map directly to directories. In Java, if you see `com.example.user.UserService`, you know it's in `com/example/user/UserService.java`. Rust's module system is much more flexible, which can make it harder to find where modules are actually defined.
+
+#### The Java vs Rust Module Challenge
+
+**Java (Predictable):**
+```java
+// File: src/com/example/user/UserService.java
+package com.example.user;
+
+public class UserService {
+    public void createUser() { }
+}
+```
+- Package name = Directory structure
+- Class name = File name
+- Easy to find: just follow the package path
+
+**Rust (Flexible):**
+```rust
+// This could be in many different places!
+use myapp::user::UserService;
+```
+
+The `user` module could be:
+1. Inline in the same file: `mod user { ... }`
+2. In a separate file: `src/user.rs`
+3. In a directory: `src/user/mod.rs`
+4. Re-exported from somewhere else: `pub use other_module::user;`
+
+#### Different Ways Modules Can Be Defined
+
+**1. Inline Modules (Hardest to Find)**
+```rust
+// In src/main.rs or src/lib.rs
+mod user {
+    pub struct UserService;
+    
+    impl UserService {
+        pub fn create_user(&self) { }
+    }
+}
+
+mod admin {
+    pub fn delete_all_users() { }
+}
+```
+- Module code is written directly in the same file
+- No separate file to find
+- Must search within the file for `mod module_name {`
+
+**2. File-Based Modules (Easier to Find)**
+```rust
+// In src/main.rs or src/lib.rs
+mod user;
+mod admin;
+
+// The actual code is in:
+// src/user.rs
+// src/admin.rs
+```
+- Look for `mod module_name;` (with semicolon)
+- The module code is in `module_name.rs`
+
+**3. Directory-Based Modules (Most Predictable)**
+```rust
+// In src/main.rs or src/lib.rs
+mod user;
+mod admin;
+
+// The actual code is in:
+// src/user/mod.rs
+// src/admin/mod.rs
+```
+- Look for `mod module_name;` (with semicolon)
+- The module code is in `module_name/mod.rs`
+
+**4. Re-exported Modules (Trickiest to Find)**
+```rust
+// In src/lib.rs
+mod internal_modules;
+
+// Re-export for public API
+pub use internal_modules::user;
+pub use internal_modules::admin;
+
+// The actual code might be in:
+// src/internal_modules/mod.rs
+// src/internal_modules/user.rs
+// src/internal_modules/admin.rs
+```
+- `pub use` makes modules available from a different path
+- Must follow the chain: `pub use` → actual module location
+
+#### Strategies for Finding Modules
+
+**Strategy 1: Follow the Module Declarations**
+
+Start from the root file (`src/main.rs` or `src/lib.rs`) and trace the path:
+
+```rust
+// In src/lib.rs
+pub mod services;    // Look in src/services.rs or src/services/mod.rs
+pub mod models;      // Look in src/models.rs or src/models/mod.rs
+
+// In src/services/mod.rs
+pub mod user;        // Look in src/services/user.rs
+pub mod admin;       // Look in src/services/admin.rs
+```
+
+**Strategy 2: Use Your IDE's "Go to Definition"**
+
+Most Rust IDEs (VS Code with rust-analyzer, IntelliJ IDEA, etc.) can jump to where a module is defined:
+
+```rust
+use myapp::user::UserService;
+//            ^^^^ Right-click → "Go to Definition"
+```
+
+**Strategy 3: Search for Module Names**
+
+Use grep or your IDE's search to find where modules are defined:
+
+```bash
+# Search for module declarations
+grep -r "mod user" src/
+grep -r "pub mod user" src/
+
+# Search for struct/function definitions
+grep -r "struct UserService" src/
+grep -r "fn create_user" src/
+```
+
+**Strategy 4: Use Cargo Tools**
+
+```bash
+# Show all modules in your project
+cargo tree --prefix=depth
+
+# Generate documentation to see module structure
+cargo doc --open
+```
+
+#### Practical Example: Tracing a Module
+
+Let's say you see this import and want to find where `UserService` is defined:
+
+```rust
+use myapp::services::user::UserService;
+```
+
+**Step 1: Start from the root**
+```rust
+// In src/lib.rs
+pub mod services;
+```
+
+**Step 2: Check src/services.rs or src/services/mod.rs**
+```rust
+// In src/services/mod.rs
+pub mod user;
+```
+
+**Step 3: Check src/services/user.rs**
+```rust
+// In src/services/user.rs
+pub struct UserService {
+    // Found it!
+}
+```
+
+#### Common Module Organization Patterns
+
+**Pattern 1: Flat Structure (Good for Small Projects)**
+```
+src/
+├── main.rs
+├── user.rs
+├── admin.rs
+└── database.rs
+```
+
+**Pattern 2: Domain-Driven (Good for Medium Projects)**
+```
+src/
+├── lib.rs
+├── user/
+│   ├── mod.rs
+│   ├── service.rs
+│   └── model.rs
+├── admin/
+│   ├── mod.rs
+│   └── service.rs
+└── shared/
+    ├── mod.rs
+    └── database.rs
+```
+
+**Pattern 3: Layered Architecture (Good for Large Projects)**
+```
+src/
+├── lib.rs
+├── controllers/
+│   ├── mod.rs
+│   ├── user_controller.rs
+│   └── admin_controller.rs
+├── services/
+│   ├── mod.rs
+│   ├── user_service.rs
+│   └── admin_service.rs
+├── models/
+│   ├── mod.rs
+│   ├── user.rs
+│   └── admin.rs
+└── utils/
+    ├── mod.rs
+    └── database.rs
+```
+
+#### IDE Tools for Java Developers
+
+**VS Code with rust-analyzer:**
+- `Ctrl+Click` on any module/function to jump to definition
+- `Ctrl+Shift+P` → "Go to Symbol in Workspace"
+- File Explorer shows actual file structure
+
+**IntelliJ IDEA (with Rust plugin):**
+- `Ctrl+B` to go to definition
+- `Ctrl+Shift+N` to find file by name
+- `Ctrl+Alt+Shift+N` to find symbol by name
+
+**Vim/Neovim with rust-analyzer:**
+- `gd` to go to definition
+- `:Telescope live_grep` to search content
+- `:Telescope find_files` to find files
+
+#### Best Practices for Java Developers
+
+**1. Use Consistent Module Organization**
+Choose one pattern and stick to it throughout your project:
+
+```rust
+// Good: Consistent directory structure
+src/
+├── user/
+│   ├── mod.rs
+│   ├── service.rs
+│   └── model.rs
+├── admin/
+│   ├── mod.rs
+│   ├── service.rs
+│   └── model.rs
+```
+
+**2. Avoid Deeply Nested Inline Modules**
+```rust
+// Bad: Hard to find
+mod services {
+    mod user {
+        mod validation {
+            pub fn validate_email() { }
+        }
+    }
+}
+
+// Good: Easy to find
+// src/services/user/validation.rs
+pub fn validate_email() { }
+```
+
+**3. Use Meaningful Re-exports**
+```rust
+// In src/lib.rs
+pub mod services;
+pub mod models;
+
+// Re-export commonly used items
+pub use services::user::UserService;
+pub use services::admin::AdminService;
+pub use models::user::User;
+```
+
+**4. Document Your Module Structure**
+```rust
+//! # MyApp Library
+//! 
+//! This library is organized as follows:
+//! 
+//! - `services/` - Business logic and operations
+//! - `models/` - Data structures and types
+//! - `utils/` - Shared utilities
+//! - `config/` - Configuration management
+```
+
+#### Quick Reference: Finding Modules
+
+| What You See | Where to Look |
+|-------------|--------------|
+| `mod user;` | `src/user.rs` or `src/user/mod.rs` |
+| `mod user { ... }` | Right here in this file |
+| `pub use other::user;` | Follow the path to `other` module |
+| `use myapp::user::UserService;` | Start from root, follow path |
+
+#### Summary
+
+Unlike Java's rigid package-to-directory mapping, Rust's module system is flexible but requires different strategies to navigate:
+
+1. **Start from the root** (`src/lib.rs` or `src/main.rs`)
+2. **Follow module declarations** (`mod name;` vs `mod name { }`)
+3. **Use IDE tools** (go to definition, search)
+4. **Establish consistent patterns** in your projects
+5. **Document your module structure** for team members
+
+The flexibility is powerful once you understand it, but it does require adapting your mental model from Java's predictable structure to Rust's more flexible approach.
+
 ### Building Libraries
 
 #### Library Structure
@@ -3999,15 +4315,22 @@ cargo test test_add
 
 ### Documentation
 
-#### Writing Documentation
+Documentation is crucial for Rust projects. Rust provides excellent built-in tools for generating comprehensive documentation for your crate, modules, and dependencies.
+
+#### Types of Documentation Comments
+
+**Item Documentation (`///`)**
 
 ```rust
 /// Adds two numbers together
 /// 
+/// This function performs addition of two integers and returns the result.
+/// It uses saturating arithmetic to prevent overflow.
+/// 
 /// # Arguments
 /// 
-/// * `a` - The first number
-/// * `b` - The second number
+/// * `a` - The first number to add
+/// * `b` - The second number to add
 /// 
 /// # Examples
 /// 
@@ -4016,34 +4339,582 @@ cargo test test_add
 /// 
 /// let result = add(5, 3);
 /// assert_eq!(result, 8);
+/// 
+/// // Works with negative numbers
+/// let result = add(-2, 3);
+/// assert_eq!(result, 1);
 /// ```
 /// 
 /// # Panics
 /// 
-/// This function does not panic.
+/// This function does not panic under normal circumstances.
 /// 
 /// # Errors
 /// 
 /// This function does not return errors.
+/// 
+/// # Safety
+/// 
+/// This function is safe to use in all contexts.
 pub fn add(a: i32, b: i32) -> i32 {
-    a + b
+    a.saturating_add(b)
 }
 ```
 
-#### Generating Documentation
+**Module Documentation (`//!`)**
 
-```bash
-cargo doc
+```rust
+//! # My Amazing Crate
+//! 
+//! This crate provides utilities for mathematical operations and data processing.
+//! 
+//! ## Features
+//! 
+//! - Fast arithmetic operations
+//! - Safe memory handling
+//! - Comprehensive error handling
+//! 
+//! ## Quick Start
+//! 
+//! ```
+//! use my_crate::add;
+//! 
+//! let result = add(2, 3);
+//! assert_eq!(result, 5);
+//! ```
+//! 
+//! ## Modules
+//! 
+//! - [`math`] - Mathematical operations
+//! - [`utils`] - Utility functions
+//! - [`errors`] - Error types and handling
+
+pub mod math;
+pub mod utils;
+pub mod errors;
 ```
 
-- Generates HTML documentation from doc comments
-- Creates documentation in `target/doc/`
+**Inner Documentation for Modules**
+
+```rust
+// src/math/mod.rs
+//! Math operations module
+//! 
+//! This module provides various mathematical functions including:
+//! - Basic arithmetic
+//! - Advanced calculations
+//! - Statistical operations
+
+pub mod basic;
+pub mod advanced;
+pub mod stats;
+```
+
+#### Generating Documentation for Your Crate
+
+**Basic Documentation Generation**
 
 ```bash
+# Generate documentation for your crate
+cargo doc
+
+# Generate and open documentation in browser
 cargo doc --open
 ```
 
-- Generates and opens documentation in your browser
+**Advanced Documentation Options**
+
+```bash
+# Generate documentation for your crate and all dependencies
+cargo doc --document-private-items
+
+# Generate documentation including private items
+cargo doc --document-private-items --open
+
+# Generate documentation with verbose output
+cargo doc --verbose
+
+# Generate documentation for specific package in workspace
+cargo doc --package my_package
+
+# Generate documentation for all workspace members
+cargo doc --workspace
+```
+
+#### Generating Documentation for Dependencies
+
+**Include Dependencies in Documentation**
+
+```bash
+# Generate docs for your crate AND all dependencies
+cargo doc --open
+
+# Generate docs for dependencies only (without your crate)
+cargo doc --no-deps --open
+```
+
+**View Documentation for Specific Dependencies**
+
+```bash
+# Generate docs for a specific dependency
+cargo doc --package serde --open
+
+# Generate docs for multiple specific dependencies
+cargo doc --package serde --package tokio --open
+```
+
+#### Using rustdoc Directly
+
+For more control, you can use `rustdoc` directly:
+
+```bash
+# Generate documentation for a single file
+rustdoc src/lib.rs
+
+# Generate documentation with custom options
+rustdoc src/lib.rs --crate-name my_crate --output target/doc
+
+# Generate documentation with external dependencies
+rustdoc src/lib.rs --extern serde=/path/to/serde
+```
+
+#### Documentation Testing
+
+Rust automatically tests code examples in your documentation:
+
+```rust
+/// Divides two numbers
+/// 
+/// # Examples
+/// 
+/// ```
+/// use my_crate::divide;
+/// 
+/// let result = divide(10, 2);
+/// assert_eq!(result, Ok(5));
+/// ```
+/// 
+/// ```should_panic
+/// use my_crate::divide;
+/// 
+/// // This will panic due to division by zero
+/// let result = divide(10, 0).unwrap();
+/// ```
+/// 
+/// ```ignore
+/// use my_crate::divide;
+/// 
+/// // This example won't be tested
+/// let result = divide(expensive_calculation(), 2);
+/// ```
+pub fn divide(a: i32, b: i32) -> Result<i32, String> {
+    if b == 0 {
+        Err("Division by zero".to_string())
+    } else {
+        Ok(a / b)
+    }
+}
+```
+
+```bash
+# Run documentation tests
+cargo test --doc
+
+# Run all tests including documentation tests
+cargo test
+```
+
+#### Cross-References and Linking
+
+**Linking to Items in Your Crate**
+
+```rust
+/// Performs addition using the [`add`] function
+/// 
+/// This is a wrapper around [`add`] that provides additional validation.
+/// See also [`multiply`] for multiplication operations.
+/// 
+/// For more complex operations, check the [`math::advanced`] module.
+pub fn safe_add(a: i32, b: i32) -> i32 {
+    add(a, b)
+}
+
+/// Links to external crates work too: [`std::collections::HashMap`]
+pub fn create_map() -> std::collections::HashMap<String, i32> {
+    std::collections::HashMap::new()
+}
+```
+
+**Using Different Link Formats**
+
+```rust
+/// Different ways to link to items:
+/// 
+/// - [`function_name`] - links to function
+/// - [`module_name::function_name`] - links to function in module
+/// - [`struct_name`] - links to struct
+/// - [`enum_name::variant`] - links to enum variant
+/// - [`trait_name::method`] - links to trait method
+/// - [custom text][`actual_item`] - custom link text
+/// - <https://docs.rs/serde> - external links
+```
+
+#### Configuring Documentation Generation
+
+**Cargo.toml Configuration**
+
+```toml
+[package]
+name = "my_crate"
+version = "0.1.0"
+documentation = "https://docs.rs/my_crate"
+
+[package.metadata.docs.rs]
+# Generate docs for all features
+all-features = true
+
+# Generate docs for specific features
+features = ["serde", "async"]
+
+# Set default target for docs.rs
+default-target = "x86_64-unknown-linux-gnu"
+
+# Include additional targets
+targets = ["x86_64-pc-windows-msvc", "wasm32-unknown-unknown"]
+
+# Custom rustdoc arguments
+rustdoc-args = ["--html-in-header", "katex-header.html"]
+```
+
+#### Advanced Documentation Features
+
+**Using HTML and Markdown**
+
+```rust
+/// # This is a heading
+/// 
+/// This function supports **bold** and *italic* text.
+/// 
+/// ## Code Examples
+/// 
+/// ```rust
+/// let x = 5;
+/// println!("Value: {}", x);
+/// ```
+/// 
+/// ## Lists
+/// 
+/// - Item 1
+/// - Item 2
+///   - Nested item
+/// 
+/// ## Tables
+/// 
+/// | Input | Output |
+/// |-------|--------|
+/// | 1     | 2      |
+/// | 3     | 6      |
+/// 
+/// ## Links
+/// 
+/// See [Rust documentation](https://doc.rust-lang.org/) for more info.
+pub fn documented_function() {}
+```
+
+**Including Images and Diagrams**
+
+```rust
+/// # Algorithm Overview
+/// 
+/// This algorithm follows this process:
+/// 
+/// ![Algorithm Flow](https://raw.githubusercontent.com/user/repo/main/algorithm.png)
+/// 
+/// The flow can be summarized as:
+/// 
+/// ```text
+/// Input → Validation → Processing → Output
+/// ```
+pub fn complex_algorithm() {}
+```
+
+**Custom Attributes for Documentation**
+
+```rust
+// Hide implementation details from documentation
+#[doc(hidden)]
+pub fn internal_function() {}
+
+// Add aliases for searching
+#[doc(alias = "plus")]
+#[doc(alias = "sum")]
+pub fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+// Include only in documentation (not in compiled code)
+#[cfg(doc)]
+pub fn documentation_only_function() {}
+```
+
+#### Generating Documentation for Different Scenarios
+
+**For Library Development**
+
+```bash
+# Generate docs for your library and view them
+cargo doc --lib --open
+
+# Generate docs including private items for internal development
+cargo doc --document-private-items --open
+
+# Generate docs for specific features
+cargo doc --features "serde,async" --open
+```
+
+**For Application Development**
+
+```bash
+# Generate docs for your application and dependencies
+cargo doc --bin my_app --open
+
+# Generate docs for all binaries in workspace
+cargo doc --bins --open
+```
+
+**For Workspace Projects**
+
+```bash
+# Generate docs for entire workspace
+cargo doc --workspace --open
+
+# Generate docs for specific workspace members
+cargo doc --package crate1 --package crate2 --open
+```
+
+#### Viewing Documentation for External Crates
+
+**Online Documentation**
+
+```bash
+# Most crates have documentation on docs.rs
+# https://docs.rs/crate_name
+
+# Examples:
+# https://docs.rs/serde
+# https://docs.rs/tokio
+# https://docs.rs/reqwest
+```
+
+**Local Documentation for Dependencies**
+
+```bash
+# Generate and view docs for all dependencies
+cargo doc --open
+
+# This creates local documentation for:
+# - Your crate
+# - All direct dependencies
+# - All transitive dependencies
+```
+
+**Exploring Dependency Documentation**
+
+```bash
+# After running cargo doc --open, you can:
+# 1. Click on any dependency in the sidebar
+# 2. Browse through modules and functions
+# 3. See examples and usage information
+# 4. Find links to source code
+```
+
+#### Documentation Best Practices
+
+**Writing Good Documentation**
+
+```rust
+/// Calculates the factorial of a number
+/// 
+/// # Arguments
+/// 
+/// * `n` - A non-negative integer
+/// 
+/// # Returns
+/// 
+/// The factorial of `n` as a `u64`
+/// 
+/// # Examples
+/// 
+/// ```
+/// use my_crate::factorial;
+/// 
+/// assert_eq!(factorial(0), 1);
+/// assert_eq!(factorial(5), 120);
+/// ```
+/// 
+/// # Panics
+/// 
+/// This function will panic if `n` is greater than 20, as the result
+/// would overflow a `u64`.
+/// 
+/// ```should_panic
+/// use my_crate::factorial;
+/// 
+/// factorial(25); // This will panic
+/// ```
+pub fn factorial(n: u8) -> u64 {
+    if n > 20 {
+        panic!("Input too large for u64");
+    }
+    (1..=n as u64).product()
+}
+```
+
+**Organizing Documentation**
+
+```rust
+//! # My Crate
+//! 
+//! Brief description of what this crate does.
+//! 
+//! ## Features
+//! 
+//! - Feature 1
+//! - Feature 2
+//! 
+//! ## Usage
+//! 
+//! ```
+//! use my_crate::SomeType;
+//! 
+//! let instance = SomeType::new();
+//! ```
+//! 
+//! ## Modules
+//! 
+//! This crate is organized into the following modules:
+//! 
+//! - [`core`] - Core functionality
+//! - [`utils`] - Utility functions
+//! - [`errors`] - Error types
+```
+
+#### Publishing Documentation
+
+**For docs.rs (Automatic)**
+
+When you publish to crates.io, docs.rs automatically generates documentation:
+
+```toml
+# In Cargo.toml
+[package]
+documentation = "https://docs.rs/my_crate"
+
+# docs.rs will automatically build and host your documentation
+```
+
+**For GitHub Pages**
+
+```yaml
+# .github/workflows/docs.yml
+name: Deploy Documentation
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        
+    - name: Generate docs
+      run: cargo doc --no-deps --document-private-items
+      
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./target/doc
+```
+
+#### Troubleshooting Documentation Issues
+
+**Common Problems and Solutions**
+
+```bash
+# Problem: Documentation not generating
+# Solution: Check for syntax errors in doc comments
+cargo doc 2>&1 | grep -i error
+
+# Problem: Links not working
+# Solution: Use proper link syntax
+/// See [`function_name`] for details  # Correct
+/// See [function_name] for details    # Incorrect
+
+# Problem: Examples not testing
+# Solution: Run doc tests specifically
+cargo test --doc
+
+# Problem: Documentation not including dependencies
+# Solution: Use the right flags
+cargo doc --open  # Includes dependencies
+cargo doc --no-deps --open  # Excludes dependencies
+```
+
+#### Tools for Enhanced Documentation
+
+**mdbook for Additional Documentation**
+
+```bash
+# Install mdbook
+cargo install mdbook
+
+# Create a book
+mdbook init my_book
+
+# Build and serve
+mdbook serve
+```
+
+**doc-comment for Testing README Examples**
+
+```toml
+# In Cargo.toml
+[dev-dependencies]
+doc-comment = "0.3"
+```
+
+```rust
+// In src/lib.rs
+#[cfg(test)]
+mod tests {
+    use doc_comment::doctest;
+    
+    doctest!("../README.md");
+}
+```
+
+#### Summary: Documentation Generation Commands
+
+| Command | Purpose |
+|---------|---------|
+| `cargo doc` | Generate docs for your crate |
+| `cargo doc --open` | Generate and open docs |
+| `cargo doc --document-private-items` | Include private items |
+| `cargo doc --no-deps` | Exclude dependencies |
+| `cargo doc --workspace` | Generate for entire workspace |
+| `cargo doc --package NAME` | Generate for specific package |
+| `cargo test --doc` | Run documentation tests |
+| `rustdoc src/lib.rs` | Use rustdoc directly |
+
+Documentation in Rust is not just about explaining code—it's about creating a comprehensive resource that helps users understand, use, and contribute to your project. The built-in tools make it easy to generate professional-quality documentation for any Rust project.
 
 ### Publishing to crates.io
 
