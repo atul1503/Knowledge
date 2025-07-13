@@ -4449,7 +4449,7 @@ cargo doc --workspace
 # Generate docs for your crate AND all dependencies
 cargo doc --open
 
-# Generate docs for dependencies only (without your crate)
+# Generate docs for your crate only (without dependencies)
 cargo doc --no-deps --open
 ```
 
