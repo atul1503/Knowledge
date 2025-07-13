@@ -793,6 +793,114 @@ fn main() {
 - `Rectangle::new()` is an associated function (constructor)
 - `{ width, height }` uses field init shorthand when variable names match field names
 
+### Struct Update Syntax
+
+Struct update syntax allows you to create a new struct instance by updating only some fields from an existing struct. This is done using the `..` syntax to copy the remaining fields from another struct instance.
+
+```rust
+struct Person {
+    name: String,
+    age: u32,
+    email: String,
+    city: String,
+}
+
+fn main() {
+    let person1 = Person {
+        name: String::from("Alice"),
+        age: 25,
+        email: String::from("alice@example.com"),
+        city: String::from("New York"),
+    };
+    
+    // Create a new person with most fields copied from person1
+    let person2 = Person {
+        name: String::from("Bob"),        // New value for name
+        age: 30,                          // New value for age
+        ..person1                         // Copy email and city from person1
+    };
+    
+    println!("Person2: {} from {}", person2.name, person2.city);
+}
+```
+
+- `..person1` copies all remaining fields from `person1` that aren't explicitly specified
+- The `..` syntax must come at the end of the struct literal
+- This creates a completely new struct instance, not a reference to the original
+
+#### Ownership Behavior
+
+```rust
+struct User {
+    username: String,    // Non-Copy type
+    active: bool,        // Copy type
+    count: u64,          // Copy type
+}
+
+fn main() {
+    let user1 = User {
+        username: String::from("alice"),
+        active: true,
+        count: 1,
+    };
+    
+    let user2 = User {
+        username: String::from("bob"),  // New username
+        ..user1                         // Moves username, copies active and count
+    };
+    
+    // user1.username is moved, but other fields are still accessible
+    // println!("{}", user1.username);  // ERROR: moved
+    println!("{}", user1.active);       // OK: copied
+    println!("{}", user1.count);        // OK: copied
+}
+```
+
+- `String` fields are **moved** because `String` doesn't implement `Copy`
+- `bool` and `u64` fields are **copied** because they implement `Copy`
+- After struct update, you can't use moved fields from the original struct
+
+#### Using with References
+
+```rust
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+fn translate(point: &Point, dx: i32, dy: i32) -> Point {
+    Point {
+        x: point.x + dx,
+        y: point.y + dy,
+        ..*point                        // Dereference to copy remaining fields
+    }
+}
+
+fn main() {
+    let origin = Point { x: 0, y: 0 };
+    let moved = translate(&origin, 5, 3);
+    
+    // origin is still usable because we only borrowed it
+    println!("Origin: ({}, {})", origin.x, origin.y);
+    println!("Moved: ({}, {})", moved.x, moved.y);
+}
+```
+
+- `..*point` dereferences the reference to access struct fields
+- Original struct remains usable when using references
+
+#### Summary
+
+**Key Rules:**
+- Use `..struct_name` to copy remaining fields from another struct
+- The `..` must be at the end of the struct literal
+- Non-Copy fields are moved, Copy fields are copied
+- Works with references using `..*reference`
+
+**Common Uses:**
+- Configuration updates: `Config { debug: true, ..default_config }`
+- State changes: `GameState { score: new_score, ..old_state }`
+
 ## Enums
 
 ### Basic Enums
@@ -918,6 +1026,309 @@ fn main() {
 - `Result<String, std::io::Error>` means the function returns either a String or an error
 - `Ok(contents)` wraps the success value
 - `read_to_string()` reads the file into a string
+
+### Option Type Deep Dive
+
+The `Option` type represents a value that might or might not exist. It's used instead of null pointers to prevent null reference errors.
+
+```rust
+fn find_item(items: &[i32], target: i32) -> Option<usize> {
+    for (index, &item) in items.iter().enumerate() {
+        if item == target {
+            return Some(index);  // Some() wraps the found value
+        }
+    }
+    None  // None means no value found
+}
+
+fn main() {
+    let numbers = vec![10, 20, 30, 40, 50];
+    
+    // Using pattern matching
+    match find_item(&numbers, 30) {
+        Some(index) => println!("Found at index: {}", index),
+        None => println!("Not found"),
+    }
+    
+    // Using if let - shorter syntax for single pattern
+    if let Some(index) = find_item(&numbers, 20) {
+        println!("Item 20 is at index: {}", index);
+    }
+}
+```
+
+- `Option<T>` can be either `Some(value)` or `None`
+- `Some(value)` wraps a value that exists
+- `None` represents absence of a value
+- `enumerate()` returns index and value pairs
+- `if let` is a shorter way to match one pattern
+
+### Option Methods
+
+```rust
+fn main() {
+    let some_number = Some(42);
+    let no_number: Option<i32> = None;
+    
+    // unwrap() - gets the value or panics
+    let value = some_number.unwrap();
+    println!("Value: {}", value);
+    // let bad = no_number.unwrap(); // This would panic!
+    
+    // expect() - like unwrap but with custom error message
+    let value2 = some_number.expect("Should have a number!");
+    println!("Value2: {}", value2);
+    
+    // unwrap_or() - provides default value if None
+    let value3 = no_number.unwrap_or(0);
+    println!("Value3: {}", value3);
+    
+    // unwrap_or_else() - computes default value if None
+    let value4 = no_number.unwrap_or_else(|| 99);
+    println!("Value4: {}", value4);
+    
+    // is_some() and is_none() - check if value exists
+    println!("some_number is some: {}", some_number.is_some());
+    println!("no_number is none: {}", no_number.is_none());
+    
+    // map() - transforms the value if it exists
+    let doubled = some_number.map(|x| x * 2);
+    println!("Doubled: {:?}", doubled); // Some(84)
+    
+    let doubled_none = no_number.map(|x| x * 2);
+    println!("Doubled none: {:?}", doubled_none); // None
+}
+```
+
+- `unwrap()` extracts the value but panics if `None`
+- `expect()` like unwrap but with custom panic message
+- `unwrap_or()` provides a default value for `None`
+- `unwrap_or_else()` computes default value using a closure
+- `is_some()` returns true if the option has a value
+- `is_none()` returns true if the option is `None`
+- `map()` transforms the value inside Some, leaves None unchanged
+
+### Result Methods
+
+```rust
+fn divide(a: i32, b: i32) -> Result<i32, String> {
+    if b == 0 {
+        Err(String::from("Division by zero"))
+    } else {
+        Ok(a / b)
+    }
+}
+
+fn main() {
+    let success = divide(10, 2);
+    let failure = divide(10, 0);
+    
+    // unwrap() - gets the value or panics
+    let result1 = success.unwrap();
+    println!("Result1: {}", result1);
+    
+    // expect() - like unwrap but with custom error message
+    let result2 = success.expect("Division should work");
+    println!("Result2: {}", result2);
+    
+    // unwrap_or() - provides default value if error
+    let result3 = failure.unwrap_or(0);
+    println!("Result3: {}", result3);
+    
+    // unwrap_or_else() - computes default value if error
+    let result4 = failure.unwrap_or_else(|_| -1);
+    println!("Result4: {}", result4);
+    
+    // is_ok() and is_err() - check result type
+    println!("success is ok: {}", success.is_ok());
+    println!("failure is err: {}", failure.is_err());
+    
+    // map() - transforms the Ok value
+    let doubled = success.map(|x| x * 2);
+    println!("Doubled: {:?}", doubled); // Ok(10)
+    
+    // map_err() - transforms the Err value
+    let better_error = failure.map_err(|e| format!("Error: {}", e));
+    println!("Better error: {:?}", better_error);
+}
+```
+
+- `Result<T, E>` represents success `Ok(T)` or error `Err(E)`
+- `unwrap()` extracts the value but panics if error
+- `expect()` like unwrap but with custom panic message
+- `unwrap_or()` provides a default value for errors
+- `unwrap_or_else()` computes default value using a closure
+- `is_ok()` returns true if the result is Ok
+- `is_err()` returns true if the result is Err
+- `map()` transforms the Ok value, leaves Err unchanged
+- `map_err()` transforms the Err value, leaves Ok unchanged
+
+### Using ? with Option
+
+The `?` operator also works with `Option` types in functions that return `Option`.
+
+```rust
+fn get_first_char(s: &str) -> Option<char> {
+    s.chars().next()  // next() returns Option<char>
+}
+
+fn get_first_char_upper(s: &str) -> Option<char> {
+    let first_char = get_first_char(s)?;  // Return None if no first char
+    Some(first_char.to_uppercase().next()?)  // Convert to uppercase
+}
+
+fn process_strings(strings: &[&str]) -> Option<Vec<char>> {
+    let mut result = Vec::new();
+    
+    for s in strings {
+        let upper_char = get_first_char_upper(s)?;  // Return None if any fails
+        result.push(upper_char);
+    }
+    
+    Some(result)
+}
+
+fn main() {
+    let strings = vec!["hello", "world", "rust"];
+    
+    match process_strings(&strings) {
+        Some(chars) => println!("First chars: {:?}", chars),
+        None => println!("Failed to process"),
+    }
+    
+    // This will fail because empty string has no first char
+    let with_empty = vec!["hello", "", "rust"];
+    match process_strings(&with_empty) {
+        Some(chars) => println!("First chars: {:?}", chars),
+        None => println!("Failed to process empty string"),
+    }
+}
+```
+
+- `?` works with `Option` in functions returning `Option`
+- If `Option` is `None`, the function returns `None` immediately
+- If `Option` is `Some(value)`, `?` unwraps the value
+- `chars().next()` gets the first character as `Option<char>`
+- `to_uppercase().next()` converts to uppercase
+
+### Converting Between Option and Result
+
+```rust
+fn main() {
+    // Option to Result
+    let some_value: Option<i32> = Some(42);
+    let no_value: Option<i32> = None;
+    
+    // ok_or() converts Option to Result
+    let result1 = some_value.ok_or("No value found");
+    println!("Result1: {:?}", result1); // Ok(42)
+    
+    let result2 = no_value.ok_or("No value found");
+    println!("Result2: {:?}", result2); // Err("No value found")
+    
+    // Result to Option
+    let ok_result: Result<i32, String> = Ok(100);
+    let err_result: Result<i32, String> = Err("Failed".to_string());
+    
+    // ok() converts Result to Option, discarding error
+    let option1 = ok_result.ok();
+    println!("Option1: {:?}", option1); // Some(100)
+    
+    let option2 = err_result.ok();
+    println!("Option2: {:?}", option2); // None
+    
+    // err() gets the error as Option
+    let error_option = err_result.err();
+    println!("Error option: {:?}", error_option); // Some("Failed")
+}
+```
+
+- `ok_or()` converts `Option` to `Result`, using provided value as error
+- `ok()` converts `Result` to `Option`, discarding the error
+- `err()` gets the error value as `Option`
+- Use these methods to work with APIs that expect different types
+
+### Chaining Operations
+
+```rust
+fn parse_and_double(s: &str) -> Result<i32, String> {
+    s.parse::<i32>()
+        .map(|n| n * 2)
+        .map_err(|e| format!("Parse error: {}", e))
+}
+
+fn safe_divide_and_format(a: i32, b: i32) -> Option<String> {
+    if b == 0 {
+        None
+    } else {
+        Some(a / b)
+    }
+    .map(|result| format!("Result: {}", result))
+}
+
+fn main() {
+    // Chaining Result operations
+    let input = "21";
+    match parse_and_double(input) {
+        Ok(result) => println!("Doubled: {}", result),
+        Err(e) => println!("Error: {}", e),
+    }
+    
+    // Chaining Option operations
+    let formatted = safe_divide_and_format(10, 2);
+    println!("Formatted: {:?}", formatted); // Some("Result: 5")
+    
+    let no_result = safe_divide_and_format(10, 0);
+    println!("No result: {:?}", no_result); // None
+}
+```
+
+- `map()` can be chained to transform values
+- `map_err()` transforms error values in Result
+- Chaining makes code more functional and readable
+- Each method returns the same type, enabling more chaining
+
+### Custom Error Types
+
+```rust
+#[derive(Debug)]
+enum MathError {
+    DivisionByZero,
+    InvalidInput,
+}
+
+fn safe_divide(a: i32, b: i32) -> Result<i32, MathError> {
+    if b == 0 {
+        Err(MathError::DivisionByZero)
+    } else {
+        Ok(a / b)
+    }
+}
+
+fn parse_number(s: &str) -> Result<i32, MathError> {
+    s.parse().map_err(|_| MathError::InvalidInput)
+}
+
+fn calculate(a_str: &str, b_str: &str) -> Result<i32, MathError> {
+    let a = parse_number(a_str)?;
+    let b = parse_number(b_str)?;
+    safe_divide(a, b)
+}
+
+fn main() {
+    match calculate("10", "2") {
+        Ok(result) => println!("Result: {}", result),
+        Err(MathError::DivisionByZero) => println!("Cannot divide by zero"),
+        Err(MathError::InvalidInput) => println!("Invalid number format"),
+    }
+}
+```
+
+- Custom error types are enums that represent different error conditions
+- `#[derive(Debug)]` allows printing the error for debugging
+- `map_err()` converts one error type to another
+- `?` operator works with custom error types
+- Pattern matching can handle different error variants specifically
 
 ## Collections
 
