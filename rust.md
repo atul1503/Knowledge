@@ -1083,6 +1083,713 @@ fn main() {
 - `impl Greeting for Person {}` uses the default implementation
 - Types can override default implementations if needed
 
+### Trait Bounds Composition
+
+Trait bounds allow you to specify that a generic type must implement certain traits. This is how you tell Rust what capabilities a type must have. Trait bounds composition is about combining multiple trait requirements and using them in complex ways.
+
+#### Basic Trait Bounds
+
+```rust
+trait Printable {
+    fn print(&self);
+}
+
+trait Debuggable {
+    fn debug_info(&self) -> String;
+}
+
+// T must implement Printable trait
+fn print_item<T: Printable>(item: T) {
+    item.print();
+}
+
+// T must implement Debuggable trait
+fn debug_item<T: Debuggable>(item: T) {
+    println!("Debug: {}", item.debug_info());
+}
+
+struct Document {
+    title: String,
+    content: String,
+}
+
+impl Printable for Document {
+    fn print(&self) {
+        println!("Document: {}", self.title);
+        println!("Content: {}", self.content);
+    }
+}
+
+impl Debuggable for Document {
+    fn debug_info(&self) -> String {
+        format!("Document[title: {}, content_length: {}]", self.title, self.content.len())
+    }
+}
+
+fn main() {
+    let doc = Document {
+        title: String::from("My Document"),
+        content: String::from("This is the content of my document."),
+    };
+    
+    print_item(doc);
+    
+    let doc2 = Document {
+        title: String::from("Another Document"),
+        content: String::from("Different content here."),
+    };
+    
+    debug_item(doc2);
+}
+```
+
+**Explanation:**
+- `<T: Printable>` means the type `T` must implement the `Printable` trait
+- `T` is a generic type parameter - it can be any type as long as it implements the required trait
+- `<T: Debuggable>` means the type `T` must implement the `Debuggable` trait
+- The colon `:` separates the type parameter from its trait bounds
+- This ensures that functions can safely call methods from the required traits
+
+#### Multiple Trait Bounds
+
+```rust
+trait Readable {
+    fn read(&self) -> String;
+}
+
+trait Writable {
+    fn write(&mut self, content: &str);
+}
+
+trait Saveable {
+    fn save(&self);
+}
+
+// T must implement BOTH Readable AND Writable
+fn process_document<T: Readable + Writable>(mut doc: T) {
+    let content = doc.read();
+    println!("Current content: {}", content);
+    
+    doc.write("Updated content");
+}
+
+// T must implement Readable, Writable, AND Saveable
+fn full_process<T: Readable + Writable + Saveable>(mut doc: T) {
+    let content = doc.read();
+    println!("Reading: {}", content);
+    
+    doc.write("New content");
+    doc.save();
+}
+
+struct TextFile {
+    content: String,
+    filename: String,
+}
+
+impl Readable for TextFile {
+    fn read(&self) -> String {
+        self.content.clone()
+    }
+}
+
+impl Writable for TextFile {
+    fn write(&mut self, content: &str) {
+        self.content = content.to_string();
+    }
+}
+
+impl Saveable for TextFile {
+    fn save(&self) {
+        println!("Saving {} to disk", self.filename);
+    }
+}
+
+fn main() {
+    let mut file = TextFile {
+        content: String::from("Original content"),
+        filename: String::from("document.txt"),
+    };
+    
+    process_document(&mut file);
+    
+    let mut file2 = TextFile {
+        content: String::from("Another file"),
+        filename: String::from("another.txt"),
+    };
+    
+    full_process(&mut file2);
+}
+```
+
+**Explanation:**
+- `T: Readable + Writable` means `T` must implement both `Readable` AND `Writable` traits
+- The `+` symbol combines multiple trait bounds
+- `T: Readable + Writable + Saveable` requires all three traits to be implemented
+- This allows the function to call methods from all the required traits
+
+#### Where Clauses for Complex Bounds
+
+```rust
+trait Display {
+    fn display(&self) -> String;
+}
+
+trait Clone {
+    fn clone(&self) -> Self;
+}
+
+trait Debug {
+    fn debug(&self) -> String;
+}
+
+// Using where clause for better readability
+fn complex_function<T, U>(item1: T, item2: U) -> String
+where
+    T: Display + Clone + Debug,
+    U: Display + Debug,
+{
+    let cloned_item1 = item1.clone();
+    
+    format!(
+        "Item1: {}, Item1 Debug: {}, Item2: {}, Item2 Debug: {}",
+        item1.display(),
+        cloned_item1.debug(),
+        item2.display(),
+        item2.debug()
+    )
+}
+
+struct Product {
+    name: String,
+    price: f64,
+}
+
+impl Display for Product {
+    fn display(&self) -> String {
+        format!("{}: ${:.2}", self.name, self.price)
+    }
+}
+
+impl Clone for Product {
+    fn clone(&self) -> Self {
+        Product {
+            name: self.name.clone(),
+            price: self.price,
+        }
+    }
+}
+
+impl Debug for Product {
+    fn debug(&self) -> String {
+        format!("Product {{ name: {}, price: {} }}", self.name, self.price)
+    }
+}
+
+struct Category {
+    name: String,
+}
+
+impl Display for Category {
+    fn display(&self) -> String {
+        format!("Category: {}", self.name)
+    }
+}
+
+impl Debug for Category {
+    fn debug(&self) -> String {
+        format!("Category {{ name: {} }}", self.name)
+    }
+}
+
+fn main() {
+    let product = Product {
+        name: String::from("Laptop"),
+        price: 999.99,
+    };
+    
+    let category = Category {
+        name: String::from("Electronics"),
+    };
+    
+    let result = complex_function(product, category);
+    println!("{}", result);
+}
+```
+
+**Explanation:**
+- `where` clause allows you to specify trait bounds after the function signature
+- This makes complex trait bounds more readable than putting them all after the type parameter
+- `T: Display + Clone + Debug` means `T` must implement all three traits
+- `U: Display + Debug` means `U` must implement these two traits
+- The `where` clause is especially useful when you have many type parameters or complex bounds
+
+#### Trait Bounds with Associated Types
+
+```rust
+trait Iterator {
+    type Item;
+    
+    fn next(&mut self) -> Option<Self::Item>;
+}
+
+trait Collect<T> {
+    fn collect(self) -> Vec<T>;
+}
+
+// T must be an Iterator whose Item type is i32
+fn process_numbers<T>(mut iter: T) -> Vec<i32>
+where
+    T: Iterator<Item = i32>,
+{
+    let mut result = Vec::new();
+    while let Some(number) = iter.next() {
+        result.push(number * 2);
+    }
+    result
+}
+
+// T must be an Iterator, and we can work with whatever Item type it has
+fn count_items<T>(mut iter: T) -> usize
+where
+    T: Iterator,
+{
+    let mut count = 0;
+    while let Some(_) = iter.next() {
+        count += 1;
+    }
+    count
+}
+
+struct NumberIterator {
+    current: i32,
+    max: i32,
+}
+
+impl NumberIterator {
+    fn new(max: i32) -> Self {
+        NumberIterator { current: 0, max }
+    }
+}
+
+impl Iterator for NumberIterator {
+    type Item = i32;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current < self.max {
+            let result = self.current;
+            self.current += 1;
+            Some(result)
+        } else {
+            None
+        }
+    }
+}
+
+fn main() {
+    let numbers = NumberIterator::new(5);
+    let doubled = process_numbers(numbers);
+    println!("Doubled numbers: {:?}", doubled);
+    
+    let numbers2 = NumberIterator::new(10);
+    let count = count_items(numbers2);
+    println!("Count of items: {}", count);
+}
+```
+
+**Explanation:**
+- `type Item` is an associated type - it's a placeholder for a specific type that implementing types must define
+- `T: Iterator<Item = i32>` means `T` must be an `Iterator` and its `Item` type must be exactly `i32`
+- `Self::Item` refers to the associated type defined by the implementing type
+- Associated types allow traits to work with different types without making the trait generic
+
+#### Trait Bounds with Lifetimes
+
+```rust
+trait Borrowable<'a> {
+    fn borrow_content(&'a self) -> &'a str;
+}
+
+trait Processable {
+    fn process(&self) -> String;
+}
+
+// T must implement Borrowable with lifetime 'a and Processable
+fn analyze_content<'a, T>(item: &'a T) -> String
+where
+    T: Borrowable<'a> + Processable,
+{
+    let content = item.borrow_content();
+    let processed = item.process();
+    
+    format!("Content: {}, Processed: {}", content, processed)
+}
+
+struct Document {
+    title: String,
+    body: String,
+}
+
+impl<'a> Borrowable<'a> for Document {
+    fn borrow_content(&'a self) -> &'a str {
+        &self.body
+    }
+}
+
+impl Processable for Document {
+    fn process(&self) -> String {
+        format!("Document '{}' has {} characters", self.title, self.body.len())
+    }
+}
+
+fn main() {
+    let doc = Document {
+        title: String::from("My Document"),
+        body: String::from("This is the document body with some content."),
+    };
+    
+    let analysis = analyze_content(&doc);
+    println!("{}", analysis);
+}
+```
+
+**Explanation:**
+- `<'a>` declares a lifetime parameter named `'a`
+- `T: Borrowable<'a> + Processable` means `T` must implement both traits
+- `Borrowable<'a>` means the trait uses lifetime `'a`
+- `&'a self` and `&'a str` mean the reference and return value have the same lifetime
+- Lifetimes ensure that references remain valid for the required duration
+
+#### Conditional Implementations with Trait Bounds
+
+```rust
+trait Printable {
+    fn print(&self);
+}
+
+trait Comparable {
+    fn compare(&self, other: &Self) -> bool;
+}
+
+struct Container<T> {
+    value: T,
+}
+
+// Only implement Printable for Container<T> if T implements Printable
+impl<T: Printable> Printable for Container<T> {
+    fn print(&self) {
+        print!("Container containing: ");
+        self.value.print();
+    }
+}
+
+// Only implement Comparable for Container<T> if T implements Comparable
+impl<T: Comparable> Comparable for Container<T> {
+    fn compare(&self, other: &Self) -> bool {
+        self.value.compare(&other.value)
+    }
+}
+
+struct Number {
+    value: i32,
+}
+
+impl Printable for Number {
+    fn print(&self) {
+        println!("Number: {}", self.value);
+    }
+}
+
+impl Comparable for Number {
+    fn compare(&self, other: &Self) -> bool {
+        self.value == other.value
+    }
+}
+
+fn main() {
+    let container1 = Container { value: Number { value: 42 } };
+    let container2 = Container { value: Number { value: 42 } };
+    let container3 = Container { value: Number { value: 24 } };
+    
+    // These work because Number implements Printable and Comparable
+    container1.print();
+    
+    println!("Container1 == Container2: {}", container1.compare(&container2));
+    println!("Container1 == Container3: {}", container1.compare(&container3));
+}
+```
+
+**Explanation:**
+- `impl<T: Printable> Printable for Container<T>` is a conditional implementation
+- This means `Container<T>` only implements `Printable` if `T` also implements `Printable`
+- `impl<T: Comparable> Comparable for Container<T>` works the same way
+- This allows containers to automatically gain traits based on what their contained type can do
+
+#### Higher-Ranked Trait Bounds (for_<>)
+
+```rust
+trait Processor {
+    fn process<'a>(&self, input: &'a str) -> &'a str;
+}
+
+struct SimpleProcessor;
+
+impl Processor for SimpleProcessor {
+    fn process<'a>(&self, input: &'a str) -> &'a str {
+        input
+    }
+}
+
+// F must be a function that works with any lifetime
+fn use_processor<F>(processor: F, text: &str) -> String
+where
+    F: for<'a> Fn(&'a str) -> &'a str,
+{
+    let result = processor(text);
+    format!("Processed: {}", result)
+}
+
+fn main() {
+    let processor = |input: &str| -> &str { input };
+    let result = use_processor(processor, "Hello, world!");
+    println!("{}", result);
+}
+```
+
+**Explanation:**
+- `for<'a>` means "for any lifetime 'a"
+- `F: for<'a> Fn(&'a str) -> &'a str` means `F` must be a function that works with any lifetime
+- This is a higher-ranked trait bound - it works with any lifetime, not just a specific one
+- The `for<'a>` syntax is used when you need a trait bound that works with multiple lifetimes
+
+#### Trait Bounds in Struct Definitions
+
+```rust
+trait Serializable {
+    fn serialize(&self) -> String;
+}
+
+trait Deserializable {
+    fn deserialize(data: &str) -> Self;
+}
+
+// T must implement both Serializable and Deserializable
+struct Storage<T>
+where
+    T: Serializable + Deserializable,
+{
+    items: Vec<T>,
+}
+
+impl<T> Storage<T>
+where
+    T: Serializable + Deserializable,
+{
+    fn new() -> Self {
+        Storage { items: Vec::new() }
+    }
+    
+    fn add(&mut self, item: T) {
+        self.items.push(item);
+    }
+    
+    fn save_all(&self) -> Vec<String> {
+        self.items.iter().map(|item| item.serialize()).collect()
+    }
+    
+    fn load_all(&mut self, data: Vec<String>) {
+        for item_data in data {
+            let item = T::deserialize(&item_data);
+            self.items.push(item);
+        }
+    }
+}
+
+struct Person {
+    name: String,
+    age: u32,
+}
+
+impl Serializable for Person {
+    fn serialize(&self) -> String {
+        format!("{}:{}", self.name, self.age)
+    }
+}
+
+impl Deserializable for Person {
+    fn deserialize(data: &str) -> Self {
+        let parts: Vec<&str> = data.split(':').collect();
+        Person {
+            name: parts[0].to_string(),
+            age: parts[1].parse().unwrap(),
+        }
+    }
+}
+
+fn main() {
+    let mut storage = Storage::new();
+    
+    storage.add(Person {
+        name: String::from("Alice"),
+        age: 30,
+    });
+    
+    storage.add(Person {
+        name: String::from("Bob"),
+        age: 25,
+    });
+    
+    let saved_data = storage.save_all();
+    println!("Saved data: {:?}", saved_data);
+    
+    let mut new_storage = Storage::new();
+    new_storage.load_all(saved_data);
+    
+    println!("Loaded {} items", new_storage.items.len());
+}
+```
+
+**Explanation:**
+- `struct Storage<T> where T: Serializable + Deserializable` means the struct can only hold types that implement both traits
+- The `where` clause in struct definitions restricts what types can be used with the struct
+- `impl<T> Storage<T> where T: Serializable + Deserializable` applies the same bounds to the implementation
+- This ensures that all methods can safely call trait methods on the contained type
+
+#### Trait Bounds with Associated Types and Complex Constraints
+
+```rust
+trait DataSource {
+    type Item;
+    type Error;
+    
+    fn fetch(&mut self) -> Result<Self::Item, Self::Error>;
+}
+
+trait Transformer<Input, Output> {
+    fn transform(&self, input: Input) -> Output;
+}
+
+trait Validator<T> {
+    fn validate(&self, item: &T) -> bool;
+}
+
+// Complex trait bounds with associated types
+fn process_data<S, T, V>(
+    mut source: S,
+    transformer: T,
+    validator: V,
+) -> Result<Vec<String>, S::Error>
+where
+    S: DataSource<Item = i32>,
+    T: Transformer<i32, String>,
+    V: Validator<String>,
+{
+    let mut results = Vec::new();
+    
+    loop {
+        match source.fetch() {
+            Ok(item) => {
+                let transformed = transformer.transform(item);
+                if validator.validate(&transformed) {
+                    results.push(transformed);
+                }
+            }
+            Err(e) => return Err(e),
+        }
+        
+        if results.len() >= 3 {
+            break;
+        }
+    }
+    
+    Ok(results)
+}
+
+struct NumberSource {
+    current: i32,
+}
+
+impl NumberSource {
+    fn new() -> Self {
+        NumberSource { current: 0 }
+    }
+}
+
+impl DataSource for NumberSource {
+    type Item = i32;
+    type Error = String;
+    
+    fn fetch(&mut self) -> Result<Self::Item, Self::Error> {
+        if self.current < 10 {
+            let result = self.current;
+            self.current += 1;
+            Ok(result)
+        } else {
+            Err("No more data".to_string())
+        }
+    }
+}
+
+struct NumberToStringTransformer;
+
+impl Transformer<i32, String> for NumberToStringTransformer {
+    fn transform(&self, input: i32) -> String {
+        format!("Number: {}", input)
+    }
+}
+
+struct LengthValidator;
+
+impl Validator<String> for LengthValidator {
+    fn validate(&self, item: &String) -> bool {
+        item.len() > 8
+    }
+}
+
+fn main() {
+    let source = NumberSource::new();
+    let transformer = NumberToStringTransformer;
+    let validator = LengthValidator;
+    
+    match process_data(source, transformer, validator) {
+        Ok(results) => {
+            println!("Valid results: {:?}", results);
+        }
+        Err(e) => {
+            println!("Error: {}", e);
+        }
+    }
+}
+```
+
+**Explanation:**
+- `S: DataSource<Item = i32>` means `S` must be a `DataSource` with `Item` type exactly `i32`
+- `T: Transformer<i32, String>` means `T` must transform `i32` to `String`
+- `V: Validator<String>` means `V` must validate `String` values
+- `S::Error` refers to the associated `Error` type from the `DataSource` trait
+- This shows how trait bounds can involve associated types and complex relationships
+
+#### Summary of Trait Bounds Composition
+
+**Key Concepts:**
+1. **Basic bounds**: `T: Trait` - T must implement Trait
+2. **Multiple bounds**: `T: Trait1 + Trait2` - T must implement both traits
+3. **Where clauses**: `where T: Trait1 + Trait2` - cleaner syntax for complex bounds
+4. **Associated types**: `T: Trait<Item = Type>` - specify associated types
+5. **Lifetimes**: `T: Trait<'a>` - trait bounds with lifetimes
+6. **Conditional implementations**: Only implement traits when conditions are met
+7. **Higher-ranked**: `for<'a>` - works with any lifetime
+8. **Struct bounds**: Restrict what types can be used with structs
+
+**Common Patterns:**
+- Use `+` to combine multiple trait bounds
+- Use `where` clauses for complex bounds
+- Use associated types for flexible trait definitions
+- Use conditional implementations for smart containers
+- Use higher-ranked trait bounds for lifetime-polymorphic code
+
+Trait bounds composition is essential for writing flexible, reusable code in Rust while maintaining type safety and performance.
+
 ## Modules
 
 ### Organizing Code
