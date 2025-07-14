@@ -7562,3 +7562,217 @@ fn foo() {}
 | repr              | Controls memory layout of structs/enums           |
 
 **In summary:** An attribute is a way to give extra instructions to the Rust compiler about your code. They are always written with `#[]` or `#![]` and can be used for many different purposes. The most common attribute you will see is `#[derive(...)]`, which is explained in the next section.
+
+### What is `mod` vs `use` Keywords?
+
+Both approaches work identically - choose based on whether you need multiple files in the module.
+
+#### Comprehensive Guide: `mod` vs `use` Keywords
+
+Here's a complete breakdown of when and why you use `mod` and `use`:
+
+#### The Two-Step Process for Your Own Modules
+
+For modules **within your own crate**, you need **both** `mod` and `use`:
+
+**Step 1: `mod` - Make the Module Available**
+```rust
+// In src/main.rs
+mod math;        // "Hey compiler, there's a module called 'math'"
+mod database;    // "Hey compiler, there's a module called 'database'"
+```
+
+**Step 2: `use` - Bring Items Into Scope (Optional)**
+```rust
+// In src/main.rs
+mod math;                    // Step 1: Make available
+use math::add;               // Step 2: Bring into scope
+
+fn main() {
+    // Both of these work now:
+    let result1 = add(2, 3);           // Direct use (because of 'use')
+    let result2 = math::multiply(4, 5); // Full path (because of 'mod')
+}
+```
+
+#### Why External Crates Don't Need `mod`
+
+Here's the key insight: **External crates are automatically "available" through Cargo.toml**
+
+**For External Crates (Like `serde`, `tokio`, etc.):**
+```rust
+// In Cargo.toml
+[dependencies]
+serde = "1.0"
+rand = "0.8"
+
+// In src/main.rs - NO mod statements needed!
+use serde::{Serialize, Deserialize};  // Direct use!
+use rand::random;                     // Direct use!
+
+fn main() {
+    let num: f64 = random();  // Works immediately
+}
+```
+
+**Why this works:**
+- Cargo automatically makes all dependencies "available"
+- You don't need `mod serde;` because Cargo already told the compiler about serde
+- You can jump straight to `use` to bring items into scope
+
+#### The Complete Picture
+
+**Your Own Modules:**
+```rust
+// src/main.rs
+mod my_module;              // Required: Tell compiler it exists
+use my_module::my_function; // Optional: Bring into scope
+
+// src/my_module.rs
+pub fn my_function() { }    // Module content in separate file
+```
+
+**External Crates:**
+```rust
+// Cargo.toml
+[dependencies]
+external_crate = "1.0"
+
+// src/main.rs
+// mod external_crate;      // NOT needed - Cargo handles this
+use external_crate::some_function;  // Direct use
+
+fn main() {
+    some_function();
+}
+```
+
+#### Real-World Example: Mixed Usage
+
+```rust
+// In Cargo.toml
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+reqwest = "0.11"
+
+// In src/main.rs
+// Your own modules
+mod config;           // Step 1: Make your own modules available
+mod database;
+mod user_service;
+
+// External crates - no mod needed!
+use serde::{Serialize, Deserialize};    // Direct use of external crate
+use reqwest::Client;                    // Direct use of external crate
+
+// Your own modules - optional use statements
+use config::load_settings;              // Bring your own items into scope
+use user_service::User;
+
+fn main() {
+    // External crate usage (no mod needed)
+    let client = Client::new();
+    
+    // Your own modules (mod was needed)
+    let settings = load_settings();          // Direct (because of use)
+    let connection = database::connect();    // Full path (mod made it available)
+    
+    let user = User::new("Alice");
+}
+```
+
+#### The Confusion Explained
+
+**This is confusing because:**
+
+1. **Inconsistent behavior**: Your modules need `mod`, external modules don't
+2. **Hidden magic**: Cargo automatically handles external crates
+3. **No visual indication**: Looking at the code, you can't tell which is which
+
+**In other languages:**
+```python
+# Python - consistent
+import my_module        # Your own module
+import external_package # External package - same syntax!
+
+# Java - consistent  
+import com.mycompany.MyClass;      # Your own class
+import com.external.ExternalClass; # External class - same syntax!
+```
+
+**In Rust - inconsistent:**
+```rust
+mod my_module;                    // Your own module - need mod
+use external_crate::Something;    // External crate - no mod needed
+```
+
+#### Mental Model: Think of Cargo as the Librarian
+
+**Cargo.toml is like telling a librarian which books to put on the shelf:**
+```toml
+[dependencies]
+serde = "1.0"     # "Please put the serde book on the shelf"
+reqwest = "0.11"  # "Please put the reqwest book on the shelf"
+```
+
+**In your code:**
+```rust
+// Books on the shelf (external crates) - can use directly
+use serde::Serialize;    # "I'll take the Serialize chapter from serde book"
+use reqwest::Client;     # "I'll take the Client chapter from reqwest book"
+
+// Your own notes (your modules) - must declare first
+mod my_notes;            # "I have some notes called 'my_notes'"
+use my_notes::important; # "I'll use the 'important' part from my notes"
+```
+
+#### Why Rust Works This Way
+
+**The reasoning:**
+1. **External crates**: Cargo manages them, so they're automatically available
+2. **Your modules**: You must explicitly declare the module tree structure
+3. **Explicit control**: Rust wants you to be explicit about your module organization
+
+**The trade-off:**
+- **Benefit**: Clear separation between external dependencies and your code
+- **Cost**: Inconsistent syntax and confusion for newcomers
+
+#### Quick Reference Guide
+
+| Module Type | Declaration | Import | Example |
+|-------------|-------------|---------|---------|
+| **Your own module** | `mod name;` | `use name::item;` | `mod math; use math::add;` |
+| **External crate** | Not needed | `use crate::item;` | `use serde::Serialize;` |
+| **Standard library** | Not needed | `use std::item;` | `use std::collections::HashMap;` |
+
+#### Common Mistakes
+
+**Mistake 1: Using `mod` for external crates**
+```rust
+mod serde;  // ERROR: Don't do this for external crates
+use serde::Serialize;
+```
+
+**Mistake 2: Forgetting `mod` for your own modules**
+```rust
+// No mod declaration
+use my_module::function;  // ERROR: my_module not available
+```
+
+**Correct approach:**
+```rust
+mod my_module;            // First: make available
+use my_module::function;  // Then: bring into scope
+use serde::Serialize;     // External: direct use
+```
+
+#### Summary
+
+- **`mod`**: Makes YOUR modules available to the compiler
+- **`use`**: Brings items (from anywhere) into the current scope
+- **External crates**: Automatically available through Cargo.toml
+- **Your modules**: Must be explicitly declared with `mod`
+
+This design choice makes Rust's module system more complex than other languages, but once you understand the pattern, it becomes manageable. The key is remembering that Cargo handles external crates for you, but you must explicitly manage your own module tree.
+
+#### Making Modules Public for Other Crates
