@@ -735,6 +735,112 @@ fn change_string(s: &mut String) {
 - Only one mutable reference can exist at a time
 - This prevents data races
 
+### Memory Layout: How References and Owner Variables Store Data
+
+Understanding how Rust stores data and references in memory is crucial for grasping ownership and borrowing concepts. The storage differs significantly between stack-allocated and heap-allocated data.
+
+#### Stack-Allocated Data
+
+For simple types like `i32`, `bool`, `char`, the **owner variable directly contains the value**, and the **reference stores the address of the owner variable**.
+
+```rust
+fn main() {
+    let x = 42;     // x directly stores the value 42
+    let r = &x;     // r stores the address of x
+    
+    println!("Value in x: {}", x);                    // 42
+    println!("Address of x: {:p}", &x);               // 0x7fff5fbff6ac  
+    println!("Address stored in r: {:p}", r);         // 0x7fff5fbff6ac (same)
+    println!("Value through r: {}", *r);              // 42
+}
+```
+
+**Memory Layout for Stack Data:**
+```
+Stack Memory:
+┌─────────────────────────────────────┐
+│ x: [42]                             │ ← Owner variable (stack address: 0x100)
+│                                     │   Contains the actual value directly
+├─────────────────────────────────────┤
+│ r: [0x100]                          │ ← Reference (contains address of x)
+└─────────────────────────────────────┘
+```
+
+**Key Points for Stack Data:**
+- Owner variable = **IS** the data storage location  
+- Reference = points to the owner variable's location
+- Single level of indirection: `r` → `x` (which contains 42 directly)
+
+#### Heap-Allocated Data
+
+For complex types like `String`, `Vec`, the **owner variable contains metadata including a pointer** to the heap data, and the **reference stores the address of the owner variable**.
+
+```rust
+fn main() {
+    let s = String::from("hello");  // s contains: ptr + len + capacity
+    let r = &s;                     // r contains address of the String struct
+    
+    println!("String value: {}", s);           // "hello"
+    println!("Address of String struct: {:p}", &s);     // Stack address
+    println!("Address stored in r: {:p}", r);           // Same stack address
+    println!("Heap data address: {:p}", s.as_ptr());    // Heap address
+}
+```
+
+**Memory Layout for Heap Data:**
+```
+Stack Memory:
+┌─────────────────────────────────────┐
+│ s: [heap_ptr | len | capacity]      │ ← Owner variable (stack address: 0x100)
+│    └─ 0x2000 ─┘                     │   Contains pointer to heap data
+├─────────────────────────────────────┤  
+│ r: [0x100]                          │ ← Reference (contains stack address of s)
+└─────────────────────────────────────┘
+
+Heap Memory:
+┌─────────────────────────────────────┐
+│ "hello"                             │ ← Actual string data (heap address: 0x2000)
+└─────────────────────────────────────┘
+```
+
+**Key Points for Heap Data:**
+- Owner variable = contains **pointer to** the data storage location
+- Reference = points to the owner variable's location (which contains the pointer)
+- Double level of indirection: `r` → `s` (which contains pointer) → heap data
+
+#### Comparison Summary
+
+| Data Type | Owner Variable Contains | Reference Points To | Indirection Level |
+|-----------|-------------------------|---------------------|-------------------|
+| **Stack data** (i32, bool, char) | The actual value | Address of owner variable | Single (r → x) |
+| **Heap data** (String, Vec) | Metadata + heap pointer | Address of owner variable | Double (r → s → heap) |
+
+#### Practical Example Showing the Difference
+
+```rust
+fn main() {
+    // Stack: Single indirection
+    let x = 42;
+    let r1 = &x;
+    // r1 → x (which contains 42 directly)
+    println!("Stack - r1 points to x: {:p}", r1);
+    println!("Stack - value: {}", *r1);  // Direct access to value
+    
+    // Heap: Double indirection  
+    let s = String::from("hello");
+    let r2 = &s;
+    // r2 → s (which contains pointer) → heap data
+    println!("Heap - r2 points to s struct: {:p}", r2);
+    println!("Heap - s points to heap data: {:p}", s.as_ptr());
+    println!("Heap - value: {}", *r2);   // Access through String methods
+}
+```
+
+This fundamental difference in memory layout explains why:
+- Moving a `String` is fast (only moves the small metadata structure)
+- References always point to the owner variable, not directly to the data
+- Borrowing rules work the same regardless of where the actual data is stored
+
 ## Structs
 
 ### Defining and Using Structs
