@@ -674,6 +674,8 @@ fn main() {
 
 ## Ownership and Borrowing
 
+> **Key Concept:** Variable is the owner of the data. Once it goes out of scope, the object is deallocated. Reference just borrows the object from the owner temporarily and can use it, but the owner cannot go out of scope while the reference is still active.
+
 ### Ownership Rules
 
 Rust's ownership system prevents memory errors. Every value has an owner, and when the owner goes out of scope, the value is dropped.
