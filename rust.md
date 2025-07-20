@@ -1245,6 +1245,383 @@ fn main() {
 - `Rectangle::new()` is an associated function (constructor)
 - `{ width, height }` uses field init shorthand when variable names match field names
 
+### Understanding `self` vs `Self` in Rust
+
+**The difference between `self` and `Self` is fundamental but confusing for beginners:**
+
+- `self` (lowercase) refers to **the instance** of a type (like `this` in other languages)
+- `Self` (uppercase) refers to **the type itself** (a shorthand for the current type)
+
+#### `self` (lowercase) - The Instance
+
+`self` represents the current instance of a struct/enum that a method is being called on. It comes in three forms:
+
+**1. `&self` - Immutable reference to the instance**
+
+```rust
+struct Person {
+    name: String,
+    age: u32,
+}
+
+impl Person {
+    fn get_name(&self) -> &String {
+        &self.name  // self refers to the current Person instance
+    }
+    
+    fn is_adult(&self) -> bool {
+        self.age >= 18  // self.age accesses the age field of this instance
+    }
+    
+    fn introduce(&self) {
+        println!("Hi, I'm {} and I'm {} years old", self.name, self.age);
+    }
+}
+
+fn main() {
+    let person = Person {
+        name: String::from("Alice"),
+        age: 25,
+    };
+    
+    // When we call person.get_name(), 'self' inside the method refers to 'person'
+    println!("Name: {}", person.get_name());
+    println!("Is adult: {}", person.is_adult());
+    person.introduce();
+}
+```
+
+**Breaking down `&self`:**
+- `&self` means "borrow the instance immutably"
+- Inside the method, `self` refers to the instance the method was called on
+- `self.name` accesses the `name` field of that specific instance
+- The method can read the instance but cannot modify it
+
+**2. `&mut self` - Mutable reference to the instance**
+
+```rust
+struct Counter {
+    value: i32,
+}
+
+impl Counter {
+    fn increment(&mut self) {
+        self.value += 1;  // self refers to the current Counter instance (mutable)
+    }
+    
+    fn add(&mut self, amount: i32) {
+        self.value += amount;  // Modify the instance's value field
+    }
+    
+    fn reset(&mut self) {
+        self.value = 0;  // Set the instance's value to 0
+    }
+    
+    fn get_value(&self) -> i32 {
+        self.value  // Read-only access (immutable self)
+    }
+}
+
+fn main() {
+    let mut counter = Counter { value: 0 };
+    
+    counter.increment();  // self inside increment() refers to counter
+    counter.add(5);       // self inside add() refers to counter
+    println!("Value: {}", counter.get_value());  // Prints: 6
+    
+    counter.reset();      // self inside reset() refers to counter
+    println!("After reset: {}", counter.get_value());  // Prints: 0
+}
+```
+
+**Breaking down `&mut self`:**
+- `&mut self` means "borrow the instance mutably"
+- Inside the method, `self` refers to the mutable instance
+- `self.value += 1` modifies the `value` field of that specific instance
+- The method can both read and modify the instance
+
+**3. `self` (by value) - Taking ownership of the instance**
+
+```rust
+struct Message {
+    content: String,
+}
+
+impl Message {
+    fn consume_and_print(self) {  // Takes ownership of the instance
+        println!("Message: {}", self.content);
+        // self is dropped here, original instance is no longer usable
+    }
+    
+    fn into_uppercase(self) -> Message {  // Takes ownership, returns new instance
+        Message {
+            content: self.content.to_uppercase(),
+        }
+    }
+}
+
+fn main() {
+    let message = Message {
+        content: String::from("hello world"),
+    };
+    
+    // After this call, 'message' is no longer usable
+    message.consume_and_print();
+    
+    // println!("{}", message.content);  // ERROR: message was moved
+    
+    let message2 = Message {
+        content: String::from("rust is great"),
+    };
+    
+    let uppercase_message = message2.into_uppercase();
+    // message2 is moved, but we get a new Message back
+    println!("{}", uppercase_message.content);  // Prints: RUST IS GREAT
+}
+```
+
+**Breaking down `self` by value:**
+- `self` means "take ownership of the instance"
+- The original instance is moved into the method and cannot be used afterward
+- Useful for transforming or consuming the instance
+
+#### `Self` (uppercase) - The Type Itself
+
+`Self` is a shorthand way to refer to the current type. It's especially useful in generic contexts and makes code more maintainable.
+
+**1. `Self` in return types**
+
+```rust
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+impl Rectangle {
+    // Instead of writing 'Rectangle', we can write 'Self'
+    fn new(width: u32, height: u32) -> Self {  // Self = Rectangle
+        Self { width, height }  // Self { } creates a Rectangle
+    }
+    
+    // Without Self, we'd write:
+    fn new_verbose(width: u32, height: u32) -> Rectangle {
+        Rectangle { width, height }
+    }
+    
+    fn square(size: u32) -> Self {  // Returns a Rectangle
+        Self {
+            width: size,
+            height: size,
+        }
+    }
+    
+    fn double(&self) -> Self {  // Returns a new Rectangle
+        Self {
+            width: self.width * 2,    // self = instance, Self = type
+            height: self.height * 2,
+        }
+    }
+}
+
+fn main() {
+    let rect = Rectangle::new(10, 20);     // Self becomes Rectangle
+    let square = Rectangle::square(15);    // Self becomes Rectangle
+    let doubled = rect.double();           // self = rect, Self = Rectangle
+    
+    println!("Original: {}x{}", rect.width, rect.height);
+    println!("Doubled: {}x{}", doubled.width, doubled.height);
+}
+```
+
+**Breaking down `Self` usage:**
+- `-> Self` means "returns an instance of the current type"
+- `Self { width, height }` creates an instance of the current type
+- If we rename `Rectangle` to `Square`, all the `Self` references automatically update
+
+**2. `Self` with associated functions**
+
+```rust
+struct Point {
+    x: f64,
+    y: f64,
+}
+
+impl Point {
+    fn origin() -> Self {  // Associated function - no self parameter
+        Self { x: 0.0, y: 0.0 }  // Creates a Point
+    }
+    
+    fn new(x: f64, y: f64) -> Self {
+        Self { x, y }
+    }
+    
+    fn from_tuple(tuple: (f64, f64)) -> Self {
+        Self {
+            x: tuple.0,
+            y: tuple.1,
+        }
+    }
+}
+
+fn main() {
+    let origin = Point::origin();        // Self = Point
+    let point = Point::new(3.0, 4.0);    // Self = Point
+    let from_tuple = Point::from_tuple((1.0, 2.0));  // Self = Point
+    
+    println!("Origin: ({}, {})", origin.x, origin.y);
+    println!("Point: ({}, {})", point.x, point.y);
+}
+```
+
+**3. `Self` in traits**
+
+```rust
+trait Cloneable {
+    fn clone(&self) -> Self;  // Self = whatever type implements this trait
+}
+
+struct Book {
+    title: String,
+    pages: u32,
+}
+
+impl Cloneable for Book {
+    fn clone(&self) -> Self {  // Self = Book in this implementation
+        Self {  // Creates a Book
+            title: self.title.clone(),
+            pages: self.pages,
+        }
+    }
+}
+
+struct Car {
+    model: String,
+    year: u32,
+}
+
+impl Cloneable for Car {
+    fn clone(&self) -> Self {  // Self = Car in this implementation
+        Self {  // Creates a Car
+            model: self.model.clone(),
+            year: self.year,
+        }
+    }
+}
+
+fn main() {
+    let book = Book {
+        title: String::from("Rust Programming"),
+        pages: 500,
+    };
+    
+    let book_copy = book.clone();  // Self = Book
+    
+    let car = Car {
+        model: String::from("Tesla"),
+        year: 2023,
+    };
+    
+    let car_copy = car.clone();  // Self = Car
+    
+    println!("Book: {} ({} pages)", book_copy.title, book_copy.pages);
+    println!("Car: {} ({})", car_copy.model, car_copy.year);
+}
+```
+
+#### When to Use `self` vs `Self`
+
+**Use `self` (lowercase) when:**
+- You want to access fields or methods of the current instance
+- You're reading data: `self.name`, `self.age`
+- You're modifying data: `self.count += 1`
+- You're calling other methods: `self.helper_method()`
+
+**Use `Self` (uppercase) when:**
+- You're referring to the type itself in return types: `fn new() -> Self`
+- You're creating new instances: `Self { field: value }`
+- You're implementing traits and want the return type to match the implementing type
+- You want your code to be more maintainable (if you rename the type, `Self` updates automatically)
+
+#### Common Patterns
+
+**Pattern 1: Constructor using `Self`**
+
+```rust
+struct User {
+    name: String,
+    email: String,
+    active: bool,
+}
+
+impl User {
+    fn new(name: String, email: String) -> Self {
+        Self {
+            name,
+            email,
+            active: true,  // Default value
+        }
+    }
+    
+    fn inactive_user(name: String, email: String) -> Self {
+        Self {
+            name,
+            email,
+            active: false,
+        }
+    }
+}
+```
+
+**Pattern 2: Builder pattern with `Self`**
+
+```rust
+struct Config {
+    debug: bool,
+    timeout: u32,
+    retries: u32,
+}
+
+impl Config {
+    fn new() -> Self {
+        Self {
+            debug: false,
+            timeout: 30,
+            retries: 3,
+        }
+    }
+    
+    fn with_debug(mut self) -> Self {  // self by value, returns Self
+        self.debug = true;
+        self  // Return the modified instance
+    }
+    
+    fn with_timeout(mut self, timeout: u32) -> Self {
+        self.timeout = timeout;
+        self
+    }
+}
+
+fn main() {
+    let config = Config::new()
+        .with_debug()
+        .with_timeout(60);
+        
+    println!("Debug: {}, Timeout: {}", config.debug, config.timeout);
+}
+```
+
+#### Summary
+
+- **`self` = the instance** - use it to access fields and methods of the current object
+- **`Self` = the type** - use it as a shorthand for the current type name
+- **`&self`** - borrow the instance immutably (can read, cannot modify)
+- **`&mut self`** - borrow the instance mutably (can read and modify)
+- **`self`** - take ownership of the instance (consumes it)
+- **`-> Self`** - return an instance of the current type
+- **`Self { }`** - create an instance of the current type
+
+Understanding this difference is crucial for writing Rust methods and implementing traits correctly!
+
 ### Struct Update Syntax
 
 Struct update syntax allows you to create a new struct instance by updating only some fields from an existing struct. This is done using the `..` syntax to copy the remaining fields from another struct instance.
@@ -8687,245 +9064,4 @@ mod tests {
     // This code is only compiled when running tests
 }
 ```
-- Only includes this code when running `cargo test`
-
-**5. Documentation attribute**
-```rust
-#[doc = "This is a documented function."]
-fn foo() {}
-```
-- Adds custom documentation to the function
-
-**6. Crate-level attribute**
-```rust
-#![allow(non_snake_case)]
-```
-- At the top of the file, applies to the whole crate or file
-
-#### Summary Table: Common Attributes
-| Attribute         | What it does                                      |
-|-------------------|---------------------------------------------------|
-| derive            | Auto-implements traits like Debug, Clone, etc.     |
-| test              | Marks a function as a test                        |
-| allow/warn/deny   | Controls compiler warnings and errors             |
-| cfg               | Conditional compilation (platform, feature, etc.) |
-| doc               | Adds documentation to code                        |
-| inline            | Suggests inlining a function                      |
-| no_mangle         | Disables name mangling for FFI                    |
-| repr              | Controls memory layout of structs/enums           |
-
-**In summary:** An attribute is a way to give extra instructions to the Rust compiler about your code. They are always written with `#[]` or `#![]` and can be used for many different purposes. The most common attribute you will see is `#[derive(...)]`, which is explained in the next section.
-
-### What is `mod` vs `use` Keywords?
-
-Both approaches work identically - choose based on whether you need multiple files in the module.
-
-#### Comprehensive Guide: `mod` vs `use` Keywords
-
-Here's a complete breakdown of when and why you use `mod` and `use`:
-
-#### The Two-Step Process for Your Own Modules
-
-For modules **within your own crate**, you need **both** `mod` and `use`:
-
-**Step 1: `mod` - Make the Module Available**
-```rust
-// In src/main.rs
-mod math;        // "Hey compiler, there's a module called 'math'"
-mod database;    // "Hey compiler, there's a module called 'database'"
-```
-
-**Step 2: `use` - Bring Items Into Scope (Optional)**
-```rust
-// In src/main.rs
-mod math;                    // Step 1: Make available
-use math::add;               // Step 2: Bring into scope
-
-fn main() {
-    // Both of these work now:
-    let result1 = add(2, 3);           // Direct use (because of 'use')
-    let result2 = math::multiply(4, 5); // Full path (because of 'mod')
-}
-```
-
-#### Why External Crates Don't Need `mod`
-
-Here's the key insight: **External crates are automatically "available" through Cargo.toml**
-
-**For External Crates (Like `serde`, `tokio`, etc.):**
-```rust
-// In Cargo.toml
-[dependencies]
-serde = "1.0"
-rand = "0.8"
-
-// In src/main.rs - NO mod statements needed!
-use serde::{Serialize, Deserialize};  // Direct use!
-use rand::random;                     // Direct use!
-
-fn main() {
-    let num: f64 = random();  // Works immediately
-}
-```
-
-**Why this works:**
-- Cargo automatically makes all dependencies "available"
-- You don't need `mod serde;` because Cargo already told the compiler about serde
-- You can jump straight to `use` to bring items into scope
-
-#### The Complete Picture
-
-**Your Own Modules:**
-```rust
-// src/main.rs
-mod my_module;              // Required: Tell compiler it exists
-use my_module::my_function; // Optional: Bring into scope
-
-// src/my_module.rs
-pub fn my_function() { }    // Module content in separate file
-```
-
-**External Crates:**
-```rust
-// Cargo.toml
-[dependencies]
-external_crate = "1.0"
-
-// src/main.rs
-// mod external_crate;      // NOT needed - Cargo handles this
-use external_crate::some_function;  // Direct use
-
-fn main() {
-    some_function();
-}
-```
-
-#### Real-World Example: Mixed Usage
-
-```rust
-// In Cargo.toml
-[dependencies]
-serde = { version = "1.0", features = ["derive"] }
-reqwest = "0.11"
-
-// In src/main.rs
-// Your own modules
-mod config;           // Step 1: Make your own modules available
-mod database;
-mod user_service;
-
-// External crates - no mod needed!
-use serde::{Serialize, Deserialize};    // Direct use of external crate
-use reqwest::Client;                    // Direct use of external crate
-
-// Your own modules - optional use statements
-use config::load_settings;              // Bring your own items into scope
-use user_service::User;
-
-fn main() {
-    // External crate usage (no mod needed)
-    let client = Client::new();
-    
-    // Your own modules (mod was needed)
-    let settings = load_settings();          // Direct (because of use)
-    let connection = database::connect();    // Full path (mod made it available)
-    
-    let user = User::new("Alice");
-}
-```
-
-#### The Confusion Explained
-
-**This is confusing because:**
-
-1. **Inconsistent behavior**: Your modules need `mod`, external modules don't
-2. **Hidden magic**: Cargo automatically handles external crates
-3. **No visual indication**: Looking at the code, you can't tell which is which
-
-**In other languages:**
-```python
-# Python - consistent
-import my_module        # Your own module
-import external_package # External package - same syntax!
-
-# Java - consistent  
-import com.mycompany.MyClass;      # Your own class
-import com.external.ExternalClass; # External class - same syntax!
-```
-
-**In Rust - inconsistent:**
-```rust
-mod my_module;                    // Your own module - need mod
-use external_crate::Something;    // External crate - no mod needed
-```
-
-#### Mental Model: Think of Cargo as the Librarian
-
-**Cargo.toml is like telling a librarian which books to put on the shelf:**
-```toml
-[dependencies]
-serde = "1.0"     # "Please put the serde book on the shelf"
-reqwest = "0.11"  # "Please put the reqwest book on the shelf"
-```
-
-**In your code:**
-```rust
-// Books on the shelf (external crates) - can use directly
-use serde::Serialize;    # "I'll take the Serialize chapter from serde book"
-use reqwest::Client;     # "I'll take the Client chapter from reqwest book"
-
-// Your own notes (your modules) - must declare first
-mod my_notes;            # "I have some notes called 'my_notes'"
-use my_notes::important; # "I'll use the 'important' part from my notes"
-```
-
-#### Why Rust Works This Way
-
-**The reasoning:**
-1. **External crates**: Cargo manages them, so they're automatically available
-2. **Your modules**: You must explicitly declare the module tree structure
-3. **Explicit control**: Rust wants you to be explicit about your module organization
-
-**The trade-off:**
-- **Benefit**: Clear separation between external dependencies and your code
-- **Cost**: Inconsistent syntax and confusion for newcomers
-
-#### Quick Reference Guide
-
-| Module Type | Declaration | Import | Example |
-|-------------|-------------|---------|---------|
-| **Your own module** | `mod name;` | `use name::item;` | `mod math; use math::add;` |
-| **External crate** | Not needed | `use crate::item;` | `use serde::Serialize;` |
-| **Standard library** | Not needed | `use std::item;` | `use std::collections::HashMap;` |
-
-#### Common Mistakes
-
-**Mistake 1: Using `mod` for external crates**
-```rust
-mod serde;  // ERROR: Don't do this for external crates
-use serde::Serialize;
-```
-
-**Mistake 2: Forgetting `mod` for your own modules**
-```rust
-// No mod declaration
-use my_module::function;  // ERROR: my_module not available
-```
-
-**Correct approach:**
-```rust
-mod my_module;            // First: make available
-use my_module::function;  // Then: bring into scope
-use serde::Serialize;     // External: direct use
-```
-
-#### Summary
-
-- **`mod`**: Makes YOUR modules available to the compiler
-- **`use`**: Brings items (from anywhere) into the current scope
-- **External crates**: Automatically available through Cargo.toml
-- **Your modules**: Must be explicitly declared with `mod`
-
-This design choice makes Rust's module system more complex than other languages, but once you understand the pattern, it becomes manageable. The key is remembering that Cargo handles external crates for you, but you must explicitly manage your own module tree.
-
-#### Making Modules Public for Other Crates
+- Only includes this code when running
