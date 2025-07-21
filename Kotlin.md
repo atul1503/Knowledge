@@ -502,3 +502,187 @@ As you can see that the variables declared in the scope where the `scope` `Corou
     ```
 
 Remember: Gradle is powerful but can be confusing. Start with a simple `build.gradle.kts`, add dependencies as needed, and use `./gradlew build` to compile. Most of the time that's all you need.
+
+## Generating HTML Documentation with Dokka
+
+30. Dokka is a documentation generation tool for Kotlin projects. It reads your code comments and generates beautiful HTML documentation websites. Think of it like Javadoc for Java but designed specifically for Kotlin.
+
+31. To use Dokka, first add the Dokka plugin to your `build.gradle.kts` file:
+    ```kotlin
+    plugins {
+        kotlin("jvm") version "1.9.10"
+        id("org.jetbrains.dokka") version "1.9.10"  // Add this line
+    }
+    ```
+    The `id("org.jetbrains.dokka")` tells Gradle to use the Dokka plugin. The version `"1.9.10"` specifies which version of Dokka to use - make sure it matches or is compatible with your Kotlin version.
+
+32. For multi-module projects, add Dokka to each module that needs documentation:
+    ```kotlin
+    // In each module's build.gradle.kts
+    plugins {
+        kotlin("jvm")
+        id("org.jetbrains.dokka")
+    }
+    ```
+
+33. To generate HTML documentation, run this command in your terminal:
+    ```bash
+    ./gradlew dokkaHtml
+    ```
+    The `dokkaHtml` is a Gradle task that the Dokka plugin creates automatically. When you run this command, Dokka will read all your Kotlin files and generate HTML documentation.
+
+34. The generated HTML documentation will be located in specific folders:
+    ```
+    yourProjectName/build/dokka/html/           # For single-module projects
+    yourProjectName/yourModule/build/dokka/html/  # For multi-module projects
+    ```
+    
+    For example, if your project is called "MyApp" with a module called "core", the docs will be at:
+    ```
+    MyApp/core/build/dokka/html/index.html
+    ```
+    
+    The `build` folder is where Gradle puts all compiled and generated files. The `dokka` folder contains Dokka's output, and `html` contains the website files. Open `index.html` in your web browser to view the documentation.
+
+35. Dokka only generates documentation for your project code, not for external libraries you depend on. This means if your code uses classes from dependencies like OkHttp or Gson, those won't have clickable links in your documentation. However, there are exceptions for well-known frameworks:
+    
+    * **Android**: Types like `Activity`, `ViewModel`, `Fragment`, `View`, etc. will have working links to Android documentation
+    * **Kotlin Standard Library**: Types like `String`, `List`, `Map` will link to Kotlin docs
+    * **Java Standard Library**: Types like `ArrayList`, `HashMap` will link to Java docs
+    
+    Example: If your function returns an `Activity`, the generated docs will link to Android's official Activity documentation. But if it returns a `OkHttpClient`, there won't be a link to OkHttp's documentation.
+
+36. To write good documentation comments that Dokka can use, follow this format:
+    ```kotlin
+    /**
+     * Calculates the total price including tax for a list of items.
+     * 
+     * This function takes a list of item prices and applies the given tax rate
+     * to calculate the final total that a customer needs to pay.
+     * 
+     * @param prices A list of individual item prices in dollars
+     * @param taxRate The tax percentage as a decimal (0.1 for 10% tax)
+     * @return The total price including tax, rounded to 2 decimal places
+     * 
+     * @throws IllegalArgumentException if taxRate is negative
+     * 
+     * @sample
+     * ```
+     * val itemPrices = listOf(10.99, 25.50, 5.99)
+     * val total = calculateTotal(itemPrices, 0.08)  // 8% tax
+     * println(total)  // Prints: 45.94
+     * ```
+     */
+    fun calculateTotal(prices: List<Double>, taxRate: Double): Double {
+        require(taxRate >= 0) { "Tax rate cannot be negative" }
+        val subtotal = prices.sum()
+        return (subtotal * (1 + taxRate)).round(2)
+    }
+    ```
+    
+    Documentation comment structure:
+    * `/**` starts a documentation comment (three asterisks, not two)
+    * First paragraph is a brief description
+    * `@param` explains what each parameter does
+    * `@return` explains what the function returns
+    * `@throws` explains when exceptions are thrown
+    * `@sample` provides example usage code
+    * `*/` ends the documentation comment
+
+37. For classes, document the class purpose and important properties:
+    ```kotlin
+    /**
+     * Represents a user account in the application.
+     * 
+     * This class stores user information and provides methods to update
+     * user preferences and validate account status.
+     * 
+     * @property userId Unique identifier for the user account
+     * @property email User's email address, used for login
+     * @property isActive Whether the account is currently active
+     * 
+     * @constructor Creates a new user account with the given details
+     */
+    class UserAccount(
+        val userId: String,
+        val email: String,
+        var isActive: Boolean = true
+    ) {
+        /**
+         * Updates the user's email address.
+         * 
+         * @param newEmail The new email address to set
+         * @throws IllegalArgumentException if email format is invalid
+         */
+        fun updateEmail(newEmail: String) {
+            // Implementation here
+        }
+    }
+    ```
+
+38. You can customize Dokka's output by configuring it in your `build.gradle.kts`:
+    ```kotlin
+    tasks.dokkaHtml.configure {
+        dokkaSourceSets {
+            named("main") {
+                moduleName.set("My Awesome Library")                    // Custom module name
+                moduleDescription.set("A library that does amazing things")  // Module description
+                
+                // Add external documentation links
+                externalDocumentationLink {
+                    url.set(URL("https://docs.oracle.com/javase/8/docs/api/"))
+                    packageListUrl.set(URL("https://docs.oracle.com/javase/8/docs/api/package-list"))
+                }
+                
+                // Include source code links
+                sourceLink {
+                    localDirectory.set(file("src/main/kotlin"))
+                    remoteUrl.set(URL("https://github.com/yourname/yourproject/tree/main/src/main/kotlin"))
+                    remoteLineSuffix.set("#L")
+                }
+            }
+        }
+    }
+    ```
+    
+    Configuration options explained:
+    * `moduleName.set()` changes the title shown in the documentation
+    * `moduleDescription.set()` adds a description at the top of the docs
+    * `externalDocumentationLink` adds links to external library documentation
+    * `sourceLink` adds "Source" links that point to your code on GitHub
+
+39. For multi-module projects, you can generate combined documentation:
+    ```kotlin
+    // In root build.gradle.kts
+    plugins {
+        id("org.jetbrains.dokka")
+    }
+    
+    tasks.dokkaHtmlMultiModule.configure {
+        moduleName.set("My Complete Project")
+        includes.from("README.md")  // Include project README in docs
+    }
+    ```
+    
+    Then run:
+    ```bash
+    ./gradlew dokkaHtmlMultiModule
+    ```
+    
+    This creates a single documentation site that includes all your modules, with a navigation menu to switch between them.
+
+40. Common Dokka commands:
+    ```bash
+    ./gradlew dokkaHtml              # Generate HTML docs for current module
+    ./gradlew dokkaHtmlMultiModule   # Generate combined docs for all modules
+    ./gradlew clean dokkaHtml        # Clean and regenerate docs
+    ```
+
+41. Tips for better documentation:
+    * Write clear, simple descriptions that explain the "why", not just the "what"
+    * Include examples in `@sample` tags - they're very helpful for users
+    * Document parameters and return values thoroughly
+    * Use `@see` tags to reference related functions or classes
+    * Update documentation when you change code - outdated docs are worse than no docs
+
+Remember: Good documentation makes your code easier to use and maintain. Dokka makes it easy to create professional-looking documentation that stays up-to-date with your code.
