@@ -507,8 +507,9 @@ Remember: Gradle is powerful but can be confusing. Start with a simple `build.gr
 
 30. Dokka is a documentation generation tool for Kotlin projects. It reads your code comments and generates beautiful HTML documentation websites. Think of it like Javadoc for Java but designed specifically for Kotlin.
 
-31. To use Dokka, first add the Dokka plugin to your `build.gradle.kts` file:
+31. To use Dokka, you must add the Dokka plugin to your module's `build.gradle.kts` file, **not the root project's build.gradle.kts**:
     ```kotlin
+    // In your module's build.gradle.kts (not root build.gradle.kts)
     plugins {
         kotlin("jvm") version "1.9.10"
         id("org.jetbrains.dokka") version "1.9.10"  // Add this line
@@ -516,9 +517,11 @@ Remember: Gradle is powerful but can be confusing. Start with a simple `build.gr
     ```
     The `id("org.jetbrains.dokka")` tells Gradle to use the Dokka plugin. The version `"1.9.10"` specifies which version of Dokka to use - make sure it matches or is compatible with your Kotlin version.
 
+    **Important**: The Dokka plugin must be applied to each individual module where you want to generate documentation, not in the root project's build file. If you put it in the root build.gradle.kts, the tasks won't be available in your modules.
+
 32. For multi-module projects, add Dokka to each module that needs documentation:
     ```kotlin
-    // In each module's build.gradle.kts
+    // In each module's build.gradle.kts (NOT in root build.gradle.kts)
     plugins {
         kotlin("jvm")
         id("org.jetbrains.dokka")
@@ -678,23 +681,54 @@ Remember: Gradle is powerful but can be confusing. Start with a simple `build.gr
     ./gradlew clean dokkaHtml        # Clean and regenerate docs
     ```
 
-41. If the standard `dokkaHtml` or `dokkaMultiProjectHtml` tasks don't work (maybe due to version conflicts or plugin issues), you can use an alternative task:
+41. **Troubleshooting Dokka Tasks**: If the standard `dokkaHtml` or `dokkaMultiProjectHtml` tasks don't work, you can try alternative approaches:
+
+    First, check what Dokka tasks are available in your project:
+    ```bash
+    ./gradlew tasks | grep dokka
+    ```
+    This command lists all available Dokka tasks along with their descriptions. The `grep dokka` part filters the output to show only tasks that contain "dokka" in their name.
+
+    For Dokka version 2.0.0 and later, you can use:
     ```bash
     ./gradlew dokkaGeneratePublicationHtml
     ```
+    This alternative task generates HTML documentation for each module in their respective build directories. After the task completes, it will display a clickable link to the `index.html` file directly in your terminal output, making it easy to open the documentation in your browser.
+
+    **Understanding different Dokka HTML tasks:**
+    * `dokkaHtml` - This is the main task that generates styled HTML documentation. Even if it shows errors during execution, it often still produces usable HTML documentation with proper CSS styling. However, the generated documentation might be missing the sidebar navigation that shows your types (classes, functions, etc.). This is usually not a major inconvenience since the main content is still readable and well-formatted.
     
-    The `dokkaGeneratePublicationHtml` is another Gradle task provided by Dokka that generates HTML documentation for each module in their respective build directories. This task is sometimes more reliable when the standard tasks fail.
+    * `dokkaHtmlPartial` - This task generates HTML documentation without any CSS styles or formatting. The content will be there, but it will look like plain HTML without any visual styling, colors, or layout. Use this if you want the raw HTML content or if `dokkaHtml` fails completely.
+
+    **Important notes about these tasks:**
+    * `dokkaGeneratePublicationHtml` is only available in Dokka version 2.0.0 or newer
+    * If you're using an older version of Dokka, this task won't exist
+    * All tasks generate docs in the same location: `yourProjectName/yourModule/build/dokka/html/`
+    * The terminal link (when available) makes it convenient to quickly open and view your documentation
+    * If `dokkaHtml` works but is missing the sidebar, the documentation is still fully functional - you just won't have the navigation panel
+
+    **General troubleshooting strategy:**
+    1. Run `./gradlew tasks | grep dokka` to see all available Dokka tasks
+    2. Try different task names from the list - some projects may have custom Dokka configurations
+    3. Check your Dokka version in `build.gradle.kts` to see which tasks should be available
+    4. If multiple tasks are available, try them one by one to see which works best for your setup
+
+    Example of checking available tasks:
+    ```bash
+    $ ./gradlew tasks | grep dokka
+    dokkaHtml - Generates documentation in 'html' format
+    dokkaJavadoc - Generates documentation in 'javadoc' format  
+    dokkaGeneratePublicationHtml - Generates documentation for publication
+    dokkaHtmlMultiModule - Generates multi-module documentation
+    ```
     
-    After the documentation generation completes, this task will automatically print a clickable link to the `index.html` file in your terminal. You can click this link or copy-paste it into your browser to view the generated documentation. The link will look something like:
-    ```
-    file:///path/to/yourProjectName/yourModule/build/dokka/html/index.html
-    ```
+    From this output, you can see exactly which Dokka tasks your project supports and try the ones that seem most appropriate.
 
 42. Tips for better documentation:
-     * Write clear, simple descriptions that explain the "why", not just the "what"
-     * Include examples in `@sample` tags - they're very helpful for users
-     * Document parameters and return values thoroughly
-     * Use `@see` tags to reference related functions or classes
-     * Update documentation when you change code - outdated docs are worse than no docs
+    * Write clear, simple descriptions that explain the "why", not just the "what"
+    * Include examples in `@sample` tags - they're very helpful for users
+    * Document parameters and return values thoroughly
+    * Use `@see` tags to reference related functions or classes
+    * Update documentation when you change code - outdated docs are worse than no docs
 
 Remember: Good documentation makes your code easier to use and maintain. Dokka makes it easy to create professional-looking documentation that stays up-to-date with your code.
