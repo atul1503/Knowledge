@@ -678,11 +678,23 @@ Remember: Gradle is powerful but can be confusing. Start with a simple `build.gr
     ./gradlew clean dokkaHtml        # Clean and regenerate docs
     ```
 
-41. Tips for better documentation:
-    * Write clear, simple descriptions that explain the "why", not just the "what"
-    * Include examples in `@sample` tags - they're very helpful for users
-    * Document parameters and return values thoroughly
-    * Use `@see` tags to reference related functions or classes
-    * Update documentation when you change code - outdated docs are worse than no docs
+41. If the standard `dokkaHtml` or `dokkaMultiProjectHtml` tasks don't work (maybe due to version conflicts or plugin issues), you can use an alternative task:
+    ```bash
+    ./gradlew dokkaGeneratePublicationHtml
+    ```
+    
+    The `dokkaGeneratePublicationHtml` is another Gradle task provided by Dokka that generates HTML documentation for each module in their respective build directories. This task is sometimes more reliable when the standard tasks fail.
+    
+    After the documentation generation completes, this task will automatically print a clickable link to the `index.html` file in your terminal. You can click this link or copy-paste it into your browser to view the generated documentation. The link will look something like:
+    ```
+    file:///path/to/yourProjectName/yourModule/build/dokka/html/index.html
+    ```
+
+42. Tips for better documentation:
+     * Write clear, simple descriptions that explain the "why", not just the "what"
+     * Include examples in `@sample` tags - they're very helpful for users
+     * Document parameters and return values thoroughly
+     * Use `@see` tags to reference related functions or classes
+     * Update documentation when you change code - outdated docs are worse than no docs
 
 Remember: Good documentation makes your code easier to use and maintain. Dokka makes it easy to create professional-looking documentation that stays up-to-date with your code.
