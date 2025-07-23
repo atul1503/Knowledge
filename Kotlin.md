@@ -695,6 +695,13 @@ Remember: Gradle is powerful but can be confusing. Start with a simple `build.gr
     ```
     This alternative task generates HTML documentation for each module in their respective build directories. After the task completes, it will display a clickable link to the `index.html` file directly in your terminal output, making it easy to open the documentation in your browser.
 
+    **⚠️ Important for Dokka 2.0.0**: If you're using Dokka version 2.0.0, you need to enable the V2 plugin mode to make the `dokkaGeneratePublicationHtml` task available. Add this property to your `gradle.properties` file:
+    ```properties
+    org.jetbrains.dokka.experimental.gradle.pluginMode=V2Enabled
+    ```
+    
+    The `gradle.properties` file should be in your project's root directory (the same level as your root `build.gradle.kts`). If this file doesn't exist, create it. This property tells Dokka to use the new V2 plugin architecture, which provides the `dokkaGeneratePublicationHtml` task and other improved features. Without this property, the task won't be available even if you have Dokka 2.0.0 installed.
+
     **Understanding different Dokka HTML tasks:**
     * `dokkaHtml` - This is the main task that generates styled HTML documentation. Even if it shows errors during execution, it often still produces usable HTML documentation with proper CSS styling. However, the generated documentation might be missing the sidebar navigation that shows your types (classes, functions, etc.). This is usually not a major inconvenience since the main content is still readable and well-formatted.
     
