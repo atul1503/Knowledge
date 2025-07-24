@@ -22,6 +22,206 @@ rustc --version
 
 The `rustc` command is the Rust compiler. The `--version` flag shows the installed version.
 
+## Development Environment Setup
+
+### VSCode with Rust Analyzer
+
+VSCode with the Rust Analyzer extension is the most popular development environment for Rust. Rust Analyzer provides excellent autocomplete, error checking, and code navigation features.
+
+#### Installing VSCode Rust Analyzer
+
+1. **Install VSCode**: Download from [https://code.visualstudio.com/](https://code.visualstudio.com/)
+
+2. **Install Rust Analyzer Extension**:
+   - Open VSCode
+   - Go to Extensions (Ctrl+Shift+X or Cmd+Shift+X)
+   - Search for "rust-analyzer"
+   - Install the official "rust-analyzer" extension by The Rust Programming Language Team
+
+#### Module Declaration for Autocomplete
+
+**Important**: For Rust Analyzer to provide autocomplete in your Rust files, you must properly declare modules using `mod` statements. This is a crucial step that many beginners miss.
+
+#### Case 1: File in Same Directory
+
+If you create a file called `baller.rs` in the same directory as your `main.rs`:
+
+**Project Structure:**
+```
+src/
+├── main.rs
+└── baller.rs
+```
+
+**In main.rs, you MUST declare the module:**
+```rust
+mod baller;  // This line is required at the top of main.rs
+
+fn main() {
+    // Now you can use items from baller.rs with autocomplete
+    baller::some_function();
+}
+```
+
+**In baller.rs:**
+```rust
+pub fn some_function() {
+    println!("Hello from baller module!");
+}
+
+pub struct Player {
+    pub name: String,
+    pub score: u32,
+}
+
+impl Player {
+    pub fn new(name: String) -> Self {
+        Player { name, score: 0 }
+    }
+    
+    pub fn add_score(&mut self, points: u32) {
+        self.score += points;
+    }
+}
+```
+
+**Why the `mod baller;` declaration is needed:**
+- `mod baller;` tells Rust to look for a file named `baller.rs` and include it as a module
+- Without this declaration, Rust Analyzer cannot understand that `baller.rs` is part of your project
+- The file exists but Rust doesn't know about it, so autocomplete won't work
+- Rust only compiles files that are declared as modules in the module tree
+
+#### Case 2: Directory Module Structure
+
+If you create a directory called `baller/` with a `mod.rs` file inside:
+
+**Project Structure:**
+```
+src/
+├── main.rs
+└── baller/
+    ├── mod.rs
+    └── player.rs
+```
+
+**In main.rs, you MUST declare the module:**
+```rust
+mod baller;  // This tells Rust to look for baller/mod.rs
+
+fn main() {
+    // Autocomplete works for items from baller/mod.rs
+    let player = baller::Player::new("Alice".to_string());
+    println!("Player: {}", player.name);
+}
+```
+
+**In baller/mod.rs:**
+```rust
+pub mod player;  // Declare the player.rs submodule
+
+pub use player::Player;  // Re-export Player for convenience
+
+pub fn init_game() {
+    println!("Game initialized!");
+}
+```
+
+**In baller/player.rs:**
+```rust
+pub struct Player {
+    pub name: String,
+    pub score: u32,
+}
+
+impl Player {
+    pub fn new(name: String) -> Self {
+        Player { name, score: 0 }
+    }
+}
+```
+
+#### What Happens Without Module Declarations
+
+**Without `mod baller;` in main.rs:**
+- Rust Analyzer shows no autocomplete for items in `baller.rs`
+- The file is ignored by the Rust compiler
+- You get "cannot find module" errors
+- No syntax highlighting or error checking in the isolated file
+
+**With proper `mod baller;` declaration:**
+- Full autocomplete for all public items in the module
+- Error checking and syntax highlighting work
+- "Go to definition" navigation works
+- Rust Analyzer can understand the entire project structure
+
+#### Best Practices for Module Organization
+
+1. **Always declare modules at the top of the file:**
+   ```rust
+   // All module declarations at the top
+   mod database;
+   mod api;
+   mod utils;
+   
+   use std::collections::HashMap;
+   // ... rest of the code
+   ```
+
+2. **Use `pub mod` to make modules public:**
+   ```rust
+   pub mod database;  // Other crates can access this module
+   mod internal;      // Private to this crate only
+   ```
+
+3. **Use descriptive module names:**
+   ```rust
+   mod user_service;     // Good: clear purpose
+   mod data;            // Bad: too vague
+   ```
+
+4. **Group related functionality:**
+   ```rust
+   mod models {
+       pub mod user;
+       pub mod post;
+       pub mod comment;
+   }
+   
+   mod services {
+       pub mod auth;
+       pub mod email;
+   }
+   ```
+
+#### Troubleshooting Rust Analyzer
+
+**If autocomplete isn't working:**
+
+1. **Check module declarations**: Ensure all files are declared with `mod` statements
+2. **Restart Rust Analyzer**: In VSCode, open Command Palette (Ctrl+Shift+P) and run "rust-analyzer: Restart server"
+3. **Check Cargo.toml**: Make sure your project has a proper `Cargo.toml` file
+4. **Verify file structure**: Ensure files are in the correct directories as declared
+
+**Common mistakes:**
+- Creating `baller.rs` but forgetting `mod baller;` in main.rs
+- Putting `mod baller;` inside a function instead of at the module level
+- Misspelling the module name in the declaration
+- Creating `baller/mod.rs` but declaring `mod baller_module;` (name mismatch)
+
+#### VSCode Rust Analyzer Features
+
+Once modules are properly declared, Rust Analyzer provides:
+
+- **Autocomplete**: Suggests functions, structs, and methods
+- **Error highlighting**: Shows compile errors in real-time
+- **Go to definition**: Ctrl+click to jump to where items are defined
+- **Find references**: See where functions and types are used
+- **Refactoring**: Rename symbols across the entire project
+- **Inline documentation**: Hover to see function signatures and docs
+- **Code formatting**: Automatic code formatting on save
+
+This module declaration requirement is fundamental to how Rust organizes code and is essential for getting the full development experience with Rust Analyzer in VSCode.
+
 ## Basic Syntax
 
 ### Hello World
