@@ -9588,6 +9588,180 @@ fn main() {
 
 Rust's FFI capabilities make it an excellent choice for integrating with existing systems, creating high-performance libraries for other languages, and gradually migrating legacy code to Rust. The combination of safety and performance makes Rust particularly valuable for creating reliable system interfaces.
 
+## Unsafe Rust: Rules and Best Practices
+
+Unsafe Rust is a small, powerful escape hatch. It lets you do five extra things that normal (safe) Rust does not allow. When you use it, you take responsibility for keeping code correct and free of undefined behavior.
+
+### What `unsafe` allows
+- Dereference a raw pointer: `*const T` or `*mut T`
+- Call an `unsafe fn` or an `unsafe` method
+- Access or modify a `static mut` variable
+- Implement an `unsafe trait`
+- Read or write a `union` field
+
+Note: Writing `unsafe` does not make code “faster” by itself. It only disables some compiler checks inside the `unsafe` block. You must still follow Rust’s safety rules by hand.
+
+### Golden rules
+- Keep `unsafe` blocks as small as possible.
+- Put a safe wrapper around unsafe internals. Expose a safe API.
+- Always explain why the `unsafe` block is sound. Write a "SAFETY:" comment right above the block.
+- Validate all inputs before you do the unsafe action.
+- Do not create invalid references. Prefer raw pointers for aliasing, and only create `&T`/`&mut T` when rules are guaranteed.
+- Do not read uninitialized memory. Use `std::mem::MaybeUninit<T>` for manual initialization.
+- Respect alignment and lifetime rules for pointers and references.
+- Avoid `static mut`. Prefer `Atomic*`, `Mutex<T>`, or `OnceLock<T>`.
+- Only implement `unsafe` traits (like manual `Send`/`Sync`) when you can prove they hold for all uses.
+
+### Example: Turning a raw pointer into a slice safely
+
+```rust
+use std::slice;
+
+fn sum_raw(ptr: *const i32, len: usize) -> Option<i32> {
+    if ptr.is_null() || len == 0 {
+        return None;
+    }
+
+    // SAFETY: we checked that `ptr` is non-null and `len > 0`.
+    // Caller must ensure `ptr` points to `len` valid, properly aligned `i32`s,
+    // and that memory outlives this function call, with no mutable aliasing.
+    let numbers: &[i32] = unsafe { slice::from_raw_parts(ptr, len) };
+    Some(numbers.iter().sum())
+}
+```
+
+- `*const i32` is a raw pointer to an `i32`. Raw pointers can be null and are not automatically safe to dereference.
+- `slice::from_raw_parts(ptr, len)` builds a `&[i32]` from a raw pointer and a length. This is `unsafe` because the compiler cannot check that `ptr` is valid.
+- The "SAFETY:" comment states the contract required to make this block sound.
+
+### Example: Prefer a safe wrapper over `unsafe fn`
+
+```rust
+use std::slice;
+
+/// Adds elements from a raw pointer slice.
+///
+/// # Safety
+/// - `ptr` must be non-null and properly aligned for `i32`.
+/// - The memory at `ptr..ptr+len` must be initialized and valid for reads.
+/// - No other thread may mutate this memory while we read it.
+pub unsafe fn sum_raw_unchecked(ptr: *const i32, len: usize) -> i32 {
+    let numbers = slice::from_raw_parts(ptr, len);
+    numbers.iter().sum()
+}
+
+pub fn sum_raw_safe(ptr: *const i32, len: usize) -> Option<i32> {
+    if ptr.is_null() { return None; }
+    // SAFETY: we validated non-null. Caller still must honor the documented contract.
+    Some(unsafe { sum_raw_unchecked(ptr, len) })
+}
+```
+
+- `unsafe fn` means calling the function is unsafe. The body may or may not use `unsafe` blocks.
+- Provide a safe function (`sum_raw_safe`) that validates easy checks and centralizes the actual unsafe call.
+
+### Example: Avoid `static mut`; use atomics instead
+
+```rust
+use std::sync::atomic::{AtomicU32, Ordering};
+
+static GLOBAL_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+pub fn increment() -> u32 {
+    // `fetch_add` atomically adds and returns the previous value.
+    GLOBAL_COUNTER.fetch_add(1, Ordering::Relaxed) + 1
+}
+```
+
+- `AtomicU32` is a number type that supports atomic (thread-safe) operations.
+- `Ordering::Relaxed` is an argument that tells the CPU/compiler how to order memory operations. Use `Relaxed` for simple counters that do not order with other data; use `SeqCst` for the strongest ordering when unsure.
+- This design avoids `static mut`, which is unsafe to read and write and can cause data races.
+
+### Example: Unions require `unsafe` to read fields
+
+```rust
+union IntOrFloat {
+    i: u32,
+    f: f32,
+}
+
+fn read_union() {
+    let v = IntOrFloat { i: 42 };
+    // SAFETY: we only read the `i` field, which we last wrote.
+    let i_value = unsafe { v.i };
+    println!("{}", i_value);
+}
+```
+
+- A `union` can store different layouts in the same memory. Reading a field that was not most-recently written is undefined behavior.
+- Accessing a union field is `unsafe`, so we must explain why it is okay.
+
+### Example: `unsafe trait` and manual `Send`/`Sync`
+
+```rust
+use std::marker::PhantomData;
+
+struct RawBox<T> {
+    ptr: *mut T,
+    _marker: PhantomData<T>,
+}
+
+// This is only an illustration. Do NOT add these impls unless you can prove safety.
+// For raw pointers, you must ensure exclusive access and valid lifetimes.
+unsafe impl<T: Send> Send for RawBox<T> {}
+unsafe impl<T: Send + Sync> Sync for RawBox<T> {}
+```
+
+- `Send` means a type can be moved to another thread. `Sync` means `&T` can be shared between threads.
+- Implementing these traits is `unsafe` because a wrong impl can cause data races or invalid access.
+- In practice, you rarely need to write these manually. Prefer using existing safe types (`Arc<T>`, `Mutex<T>`, `Atomic*`).
+
+### Example: FFI boundary basics
+
+```rust
+use std::os::raw::c_int;
+
+#[no_mangle]                 // keep this function name for the C linker
+pub extern "C" fn add(a: c_int, b: c_int) -> c_int { // `extern "C"` uses C calling convention
+    a + b
+}
+```
+
+- `extern "C"` tells Rust to use the C ABI (Application Binary Interface) so C code can call it.
+- `#[no_mangle]` prevents Rust from changing the function name during compilation, so the symbol is easy to find.
+- Do not let Rust panics cross FFI boundaries. Return error codes or write to an output pointer instead.
+
+### Things that are undefined behavior (UB)
+Avoid all of the following. Doing these can break your program in ways the compiler cannot predict:
+
+- Dereferencing a null, dangling, or misaligned pointer
+- Creating an `&T` or `&mut T` that does not point to valid, initialized data for its entire lifetime
+- Aliasing mutable references (two `&mut T` to the same data at the same time)
+- Data races (two threads access the same memory, at least one write, without synchronization)
+- Reading uninitialized memory (use `MaybeUninit<T>` instead)
+- Breaking type invariants (e.g., creating an enum with an invalid discriminant)
+- Out-of-bounds pointer arithmetic that is later dereferenced
+- Double-free, use-after-free, or freeing with the wrong allocator
+- Calling a function through the wrong ABI or with the wrong signature
+- Reading a `union` field that was not the most-recently-written field
+
+### Tooling that helps
+- Miri: an interpreter that checks many unsafe mistakes at runtime
+  - Install: `rustup component add miri`
+  - Run tests under Miri: `cargo miri test`
+- Clippy lints for unsafe:
+  - Enable and fix warnings like `clippy::undocumented_unsafe_blocks` (ensures every unsafe block has a SAFETY comment)
+  - Run: `cargo clippy --all-targets --all-features -- -W clippy::undocumented_unsafe_blocks`
+
+### Checklist before you write `unsafe`
+- Can I do this with safe code (slices, iterators, standard types)?
+- Is the `unsafe` block as small as possible?
+- Is there a safe public API that hides the unsafe details?
+- Did I write a clear "SAFETY:" comment that proves the invariants?
+- Did I add tests (and run them under Miri) to exercise edge cases?
+
+Unsafe Rust is useful and sometimes necessary (FFI, performance-critical code, low-level systems). Use it carefully, explain your reasoning, and keep it contained.
+
 ## Conclusion
 
 Rust is a powerful systems programming language that provides memory safety without garbage collection. Its ownership system, type system, and error handling make it excellent for building reliable and efficient software. The examples in this document demonstrate the fundamental concepts needed to start programming in Rust.
