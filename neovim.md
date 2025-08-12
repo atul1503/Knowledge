@@ -128,6 +128,62 @@ Operator + motion (powerful pattern):
 
 In these, a "motion" is any move command like `w`, `b`, `0`, `$`, `}` etc. You can add a count. Example: `d3w` deletes three words forward. The idea is: first you say what to do (delete/change/yank), then you say where to move to (the motion), and Neovim applies the action over that area.
 
+## Copy and paste (inside Neovim and with the system clipboard)
+
+Here the word "yank" means copy. A "register" is a small storage box inside Neovim that holds text. The default register holds your last yank or delete. The system clipboard is a special register named `+`.
+
+### Copy (yank) inside Neovim
+
+- Copy the current line: `yy`
+- Copy N lines: `{N}yy` (example: `5yy`)
+- Copy by motion: `y{motion}` (example: `y$` copies to end of line; `yaw` copies the word under the cursor)
+- Visual select then copy: press `v`, move to select, then `y`
+
+### Paste inside Neovim
+
+- Paste after cursor: `p`
+- Paste before cursor: `P`
+- Paste over a selection: select with `v`, then press `p` (replaces the selection)
+
+### Use the system clipboard
+
+- Copy to system clipboard: `"+y` (example: select text with `v` then press `"+y`)
+- Paste from system clipboard: `"+p`
+
+On Linux there is also a selection clipboard named `*` (middle-click paste in X11): use `"*y` and `"*p`.
+
+Make system clipboard the default so normal `y`/`p` use it:
+
+- Temporary (command): `:set clipboard=unnamedplus`
+- Permanent (Lua in `init.lua`):
+```lua
+vim.opt.clipboard = "unnamedplus"
+```
+
+### Paste text from your OS into Neovim
+
+- Easiest: go to Insert mode (`i`) and paste from your terminal (for example Cmd+V on macOS, Ctrl+Shift+V on many terminals). Modern terminals send "bracketed paste" and Neovim handles it safely.
+- Precise: stay in Normal mode and use `"+p` to paste from the system clipboard register.
+
+### Copy text from Neovim to other apps
+
+- Visual select the text, then `"+y`. Now you can paste into other apps with your OS paste (Cmd+V or Ctrl+V).
+- Optional shortcut (Lua): map `<leader>y` to copy selection to clipboard.
+```lua
+vim.keymap.set("v", "<leader>y", '"+y', { desc = "Yank to system clipboard" })
+```
+
+### Troubleshooting clipboard
+
+- Check support: run `:checkhealth` and read the Clipboard section.
+- macOS: Neovim uses `pbcopy`/`pbpaste` automatically. If `"+` fails, ensure Neovim was installed with clipboard support (Homebrew `neovim` is fine).
+- Linux (X11): install `xclip` or `xsel` so Neovim can talk to the clipboard. For Wayland, install `wl-clipboard` (`wl-copy`, `wl-paste`).
+- Inside tmux: enable clipboard pass-through. In `~/.tmux.conf` add:
+```
+set -g set-clipboard on
+```
+Then restart tmux. Now Neovim’s `"+y` should reach the system clipboard.
+
 ## Search
 
 - `/text` then `Enter`: search forward for `text`.
@@ -295,6 +351,222 @@ Key idea: You can still add your own files in `~/.config/nvim/lua/` to change or
 - Neovim does not see my config: check that your file is at `~/.config/nvim/init.lua`. Check file spelling and folder names.
 - A plugin does not load: check that `lazy.nvim` is installed (the `lazy` folder exists under the path shown by `:echo stdpath('data')`). Check for typos in plugin names like `owner/repo`.
 - I want a separate config for experiments: set `NVIM_APPNAME=mytest` before starting Neovim. Then Neovim will use `~/.config/mytest/` as the config folder. Example: run `NVIM_APPNAME=mytest nvim` in your terminal.
+
+## Common Neovim Lua API use cases (simple recipes)
+
+The Lua API lets you change Neovim behavior using Lua code. In Lua, `vim` is a global table that Neovim provides. It contains:
+
+- `vim.o` and `vim.opt`: set options.
+- `vim.g`: set global variables (used by some plugins).
+- `vim.keymap.set`: set keymaps.
+- `vim.api`: low-level functions (create autocommands, buffers, windows, etc.).
+- `vim.cmd`: run a Vim command as a string.
+- `vim.diagnostic`: work with diagnostics (errors, warnings).
+- `vim.lsp`: talk to the Language Server Protocol features when an LSP is attached.
+- `vim.fs`: helper functions to find files and walk directories.
+- `vim.notify`: show messages.
+
+Each recipe below explains new terms when they appear.
+
+### Set options and globals
+
+```lua
+-- Options (editor settings)
+vim.o.number = true            -- turn on absolute line numbers
+vim.opt.relativenumber = true  -- turn on relative line numbers
+vim.opt.shiftwidth = 2         -- spaces per indent step
+vim.opt.tabstop = 2            -- how many spaces a <Tab> counts for
+
+-- Global variables (seen by plugins)
+vim.g.mapleader = " "         -- set <leader> to Space
+```
+
+Explanation:
+
+- `vim.o` and `vim.opt` both change options. `vim.opt` accepts richer types (like lists); both are fine for simple values.
+- `vim.g.mapleader` sets the leader key. `<leader>` is a prefix used in keymaps.
+
+### Keymaps (keyboard shortcuts)
+
+```lua
+-- Map <leader>e to open the file explorer (example using :Ex)
+vim.keymap.set("n", "<leader>e", ":Ex<CR>", { desc = "Open explorer", silent = true })
+
+-- Buffer-local mapping: only for the current buffer (use 0 for current buffer id)
+vim.keymap.set("n", "<leader>c", function()
+  print("Hello from this buffer only")
+end, { buffer = 0, desc = "Buffer hello" })
+```
+
+Explanation:
+
+- `vim.keymap.set(mode, lhs, rhs, opts?)` sets a keymap.
+- `mode` "n" means Normal mode. `lhs` is what you press. `rhs` is what runs.
+- `desc` adds a human-friendly description (used by some plugins and help).
+- `silent = true` hides the command from the command line while it runs.
+- `buffer = 0` makes the map only for the current buffer (the current open file).
+
+### Autocommands (run code on events)
+
+```lua
+-- Create an augroup to keep related autocommands together
+local group = vim.api.nvim_create_augroup("ExampleGroup", { clear = true })
+
+-- Auto-trim trailing spaces on save for Lua files
+vim.api.nvim_create_autocmd("BufWritePre", {
+  group = group,
+  pattern = "*.lua",
+  callback = function()
+    local save = vim.fn.winsaveview()  -- remember cursor view
+    vim.cmd([[keeppatterns %s/\s\+$//e]]) -- remove trailing spaces
+    vim.fn.winrestview(save)            -- restore cursor view
+  end,
+})
+```
+
+Explanation:
+
+- An "autocommand" runs when an event happens. `BufWritePre` fires before a buffer is written to disk.
+- `nvim_create_augroup(name, { clear = true })` defines a group so you can manage/remove its autocommands as a set.
+- `pattern` matches file names.
+- `callback` is the Lua function to run.
+
+### User commands (custom :commands)
+
+```lua
+-- Define :Hello that prints a message
+vim.api.nvim_create_user_command("Hello", function(opts)
+  -- opts.args contains any arguments typed after :Hello
+  vim.notify("Hello " .. (opts.args ~= "" and opts.args or "Neovim"))
+end, { nargs = "?", desc = "Say hello" })
+
+-- Usage: :Hello or :Hello YourName
+```
+
+Explanation:
+
+- `nvim_create_user_command(name, fn, opts)` creates a `:` command.
+- `nargs = "?"` means 0 or 1 argument is allowed.
+- `vim.notify(text)` shows a message.
+
+### Work with buffers, windows, and tabs
+
+```lua
+-- Write a line at the end of the current buffer
+local buf = vim.api.nvim_get_current_buf()      -- current buffer id (a number)
+local last = vim.api.nvim_buf_line_count(buf)   -- how many lines are in this buffer
+vim.api.nvim_buf_set_lines(buf, last, last, false, { "-- Added by Lua" })
+
+-- Move cursor to line 1, column 1 in the current window
+local win = vim.api.nvim_get_current_win()
+vim.api.nvim_win_set_cursor(win, { 1, 0 })
+
+-- Open a vertical split with a new scratch buffer
+vim.cmd("vsplit")
+local newbuf = vim.api.nvim_create_buf(true, true) -- listed=true, scratch=true
+vim.api.nvim_win_set_buf(0, newbuf)                -- 0 = current window
+```
+
+Explanation:
+
+- A "buffer" is the in-memory text of a file (or scratch text). A "window" shows a buffer. A "tabpage" is a layout of windows.
+- `nvim_buf_set_lines(buf, start, end_, strict, lines)` replaces lines from `start` to `end_` with the given list `lines`. Here we append at the end by using `start == end == last`.
+- `nvim_win_set_cursor(win, { line, col })` places the cursor. `col` is 0-based.
+- `nvim_create_buf(listed, scratch)` creates a new empty buffer. A scratch buffer is not tied to a file.
+
+### Diagnostics (errors and warnings)
+
+```lua
+-- Show diagnostics for the current line in a floating window
+vim.keymap.set("n", "<leader>d", function()
+  vim.diagnostic.open_float(nil, { focus = false, border = "rounded" })
+end, { desc = "Line diagnostics" })
+
+-- Navigate diagnostics
+vim.keymap.set("n", "[d", vim.diagnostic.goto_prev, { desc = "Prev diagnostic" })
+vim.keymap.set("n", "]d", vim.diagnostic.goto_next, { desc = "Next diagnostic" })
+```
+
+Explanation:
+
+- `vim.diagnostic.open_float(bufnr?, opts?)` shows messages for a spot.
+- `goto_prev` and `goto_next` jump between diagnostics.
+
+### LSP (Language Server Protocol) helpers
+
+These work when an LSP server is attached to the current buffer.
+
+```lua
+-- Simple LSP keymaps (when LSP is available)
+vim.keymap.set("n", "K", vim.lsp.buf.hover, { desc = "LSP Hover" })
+vim.keymap.set("n", "gd", vim.lsp.buf.definition, { desc = "Go to definition" })
+vim.keymap.set("n", "gr", vim.lsp.buf.references, { desc = "List references" })
+vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, { desc = "Rename symbol" })
+vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "Code action" })
+vim.keymap.set({ "n", "v" }, "<leader>lf", function()
+  vim.lsp.buf.format({ async = true })
+end, { desc = "Format" })
+```
+
+Explanation:
+
+- `vim.lsp.buf` has common editor actions powered by the language server.
+- `format({ async = true })` runs formatting without blocking the editor.
+
+### Filesystem helpers
+
+```lua
+-- Find the nearest git root or `.git` directory upward from the current file
+local git_dir = vim.fs.find(".git", { upward = true })[1]
+if git_dir then
+  vim.notify("Found git folder at: " .. git_dir)
+end
+
+-- Find files named README.md under the current working directory (one level deep)
+local readmes = vim.fs.find(function(name)
+  return name:lower() == "readme.md"
+end, { limit = 10 })
+```
+
+Explanation:
+
+- `vim.fs.find(target, opts)` searches for names starting from a directory. `upward = true` walks up parent folders.
+- You can pass a function to decide matches.
+
+### Notifications and UI prompts
+
+```lua
+-- Notify with levels: :help vim.log.levels
+vim.notify("All good!", vim.log.levels.INFO)
+
+-- Quick prompt selection (simple menu)
+vim.ui.select({ "alpha", "beta", "gamma" }, { prompt = "Choose one:" }, function(choice)
+  if choice then vim.notify("You picked: " .. choice) end
+end)
+```
+
+Explanation:
+
+- `vim.ui.select(items, opts, on_choice)` lets you show a simple list prompt. Plugins can override how it looks.
+
+### Simple async helpers
+
+```lua
+-- Defer a function by 200 milliseconds
+vim.defer_fn(function()
+  vim.notify("This ran later")
+end, 200)
+
+-- Schedule a function to run in the main event loop (useful inside callbacks)
+vim.schedule(function()
+  print("Scheduled work")
+end)
+```
+
+Explanation:
+
+- `vim.defer_fn(fn, ms)` runs `fn` after `ms` milliseconds.
+- `vim.schedule(fn)` runs `fn` soon on the main thread. Use it when you must touch the UI from a different callback.
 
 ## Quick reference: going back
 
