@@ -97,6 +97,54 @@ Neovim stores a "change list". It is a list of places where you edited text:
 - `g;`: jump to the previous change (go back through edits).
 - `g,`: jump to the next change (go forward through edits).
 
+## Window management and navigation
+
+A "window" shows one buffer (one file view). A "split" is just another window beside or above/below. A "tab" is a layout that can contain multiple windows.
+
+### Move between windows
+
+- Ctrl-w h: move to the window on the left
+- Ctrl-w j: move to the window below
+- Ctrl-w k: move to the window above
+- Ctrl-w l: move to the window on the right
+- Ctrl-w w: move to the next window (cycle)
+- Ctrl-w p: move to the previous window (go back)
+
+Jump to a specific window by number:
+
+- Show how many windows exist: `:echo winnr('$')`
+- Jump to window N: type `:N wincmd w` (example: `:2 wincmd w`)
+
+Optional Lua shortcuts to jump to windows 1..9:
+
+```lua
+for i = 1, 9 do
+  vim.keymap.set("n", "<leader>" .. i, i .. "<C-w>w", { remap = true, desc = "Go to window " .. i })
+end
+```
+
+### Create and close splits
+
+- Horizontal split: `:split` or Ctrl-w s
+- Vertical split: `:vsplit` or Ctrl-w v
+- Close current window: `:q` or Ctrl-w c
+- Keep only current window (close others): Ctrl-w o
+
+### Resize and rearrange
+
+- Make all windows equal size: Ctrl-w =
+- Grow/shrink height: Ctrl-w + (taller), Ctrl-w - (shorter)
+- Grow/shrink width: Ctrl-w > (wider), Ctrl-w < (narrower)
+- Move current window to a side: Ctrl-w H (left), Ctrl-w J (bottom), Ctrl-w K (top), Ctrl-w L (right)
+
+### Tabs (optional)
+
+- Next tab: `gt`
+- Previous tab: `gT`
+- Go to tab N: `{N}gt`
+
+Tip: Tabs are collections of windows. Use them if you want separate layouts for different tasks.
+
 ### Summary: ways to go back
 
 - Back in the same line: `h` (left), `b` (to start of previous word), `ge` (to end of previous word), `0` (line start), `^` (first non-space), `F{char}` (to previous char), `T{char}` (to just after previous char).
@@ -190,6 +238,76 @@ Then restart tmux. Now Neovim’s `"+y` should reach the system clipboard.
 - `?text` then `Enter`: search backward for `text`. This is also a way to go back to a previous match.
 - `n`: move to the next match.
 - `N`: move to the previous match (goes the opposite direction of the last search).
+
+## Search across files (project-wide)
+
+This means: look for text in many files inside a folder and its sub-folders, and jump to the results.
+
+### Using built-in `:vimgrep`
+
+- Basic: type `:vimgrep /text/ **/*` then press `Enter`.
+  - `:vimgrep` searches using Vim’s regular expressions.
+  - `/text/` is the pattern. The slashes `/` are separators. Replace `text` with what you want to find.
+  - `**/*` says: search in all files under the current directory (recursively). It uses shell-style globs.
+- Show the result list (called the quickfix list): `:copen`
+- Jump through results: `:cnext` (next), `:cprevious` (previous)
+- Close the list: `:cclose`
+
+Useful patterns:
+
+- Case-insensitive match: add `\c` inside the pattern. Example: `:vimgrep /todo\c/ **/*`
+- Match a whole word: use `\<` and `\>` around the word. Example: `:vimgrep /\<init\>/ **/*`
+- Add more results to the same list: use `:vimgrepadd` instead of `:vimgrep`.
+
+### With Telescope (if installed, common in LazyVim)
+
+- Live search by typing: `:Telescope live_grep`
+- Search for the word under cursor: `:Telescope grep_string`
+
+These commands open a picker window where you can type the search term. Select a result to jump there.
+
+### Terminal-only fallback (outside Neovim)
+
+Run these in your terminal if you prefer, then open files in Neovim:
+
+- Using ripgrep:
+```sh
+rg -n "text" .
+```
+- Using standard grep (slower):
+```sh
+grep -RIn "text" . 2>/dev/null
+```
+
+In both, `-n` or `-nI` prints line numbers. `-R` searches recursively. `-I` skips binary files.
+
+### File glob patterns for `:vimgrep`
+
+`:vimgrep /PATTERN/ {file-globs...}` searches with a Vim regex `PATTERN` across files that match the globs. The part after the second `/` uses file name patterns (globs).
+
+- `*`: any characters except `/` (stays in one path segment)
+- `**`: any characters, can cross `/` (any depth of subdirectories)
+- `?`: exactly one character (not `/`)
+- `[abc]`: one of `a`, `b`, or `c`; `[a-z]`: any lowercase letter; `[^a]`: any char except `a`
+- `{alt1,alt2}`: alternation for file name parts or extensions
+
+Common examples:
+
+- Whole project: `:vimgrep /text/ **/*`
+- One level deep only: `:vimgrep /text/ */*`
+- Only Java: `:vimgrep /\<MyClass\>/ **/*.java`
+- Java or Kotlin: `:vimgrep /pattern/ **/*.{java,kt}`
+- Only under `src/`: `:vimgrep /pattern/ src/**/*`
+- Test files: `:vimgrep /pattern/ **/Test*.*`
+- Hidden files (dotfiles): `:vimgrep /pattern/ **/.*`
+- Uppercase names: `:vimgrep /pattern/ **/[A-Z]*.java`
+
+Notes:
+
+- Use spaces to pass multiple globs: `:vimgrep /pat/ src/**/* test/**/*`
+- Quote paths with spaces: `:vimgrep /pat/ "docs/My Notes"/**/*`
+- Excluding directories is best done by narrowing positives (for example target `src/**` instead of `**/*`).
+- Add to the same quickfix list with `:vimgrepadd`.
 
 ## Save and quit
 
