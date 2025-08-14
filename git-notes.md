@@ -454,3 +454,147 @@ Notes:
     - You want to ensure your local branch pushes to the correct remote branch
     - You're setting up a new feature branch that needs to be shared with team
 
+25. **Reverting a branch to a specific commit (going back in time):**
+
+    **Scenario:** You have a branch with several commits, but something went wrong and you need to go back to an earlier commit. Maybe you introduced a bug, or you want to undo several commits at once.
+
+    **Step 1: Find the commit you want to go back to**
+    ```bash
+    # See your commit history in a simple list
+    git log --oneline
+    # This shows something like:
+    # a1b2c3d (HEAD -> main) Latest commit with bug
+    # e4f5g6h Fixed styling issue  
+    # i7j8k9l Added new feature
+    # m1n2o3p Working commit (this is where we want to go back)
+    # q4r5s6t Initial setup
+    
+    # Copy the commit hash where you want to go back (m1n2o3p in this example)
+    ```
+
+    **Step 2: Choose your reverting method based on what you want to keep**
+
+    **Method 1: Hard Reset (dangerous - loses all changes after that commit)**
+    ```bash
+    # This completely removes all commits after the target commit
+    # ⚠️ WARNING: This permanently deletes commits and changes!
+    git reset --hard m1n2o3p
+    
+    # If you already pushed the bad commits to remote, you need to force push
+    git push --force origin main    # Only do this if you're sure!
+    ```
+    
+    **What `--hard` means:**
+    - `--hard` tells Git to completely erase everything after that commit
+    - It removes the commits from history AND deletes any file changes
+    - Your working directory will look exactly like it did at that commit
+    - Use this when you want to pretend the bad commits never happened
+
+    **Method 2: Soft Reset (keeps your changes but removes commits)**
+    ```bash
+    # This removes the commits but keeps all your changes as uncommitted files
+    git reset --soft m1n2o3p
+    
+    # Now all changes from removed commits are staged and ready to commit
+    git status                      # You'll see all files are "staged for commit"
+    
+    # You can now make a new commit with all these changes
+    git commit -m "Combine previous commits into one"
+    ```
+    
+    **What `--soft` means:**
+    - `--soft` removes commits from history but keeps all the file changes
+    - All changes are automatically staged (ready to commit)
+    - Use this when you want to squash several commits into one
+    - Safer than `--hard` because you don't lose any work
+
+    **Method 3: Mixed Reset (default - keeps changes but unstages them)**
+    ```bash
+    # This removes commits and unstages changes but keeps files modified
+    git reset m1n2o3p              # Same as git reset --mixed m1n2o3p
+    
+    # Your files still have the changes, but they're not staged for commit
+    git status                      # You'll see files as "modified" but not staged
+    
+    # You can review changes and decide what to commit
+    git add specific-file.txt       # Stage only the changes you want
+    git commit -m "Keep only the good changes"
+    ```
+    
+    **What `--mixed` (default) means:**
+    - Removes commits from history but keeps file changes
+    - Changes are NOT staged (you need to `git add` them)
+    - Use this when you want to review and selectively commit changes
+    - Good middle ground between `--soft` and `--hard`
+
+    **Method 4: Revert (safest - creates new commits that undo changes)**
+    ```bash
+    # This creates new commits that undo the bad commits
+    # Keeps all history intact - doesn't delete anything
+    git revert a1b2c3d              # Undo the latest commit
+    git revert e4f5g6h              # Undo another specific commit
+    git revert i7j8k9l              # Undo yet another commit
+    
+    # Or revert a range of commits (from newest to oldest)
+    git revert a1b2c3d^..a1b2c3d    # Revert just the latest commit
+    git revert m1n2o3p..a1b2c3d     # Revert all commits from m1n2o3p to a1b2c3d
+    ```
+    
+    **What `revert` means:**
+    - Creates new commits that undo the changes from specified commits
+    - Doesn't delete any commits - adds new ones that cancel out the bad ones
+    - Safe to use on shared branches because it doesn't rewrite history
+    - Use this when you've already pushed commits and others are working on the branch
+
+    **Step 3: Understand when to use each method**
+
+    **Use Hard Reset when:**
+    - You're working alone on a private branch
+    - You want to completely erase mistakes
+    - You haven't pushed the bad commits yet
+    - You're certain you don't need anything from the removed commits
+
+    **Use Soft Reset when:**
+    - You want to combine multiple commits into one cleaner commit
+    - You made several small commits that should be one big commit
+    - You want to keep all your work but reorganize the commit history
+
+    **Use Mixed Reset when:**
+    - You want to undo commits but carefully review what to keep
+    - You're not sure which changes are good and which are bad
+    - You want to split one big commit into several smaller ones
+
+    **Use Revert when:**
+    - You've already pushed commits to a shared branch
+    - Other people are working on the same branch
+    - You want to keep a complete history of what happened
+    - You might need to undo the revert later
+
+    **Example scenario walkthrough:**
+    ```bash
+    # You have these commits:
+    # a1b2c3d (HEAD) Added broken login feature
+    # e4f5g6h Fixed button colors
+    # i7j8k9l Added user registration  
+    # m1n2o3p Working login page (want to go back here)
+    # q4r5s6t Initial setup
+    
+    # Scenario 1: Private branch, want to erase everything after m1n2o3p
+    git reset --hard m1n2o3p
+    
+    # Scenario 2: Want to keep changes but make them one commit
+    git reset --soft m1n2o3p
+    git commit -m "Complete user authentication system"
+    
+    # Scenario 3: Shared branch, need to safely undo
+    git revert a1b2c3d              # Undo broken login
+    git revert e4f5g6h              # Undo button colors if needed
+    # Registration commit i7j8k9l stays because it's good
+    ```
+
+    **⚠️ Important warnings:**
+    - Never use `--hard` or `--force` on shared branches unless everyone agrees
+    - Always create a backup branch before doing destructive operations: `git branch backup-before-reset`
+    - Test your reset on a copy of the branch first: `git checkout -b test-branch`
+    - Communicate with your team before rewriting shared history
+
