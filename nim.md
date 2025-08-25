@@ -2143,3 +2143,202 @@ proc runIfExists(exe: string, args: string = ""): bool =
 
 NimScript is a powerful tool that bridges the gap between simple build scripts and complex automation systems. It provides the expressiveness of Nim with the practicality of scripting languages, making it ideal for modern development workflows.
 
+## Documentation Generation for Nimble Projects
+
+Documentation generation means creating readable HTML web pages from special comments in your code. Nim reads these comments and creates a website that others can browse to understand your project.
+
+### Writing Documentation Comments
+
+Use `##` (double hash) to write documentation comments in your code:
+
+```nim
+## This module provides math utilities for calculations.
+
+proc add*(x, y: int): int =
+  ## Adds two integers together and returns the result.
+  ## 
+  ## Arguments:
+  ## - x: The first number to add
+  ## - y: The second number to add
+  ## 
+  ## Example:
+  ## ```nim
+  ## let result = add(5, 3)
+  ## echo result  # prints 8
+  ## ```
+  result = x + y
+```
+
+The `##` comments explain what your functions and modules do. The `*` after function names makes them public (available to other modules).
+
+### Generating Documentation for Specific Files
+
+Sometimes you want to document only certain files instead of the whole project:
+
+**Single File Documentation:**
+```bash
+# Generate docs for one specific file
+nim doc --out:docs/utils.html src/utils.nim
+```
+
+**Multiple Specific Files:**
+```bash
+# Generate docs for specific files only
+nim doc --out:docs src/utils.nim src/models.nim src/config.nim
+```
+
+This approach is useful when:
+- You want to document only public modules
+- Your project has many internal files you don't want to expose
+- You're documenting a specific part of a large project
+
+### Generating Documentation for Whole Project
+
+The most important technique is generating documentation for your entire project at once. This creates HTML files for all modules in your project.
+
+**Basic Project Documentation:**
+```bash
+# Generate docs for entire project
+nim doc --project --out:docs src/myproject.nim
+```
+
+This command:
+- `--project` means "document this file AND all files it imports"
+- Starts from your main file (`src/myproject.nim`)
+- Follows all `import` statements to find other files
+- Creates HTML files for each module
+- Creates an index page linking all modules
+
+**Example result:**
+```
+myproject/
+├── src/
+│   ├── myproject.nim     # Main module
+│   ├── utils.nim         # Utility functions
+│   └── models.nim        # Data types
+└── docs/                 # Generated documentation
+    ├── myproject.html    # Main page
+    ├── utils.html        # Utils documentation
+    ├── models.html       # Models documentation
+    └── theindex.html     # Index of all modules
+```
+
+### Using Nimble Tasks for Project Documentation
+
+Create a Nimble task to easily regenerate documentation for your whole project:
+
+```nim
+# In myproject.nimble
+task docs, "Generate project documentation":
+  exec "nim doc --project --index:on --out:docs src/myproject.nim"
+```
+
+Run with:
+```bash
+nimble docs
+```
+
+**Enhanced Project Documentation Task:**
+```nim
+# In myproject.nimble
+task docs, "Generate complete project documentation":
+  # Create docs directory
+  if not dirExists("docs"):
+    mkDir("docs")
+  
+  # Generate documentation with search index
+  exec "nim doc --project --index:on --out:docs src/myproject.nim"
+  
+  # Copy README to docs folder
+  if fileExists("README.md"):
+    exec "cp README.md docs/"
+  
+  echo "Project documentation generated in docs/"
+  echo "Open docs/myproject.html in your browser"
+```
+
+This task:
+- `--index:on` creates a searchable index of all functions and types
+- Copies your README file to the documentation folder
+- Gives helpful messages about where to find the documentation
+
+### Complete Project Documentation Workflow
+
+For serious projects, use this complete workflow:
+
+```nim
+# In myproject.nimble
+task clean_docs, "Remove old documentation":
+  if dirExists("docs"):
+    rmDir("docs")
+  echo "Documentation cleaned"
+
+task build_docs, "Build complete project documentation":
+  # Clean old documentation
+  exec "nimble clean_docs"
+  
+  # Create fresh documentation
+  mkDir("docs")
+  exec "nim doc --project --index:on --out:docs src/myproject.nim"
+  
+  # Copy additional project files
+  if fileExists("README.md"):
+    exec "cp README.md docs/"
+  if dirExists("examples"):
+    exec "cp -r examples docs/"
+  
+  echo "Complete project documentation built!"
+
+task serve_docs, "View documentation in browser":
+  if not dirExists("docs"):
+    exec "nimble build_docs"
+  
+  echo "Starting documentation server at http://localhost:8000"
+  exec "python3 -m http.server 8000 --directory docs"
+```
+
+**Using the workflow:**
+```bash
+# Generate complete project documentation
+nimble build_docs
+
+# View documentation in web browser
+nimble serve_docs
+
+# Clean old documentation
+nimble clean_docs
+```
+
+### Documentation Best Practices for Projects
+
+1. **Document your main module first** - This becomes the entry point for your documentation
+2. **Use `*` to make functions public** - Only public functions appear in documentation
+3. **Import all modules in main** - This ensures all modules get documented
+4. **Include examples** - Show how to use your project's main features
+5. **Keep documentation up to date** - Regenerate docs when you change code
+
+**Example of well-documented project structure:**
+```nim
+# src/myproject.nim (main module)
+## MyProject provides tools for data processing.
+## 
+## This is the main entry point for the project.
+## Import this module to access all functionality.
+## 
+## Example:
+## ```nim
+## import myproject
+## let result = processData("input.txt")
+## echo result
+## ```
+
+import myproject/utils, myproject/models
+
+proc processData*(filename: string): string =
+  ## Main function to process data files.
+  ## This combines utilities and models to process input.
+  # implementation here
+```
+
+This approach creates comprehensive documentation that covers your entire project, making it easy for others to understand and use your code.
+
