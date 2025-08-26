@@ -2192,6 +2192,58 @@ This approach is useful when:
 - Your project has many internal files you don't want to expose
 - You're documenting a specific part of a large project
 
+**Document All Files in Project (Including Subdirectories):**
+
+If you want to generate documentation for every .nim file in your project, including files in subdirectories that might not be imported by your main module:
+
+```bash
+# Find all .nim files and generate docs for each
+find src -name "*.nim" -exec nim doc --out:docs/{}.html {} \;
+```
+
+**Explanation of each part:**
+- `find` - the command that searches for files
+- `src` - the directory to search in (starts from src folder)
+- `-name "*.nim"` - only find files whose names end with .nim
+- `-exec` - run a command for each file that was found
+- `nim doc` - the Nim documentation generator command
+- `--out:docs/{}.html` - save output to docs folder, {} gets replaced with the file path
+- `{}` - placeholder that gets replaced with each found file path
+- `\;` - marks the end of the -exec command (semicolon must be escaped with backslash)
+
+**Example of what happens:**
+If the command finds `src/utils.nim` and `src/data/models.nim`, it runs:
+```bash
+nim doc --out:docs/src/utils.nim.html src/utils.nim
+nim doc --out:docs/src/data/models.nim.html src/data/models.nim
+```
+
+Or using a Nimble task that works on all platforms:
+
+```nim
+# In myproject.nimble
+task docs_all, "Generate docs for every file in the project":
+  if not dirExists("docs"):
+    mkDir("docs")
+  
+  # Generate docs for all .nim files recursively
+  for file in walkDirRec("src"):
+    if file.endsWith(".nim"):
+      let outputFile = "docs" / file.replace("src/", "").replace(".nim", ".html")
+      let outputDir = outputFile.parentDir()
+      if not dirExists(outputDir):
+        mkDir(outputDir)
+      exec "nim doc --out:" & outputFile & " " & file
+  
+  echo "Documentation generated for all files"
+```
+
+This approach:
+- Finds every .nim file in your src directory and subdirectories
+- Generates documentation for each file individually
+- Preserves the directory structure in the docs folder
+- Documents files even if they're not imported by your main module
+
 ### Generating Documentation for Whole Project
 
 The most important technique is generating documentation for your entire project at once. This creates HTML files for all modules in your project.
