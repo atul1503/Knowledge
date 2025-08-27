@@ -2292,24 +2292,25 @@ If you want to generate documentation for every .nim file in your project, inclu
 
 ```bash
 # Find all .nim files and generate docs for each
-find src -name "*.nim" -exec nim doc --out:docs/{}.html {} \;
+find ./ -name "*.nim" -exec nim doc --project --out:docs {} \;
 ```
 
 **Explanation of each part:**
 - `find` - the command that searches for files
-- `src` - the directory to search in (starts from src folder)
+- `./` - the directory to search in (starts from current directory, searches all subdirectories)
 - `-name "*.nim"` - only find files whose names end with .nim
 - `-exec` - run a command for each file that was found
 - `nim doc` - the Nim documentation generator command
-- `--out:docs/{}.html` - save output to docs folder, {} gets replaced with the file path
+- `--project` - generate documentation for the entire project including all imported modules
+- `--out:docs` - save output to docs folder (Nim will create appropriate file names)
 - `{}` - placeholder that gets replaced with each found file path
 - `\;` - marks the end of the -exec command (semicolon must be escaped with backslash)
 
 **Example of what happens:**
-If the command finds `src/utils.nim` and `src/data/models.nim`, it runs:
+If the command finds `./src/utils.nim` and `./src/data/models.nim`, it runs:
 ```bash
-nim doc --out:docs/src/utils.nim.html src/utils.nim
-nim doc --out:docs/src/data/models.nim.html src/data/models.nim
+nim doc --project --out:docs ./src/utils.nim
+nim doc --project --out:docs ./src/data/models.nim
 ```
 
 Or using a Nimble task that works on all platforms:
