@@ -204,7 +204,58 @@ myapp/
   ```bash
   nimble install packagename
   ```
-  This downloads and builds the package, and adds it to your project if you run it inside a nimble project folder.
+  This downloads and builds the package globally to `~/.nimble/pkgs/`. 
+  
+  **Important Note:** `nimble install` does NOT automatically update your project's `.nimble` file. The `requires` section in your `.nimble` file specifies what packages your project needs. If you want to add a new dependency to your project, you must manually edit your `.nimble` file:
+  
+  ```nim
+  # In your myproject.nimble file:
+  requires "packagename >= 1.0.0"
+  ```
+  
+  Then run `nimble install` (without package name) to install all dependencies listed in your `.nimble` file. This ensures your project's dependencies are properly tracked and can be installed by others who use your project.
+
+#### When to Install Packages Separately vs. Adding to .nimble File
+
+**Install separately with `nimble install packagename` when:**
+
+1. **Global development tools** - Tools you use for development across multiple projects:
+   ```bash
+   nimble install nimlsp     # Language server for IDE support
+   nimble install nimfmt     # Code formatter
+   nimble install testament  # Testing tool
+   ```
+   These are like global utilities - you want them available everywhere but they're not part of any specific project.
+
+2. **Experimenting or testing** - When you want to try out a package before deciding if it belongs in your project:
+   ```bash
+   nimble install somepackage  # Just testing it out
+   # Later, if you decide to use it in your project, add it to .nimble file
+   ```
+
+3. **Command-line tools** - Packages that provide executable programs:
+   ```bash
+   nimble install nitch      # System information tool
+   nimble install choosenim  # Nim version manager
+   ```
+   These are standalone programs, not libraries for your code.
+
+**Add to .nimble file when:**
+
+1. **Your project code imports the package** - If your Nim source code has `import packagename`, then the package must be listed in `requires`:
+   ```nim
+   # If your code has this:
+   import jester, json, strutils
+   
+   # Then your .nimble file needs:
+   requires "jester >= 0.5.0"
+   ```
+
+2. **Others need to build your project** - Anyone who downloads your project should be able to run `nimble install` and get all needed dependencies automatically.
+
+3. **Reproducible builds** - Ensures everyone gets the same package versions when building your project.
+
+**Summary:** Think of `nimble install packagename` as installing global tools, and `.nimble` file dependencies as ingredients needed to cook your specific project recipe.
 
 - **List installed packages:**
   ```bash
@@ -330,7 +381,9 @@ task greet, "Prints a greeting":
 | Task                        | Command or File                |
 |-----------------------------|-------------------------------|
 | Create new project          | `nimble init`                 |
-| Add dependency              | `nimble install packagename`  |
+| Install package globally    | `nimble install packagename`  |
+| Add dependency to project   | Edit `.nimble` file manually   |
+| Install project dependencies| `nimble install` (no package name) |
 | List installed packages     | `nimble list --installed`     |
 | Configure project           | Edit `.nimble` file           |
 | Where are dependencies?     | `~/.nimble/pkgs/`             |
