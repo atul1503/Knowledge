@@ -516,15 +516,19 @@ Nim's standard library is comprehensive, and there are many third-party packages
 - `xmlparser` - XML parsing (standard library)
 - `parsecfg` - configuration file parsing (standard library)
 
-**GUI:**
-- `nigui` - native GUI toolkit
-- `gintro` - GTK bindings
-- `wxnim` - wxWidgets bindings
+**GUI (Most Stable Options):**
+- `nigui` - cross-platform native GUI toolkit (Windows, Linux, macOS). Simple API, good for desktop apps
+- `gintro` - high-level GTK3/GTK4 bindings (Linux/Windows/macOS). Very mature, comprehensive widget set
+- `wnim` - Windows-only GUI framework with native Windows look and feel. Stable for Windows desktop apps
+- `nimqml` - Qt QML bindings for modern, dynamic interfaces. Good for cross-platform apps with Qt
+- `nimx` - cross-platform GUI framework (desktop, mobile, web). Lightweight but less mature than others
 
-**Graphics and Games:**
-- `opengl` - OpenGL bindings
-- `sdl2` - SDL2 bindings for games
-- `raylib` - Raylib game development library
+**Graphics and Games (Most Stable Options):**
+- `opengl` - OpenGL bindings for 3D graphics. Very stable, widely used
+- `sdl2` - SDL2 bindings for games and multimedia. Battle-tested, excellent for 2D/3D games
+- `raylib` - Raylib game development library. Simple API, great for beginners and prototypes
+- `glfw` - GLFW bindings for OpenGL window management. Stable foundation for OpenGL apps
+- `cairo` - Cairo graphics library bindings for 2D vector graphics. Very stable for drawing and graphics
 
 **Utilities:**
 - `cligen` - command-line argument parsing
