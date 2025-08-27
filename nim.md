@@ -359,9 +359,46 @@ task greet, "Prints a greeting":
 - For more, see the [Nimble documentation](https://github.com/nim-lang/nimble#nimble-packages).
 
 ### Where Are Dependencies Stored?
-- When you install a dependency, nimble downloads it to a global Nimble package directory (e.g., `~/.nimble/pkgs/`).
+- When you install a dependency, nimble downloads it to a global Nimble package directory (e.g., `~/.nimble/pkgs/` or `~/.nimble/pkgs2/`).
 - Your project itself does **not** get a `vendor` or `node_modules` folder by default.
 - When you build or run your project, Nimble makes sure all dependencies are available on the import path.
+
+#### What's Actually Stored in the Package Directory?
+
+**Source Code, Not Binaries:** Nimble stores the complete source code of packages, not compiled binaries. When you install a package, you get:
+
+- **Full Nim source files** (`.nim` files) - The actual code you can read and inspect
+- **Package configuration** (`.nimble` files) - The package's own dependency and build settings
+- **Documentation and examples** - Any README files, docs, or example code included by the package author
+- **All package subdirectories** - Complete directory structure as created by the package author
+
+**Example of what you'll find:**
+```
+~/.nimble/pkgs2/
+├── jester-0.5.0/           # Web framework package
+│   ├── jester.nim          # Main module source code
+│   ├── jester.nimble       # Package configuration
+│   ├── src/                # Source directory
+│   │   ├── jester/         # Package modules
+│   │   │   ├── core.nim    # Core functionality
+│   │   │   └── utils.nim   # Utility functions
+│   ├── examples/           # Example programs
+│   └── README.md           # Documentation
+└── chronicles-0.10.3/      # Logging package
+    ├── chronicles.nim      # Main module source code
+    ├── chronicles.nimble   # Package configuration
+    └── chronicles/         # Package implementation
+        ├── log.nim         # Logging implementation
+        └── formatters.nim  # Log formatting code
+```
+
+**Executables:** If a package provides command-line tools, Nimble compiles those and puts the resulting binary executables in `~/.nimble/bin/`. This directory is usually added to your system's PATH so you can run these tools from anywhere.
+
+**Why Source Code?** Storing source code instead of binaries means:
+- You can inspect and understand what the package does
+- Nim can optimize the code when compiling your project
+- The package works across different architectures and operating systems
+- You can modify package code if needed (though this isn't recommended)
 
 ### How to See and Access Dependencies
 - **See all installed packages:**
