@@ -414,6 +414,65 @@ task greet, "Prints a greeting":
   ```
   Nimble makes sure these are available when you build or run your project.
 
+### Default Nimble Tasks (Built-in Commands)
+
+Nimble provides several built-in tasks that are available in every project, even if you don't define any custom tasks in your `.nimble` file. These commands help you manage your project without any additional configuration:
+
+**Project Build and Management:**
+- **`nimble build`** - Compiles your project based on the configuration in your `.nimble` file. Creates an executable from the `bin` field or compiles all modules.
+- **`nimble install`** - Installs your project system-wide, making it available as a command or library for other projects.
+- **`nimble test`** - Runs the project's tests. Looks for and executes test files (usually in a `tests/` directory).
+- **`nimble clean`** - Removes build artifacts and temporary files created during compilation.
+
+**Package Management:**
+- **`nimble install <packagename>`** - Installs a package from the Nimble repository or other sources (GitHub, local path).
+- **`nimble uninstall <packagename>`** - Removes an installed package from your system.
+- **`nimble list`** - Shows all available packages in the Nimble repository.
+- **`nimble list --installed`** - Lists all packages currently installed on your system.
+- **`nimble search <keyword>`** - Searches for packages in the Nimble repository that match the keyword.
+- **`nimble refresh`** - Updates the local package list cache from the Nimble repository.
+
+**Project Creation and Information:**
+- **`nimble init`** - Creates a new Nim project with basic structure and `.nimble` file.
+- **`nimble dump`** - Shows detailed information about your project's configuration and dependencies.
+- **`nimble tasks`** - Lists all custom tasks defined in your project's `.nimble` file.
+
+**Publishing and Distribution:**
+- **`nimble publish`** - Publishes your project as a new package to the Nimble directory (requires account setup).
+- **`nimble check`** - Validates your project's `.nimble` file for correctness before publishing.
+
+**Help and Information:**
+- **`nimble --help`** - Shows general help and list of all available commands.
+- **`nimble --help <command>`** - Shows detailed help for a specific command (e.g., `nimble --help build`).
+- **`nimble --version`** - Displays the version of Nimble currently installed.
+
+**Example Usage:**
+```bash
+# Build your project
+nimble build
+
+# Run tests
+nimble test
+
+# Install a dependency
+nimble install jester
+
+# See what custom tasks are available
+nimble tasks
+
+# Get help on a specific command
+nimble --help install
+
+# Clean build artifacts
+nimble clean
+```
+
+**Important Notes:**
+- These tasks work automatically based on your `.nimble` file configuration
+- You don't need to define these tasks yourself - they're built into Nimble
+- Some tasks (like `test` and `build`) require proper project structure and configuration
+- You can override these default behaviors by defining custom tasks with the same names in your `.nimble` file
+
 ### Summary Table
 | Task                        | Command or File                |
 |-----------------------------|-------------------------------|
