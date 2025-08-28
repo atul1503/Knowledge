@@ -88,6 +88,21 @@
    
    The `result` variable is automatically created for any procedure that has a return type. It's initialized to the default value of that type (0 for int, "" for string, nil for ref types, etc.).
 
+5. Nested procedures can access variables from their enclosing scope (closures):
+   ```nim
+   proc createCounter(): proc(): int =
+     var count = 0
+     proc increment(): int =
+       count += 1  # accesses 'count' from outer scope
+       result = count
+     return increment
+   
+   let counter = createCounter()
+   echo counter()  # prints 1
+   echo counter()  # prints 2
+   ```
+   Nested procedures can access and modify variables from their parent procedure, creating closures that "capture" the outer scope.
+
 ## Memory Management
 1. Nim has garbage collection by default, but you can disable it for real-time systems.
 2. Use `new()` to allocate objects on heap or just declare normally for stack allocation.
@@ -111,7 +126,27 @@
    
    echo p.greet()  # method call syntax
    ```
-3. Inheritance uses `object of ParentType`:
+3. Use `method` instead of `proc` for dynamic dispatch (virtual methods):
+   ```nim
+   type
+     Shape = ref object of RootObj
+     Circle = ref object of Shape
+       radius: float
+   
+   method area(s: Shape): float {.base.} =
+     # Base method that can be overridden
+     0.0
+   
+   method area(c: Circle): float =
+     # Overrides the base method
+     3.14159 * c.radius * c.radius
+   
+   # Dynamic dispatch - calls the correct method based on actual type
+   let shapes: seq[Shape] = @[Circle(radius: 5.0)]
+   echo shapes[0].area()  # Calls Circle's area method
+   ```
+   The `{.base.}` pragma marks a method as the base method that can be overridden. Methods without this pragma override existing methods.
+4. Inheritance uses `object of ParentType`:
    ```nim
    type
      Student = object of Person
@@ -139,6 +174,67 @@
    ```
 2. Macros are more powerful - they can manipulate the AST (Abstract Syntax Tree).
 3. Use `when` for compile-time conditionals (like `#ifdef` in C).
+
+## Pragmas (Compiler Directives)
+
+Pragmas are special annotations that give instructions to the compiler about how to handle specific code. They are written in curly braces with dots: `{.pragmaname.}`.
+
+1. **Common pragmas for procedures:**
+   ```nim
+   proc fastFunction() {.inline.} =
+     # This procedure will be inlined for better performance
+     echo "Fast!"
+   
+   proc noReturn() {.noreturn.} =
+     # This procedure never returns (exits or raises exception)
+     quit("Program terminated")
+   
+   proc deprecated() {.deprecated: "Use newFunction instead".} =
+     # Compiler will warn when this is used
+     echo "Old function"
+   ```
+
+2. **Pragmas for variables and types:**
+   ```nim
+   var globalVar {.threadvar.}: int  # Thread-local variable
+   
+   type
+     PackedStruct {.packed.} = object
+       # No padding between fields
+       flag: bool
+       value: int16
+   
+   var uninitializedArray: array[1000, int] {.noinit.}  # Don't zero-initialize
+   ```
+
+3. **Pragmas for imports and exports:**
+   ```nim
+   proc cFunction(): cint {.importc: "c_function", header: "myheader.h".}
+   proc nimFunction(): int {.exportc.}  # Export to C
+   ```
+
+4. **Custom pragmas for documentation or framework integration:**
+   ```nim
+   proc button() {.expand: false.} =
+     # Custom pragma used by UI frameworks
+     # The meaning depends on the framework processing it
+     discard
+   ```
+
+5. **Multiple pragmas can be combined:**
+   ```nim
+   proc optimizedFunction() {.inline, noSideEffect.} =
+     # Both inline and marked as having no side effects
+     result = 42
+   ```
+
+**Common pragma uses:**
+- `{.inline.}` - Inline small functions for performance
+- `{.noSideEffect.}` - Mark pure functions (no global state changes)
+- `{.raises: [].}` - Specify which exceptions a procedure can raise
+- `{.deprecated.}` - Mark old code that should not be used
+- `{.base.}` - Mark methods that can be overridden
+- Custom pragmas for domain-specific languages and frameworks
 
 ## Compilation and Running
 1. Install Nim from https://nim-lang.org or use package managers.
