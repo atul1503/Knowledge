@@ -420,6 +420,7 @@ Nimble provides several built-in tasks that are available in every project, even
 
 **Project Build and Management:**
 - **`nimble build`** - Compiles your project based on the configuration in your `.nimble` file. Creates an executable from the `bin` field or compiles all modules.
+- **`nimble run`** - Builds and immediately runs your project. Equivalent to `nimble build` followed by running the executable. You can pass arguments to your program using `nimble run -- arg1 arg2`.
 - **`nimble install`** - Installs your project system-wide, making it available as a command or library for other projects.
 - **`nimble test`** - Runs the project's tests. Looks for and executes test files (usually in a `tests/` directory).
 - **`nimble clean`** - Removes build artifacts and temporary files created during compilation.
@@ -450,6 +451,12 @@ Nimble provides several built-in tasks that are available in every project, even
 ```bash
 # Build your project
 nimble build
+
+# Build and run your project
+nimble run
+
+# Run your project with arguments
+nimble run -- --verbose input.txt
 
 # Run tests
 nimble test
