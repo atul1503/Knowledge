@@ -309,6 +309,15 @@ myapp/
   requires "packagename >= 1.0.0"
   ```
   
+  **Installing from GitHub repositories:** You can also specify dependencies directly from GitHub repositories in your `.nimble` file:
+  
+  ```nim
+  # In your myproject.nimble file:
+  requires "https://github.com/can-lehmann/owlkettle"
+  ```
+  
+  This line tells Nimble that your project needs the `owlkettle` package, and it should download it directly from the GitHub repository at `https://github.com/can-lehmann/owlkettle`. The `requires` keyword is used in `.nimble` files to declare what packages your project depends on. When someone runs `nimble install` in your project directory, Nimble will automatically download and install all the packages listed in the `requires` section.
+  
   Then run `nimble install` (without package name) to install all dependencies listed in your `.nimble` file. This ensures your project's dependencies are properly tracked and can be installed by others who use your project.
 
 #### When to Install Packages Separately vs. Adding to .nimble File
@@ -591,7 +600,7 @@ nimble clean
 ### Tips
 - You can edit the `.nimble` file directly to add or pin dependency versions.
 - For reproducible builds, use version constraints in `requires`.
-- To use a local package, add a path in the `requires` field: `requires = @ ["../mypkg"]`
+- To use a local package, add a path in the `requires` field: `requires "../mypkg"`
 - Nimble also supports hooks for custom build steps (see Nimble docs for advanced usage).
 
 ### Where Do Nimble Packages Come From?
@@ -601,21 +610,24 @@ nimble clean
   - When you run `nimble install packagename`, Nimble fetches the package from this central repository.
 
 - **GitHub and Other Git Repositories:**
-  - You can install packages directly from a Git URL:
-    ```bash
-    nimble install https://github.com/username/repo
+  - You can specify packages directly from GitHub repositories in your project's `.nimble` file:
+    ```nim
+    # In your .nimble file:
+    requires "https://github.com/username/repo"
     ```
-  - You can also specify a branch, tag, or commit:
-    ```bash
-    nimble install https://github.com/username/repo@branch
-    nimble install https://github.com/username/repo@v1.2.3
-    nimble install https://github.com/username/repo@commit_hash
+  - You can also specify a specific branch, tag, or commit by adding it after a # symbol:
+    ```nim
+    # In your .nimble file:
+    requires "https://github.com/username/repo#branch"
+    requires "https://github.com/username/repo#v1.2.3"
+    requires "https://github.com/username/repo#commit_hash"
     ```
 
 - **Local Packages:**
-  - You can install a package from a local folder:
-    ```bash
-    nimble install /path/to/local/package
+  - You can specify a local package in your `.nimble` file:
+    ```nim
+    # In your .nimble file:
+    requires "../path/to/local/package"
     ```
 
 - **Searching for Packages:**
@@ -626,12 +638,12 @@ nimble clean
     ```
 
 - **Summary Table:**
-| Source                | How to install                                      |
+| Source                | How to specify in .nimble file                      |
 |-----------------------|-----------------------------------------------------|
-| Official repository   | `nimble install packagename`                        |
-| GitHub repo           | `nimble install https://github.com/user/repo`       |
-| Specific branch/tag   | `nimble install https://github.com/user/repo@tag`   |
-| Local folder          | `nimble install /path/to/package`                   |
+| Official repository   | `requires "packagename >= 1.0.0"`                  |
+| GitHub repo           | `requires "https://github.com/user/repo"`          |
+| Specific branch/tag   | `requires "https://github.com/user/repo#tag"`      |
+| Local folder          | `requires "../path/to/local/package"`              |
 | Search for packages   | `nimble search keyword` or visit nimble.directory   |
 
 ## Useful Libraries
