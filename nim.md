@@ -2614,8 +2614,9 @@ task serve_docs, "View documentation in browser":
   if not dirExists("docs"):
     exec "nimble build_docs"
   
-  echo "Starting documentation server at http://localhost:8000"
-  exec "python3 -m http.server 8000 --directory docs"
+  echo "Starting documentation server at http://localhost:8888"
+  echo "The search button will work properly when served through this server"
+  exec "http-server docs -p 8888"
 ```
 
 **Using the workflow:**
@@ -2662,4 +2663,47 @@ proc processData*(filename: string): string =
 ```
 
 This approach creates comprehensive documentation that covers your entire project, making it easy for others to understand and use your code.
+
+### Important Note: Search Button in Generated Documentation
+
+When you generate documentation with `nim doc`, the HTML files include a search button that allows you to search through all symbols in your package. However, **the search button is broken when you open the HTML files directly in your browser** (using `file://` URLs). This happens because the search functionality requires the `dochack.js` file that gets generated with `nim doc`, but browsers block local JavaScript files for security reasons.
+
+**Solution: Use a Real Web Server**
+
+To make the search button work properly, you need to serve the documentation through a real web server instead of opening the files directly. Here are two simple solutions:
+
+**Option 1: Using Node.js http-server (Recommended)**
+```bash
+# Install http-server globally (only need to do this once)
+npm install -g http-server
+
+# Navigate to your docs directory and start the server
+cd docs
+http-server . -p 8888
+
+# Or start the server from your project root
+http-server docs -p 8888
+```
+
+Then open `http://localhost:8888` in your browser. The search button will now work perfectly - you can type in any symbol name from your whole package and it will find and highlight matches.
+
+**Option 2: Using Python's built-in server**
+```bash
+# Navigate to your docs directory
+cd docs
+python3 -m http.server 8888
+
+# Or from project root
+python3 -m http.server 8888 --directory docs
+```
+
+Then open `http://localhost:8888` in your browser.
+
+**What the Search Button Does When Working:**
+- You can search for any function name, type name, variable name, or module name from your entire project
+- It provides instant search results as you type
+- It highlights matching text and shows you exactly where each symbol is defined
+- It works across all modules in your project documentation
+
+This search functionality is very powerful for navigating large codebases and makes your documentation much more user-friendly.
 
